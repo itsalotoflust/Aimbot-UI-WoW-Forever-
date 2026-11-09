@@ -162,6 +162,10 @@ local function Overlay(icon)
     if cd then return cd end
     cd = CreateFrame("Cooldown", nil, icon, "CooldownFrameTemplate")
     local art = icon.Icon or icon.icon
+    if not art and icon.GetName then
+        local okN, name = pcall(icon.GetName, icon)
+        if okN and type(name) == "string" then art = _G[name .. "Icon"] end
+    end
     if art and art.GetObjectType then cd:SetAllPoints(art) else cd:SetAllPoints(icon) end
     pcall(cd.SetDrawSwipe, cd, false)
     pcall(cd.SetDrawEdge, cd, false)
@@ -210,7 +214,44 @@ local function IsAuraIcon(obj)
     if type(id) == "number" and not IsSecret(id) then return true end
     local cd = rawget(obj, "Cooldown") or rawget(obj, "cooldown")
     local art = rawget(obj, "Icon") or rawget(obj, "icon")
-    return cd ~= nil and IsCooldown(cd) and art ~= nil
+    if cd ~= nil and IsCooldown(cd) and art ~= nil then return true end
+    -- classic style: named buttons (TargetFrameBuff1) with <name>Icon / <name>Cooldown
+    local okN, name = pcall(obj.GetName, obj)
+    if okN and type(name) == "string" and (name:find("Buff%d+$") or name:find("Debuff%d+$")) then
+        return true
+    end
+    return false
+end
+
+-- The game's cooldown on an icon, by key or by name.
+local function IconCooldown(icon)
+    local cd = icon.Cooldown or icon.cooldown
+    if IsCooldown(cd) then return cd end
+    local okN, name = pcall(icon.GetName, icon)
+    if okN and type(name) == "string" then
+        cd = _G[name .. "Cooldown"]
+        if IsCooldown(cd) then return cd end
+    end
+end
+
+-- The aura's instance id: from the icon, or looked up from its slot number (classic style).
+local function IconAuraID(icon, unit)
+    local id = icon.auraInstanceID
+    if type(id) == "number" and not IsSecret(id) then return id end
+    local okI, index = pcall(icon.GetID, icon)
+    if not okI or type(index) ~= "number" or IsSecret(index) or index < 1 then return nil end
+    local okN, name = pcall(icon.GetName, icon)
+    local harmful = (okN and type(name) == "string" and name:find("Debuff"))
+        or icon.isDebuff == true or icon.isHarmful == true
+    local filter = harmful and "HARMFUL" or "HELPFUL"
+    if C_UnitAuras and C_UnitAuras.GetAuraDataByIndex then
+        local okA, a = pcall(C_UnitAuras.GetAuraDataByIndex, unit, index, filter)
+        if okA and type(a) == "table" then
+            local aid = a.auraInstanceID
+            if type(aid) == "number" and not IsSecret(aid) then return aid end
+        end
+    end
+    return nil
 end
 
 -- Walks the children of root and calls fn on every aura icon found (not inside an icon).
@@ -247,8 +288,7 @@ local function DoUnitFrame(key, frame)
     local on = s.enabled and s[key]
     local found, own = 0, 0
     local done = EachAuraIcon(frame, function(icon)
-        local bcd = icon.Cooldown or icon.cooldown
-        if not IsCooldown(bcd) then bcd = nil end
+        local bcd = IconCooldown(icon)
         local mine = overlays[icon]
         if not on then
             if bcd then Restore(bcd) end
@@ -262,8 +302,8 @@ local function DoUnitFrame(key, frame)
             if mine then mine:Hide() end
             return
         end
-        local id = icon.auraInstanceID
-        if type(id) ~= "number" or IsSecret(id) then
+        local id = IconAuraID(icon, key)
+        if not id then
             if mine then mine:Hide() end
             return
         end
@@ -299,10 +339,9 @@ local function DoPlate(unit)
     -- icons with no running cooldown from the game get our own timer, as on the target frame
     WalkIcons(uf, 6, function(icon)
         local mine = overlays[icon]
-        local bcd = icon.Cooldown or icon.cooldown
-        local id = icon.auraInstanceID
-        if not on or (bcd and IsCooldown(bcd) and Shown(bcd)) or not Shown(icon)
-            or type(id) ~= "number" or IsSecret(id) then
+        local bcd = IconCooldown(icon)
+        local id = on and Shown(icon) and IconAuraID(icon, unit)
+        if not on or (bcd and Shown(bcd)) or not Shown(icon) or not id then
             if mine then mine:Hide() end
             return
         end

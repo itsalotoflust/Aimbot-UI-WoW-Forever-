@@ -2,6 +2,10 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.12.3
+
+- **Aura Timers:** also finds classic style aura buttons (`TargetFrameBuff1`, `TargetFrameDebuff1`...) and looks up their aura by slot number, so those icons get time-left numbers too.
+
 ## 2.12.2
 
 - **Aura Timers:** now finds the buff and debuff icons on this client's target and focus frames (they are not kept where the retail client keeps them, so 2.11 / 2.12.1 found none). Nameplate icons without a game timer also get the numbers-only timer. `/aimbot diag` now also lists how the target frame's icons are built (the "probe" lines) to help if a layout is still missed.
