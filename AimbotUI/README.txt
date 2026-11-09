@@ -1,4 +1,4 @@
-AIMBOT UI  v2.9.4  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.10.0  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,23 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.10.0
+  Three new on-screen alerts (each has its own tab and on/off switch). They are new files, so
+  FULLY RESTART the game once after updating; /reload is not enough the first time.
+  Only you see them; nothing is sent to chat. Each has text size, color, a Test button and
+  "Lock position": untick it and drag the text anywhere, then lock it again.
+  - Party Death Alert (Combat): "<Name> died" in the middle of your screen when a party member
+    dies, name in class color, with a sound. Fades after a few seconds (adjustable). Optional for
+    raid members too. Feign Death is ignored. With Privacy's private mode on it shows the class
+    instead of the name.
+  - Durability Alert (Quality of life): a pulsing "Repair your gear: 35%" that stays on screen
+    while your gear is below 40% (adjustable), until you repair. Measures your most damaged item
+    or the average of all gear, counts broken items, sound when it first drops.
+  - Talent Point Alert (Quality of life): a pulsing "1 unspent talent point" that stays on screen
+    until you spend it. Hidden in combat and while the talent window is open (both optional),
+    sound when you get a new point.
+  - New /aimbot shortcuts: death, repair, talent.
 
 NEW IN 2.9.4
   - Lorti Style: new "Hide the colored background behind names" option under "Frame art and

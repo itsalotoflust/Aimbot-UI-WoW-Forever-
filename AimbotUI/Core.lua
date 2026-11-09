@@ -7,7 +7,7 @@
 local ADDON_NAME, NS = ...
 _G.AimbotUI = NS
 
-NS.version = "2.9.4"
+NS.version = "2.10.0"
 NS.modules = {}
 NS.moduleOrder = {}
 
@@ -63,6 +63,112 @@ local function Merge(dst, src)
             dst[k] = v
         end
     end
+end
+
+----------------------------------------------------------------------
+-- Movable on-screen alert text (Party Death Alert, Durability Alert, Talent Point Alert)
+-- S() returns the module's settings: size, color, duration, locked, point.
+-- A:Show(msg, hold, pulse) shows the text; it fades out after s.duration seconds unless hold
+-- is true (then it stays until A:Hide()). pulse makes it fade in and out while it is up.
+----------------------------------------------------------------------
+function NS.CreateAlertText(globalName, S, sample)
+    local A = {}
+    local f = CreateFrame("Frame", globalName, UIParent)
+    f:SetFrameStrata("HIGH")
+    f:SetMovable(true)
+    f:SetClampedToScreen(true)
+    f:RegisterForDrag("LeftButton")
+    local bg = f:CreateTexture(nil, "BACKGROUND")
+    bg:SetAllPoints()
+    bg:SetColorTexture(0.2, 0.6, 1, 0.25)
+    local fs = f:CreateFontString(nil, "OVERLAY")
+    fs:SetPoint("CENTER")
+    fs:SetFont(STANDARD_TEXT_FONT, 24, "THICKOUTLINE")
+    A.frame, A.text = f, fs
+    local hideAt, current, pulsing = nil, nil, false
+
+    local function Fit()
+        local s = S()
+        local w = fs:GetStringWidth() or 0
+        f:SetSize(math.max(200, w + 24), s.size + 16)
+    end
+    local function Paint()
+        local c = S().color
+        fs:SetTextColor(c[1], c[2], c[3], c[4] or 1)
+    end
+
+    f:SetScript("OnDragStart", function(self) if not S().locked then self:StartMoving() end end)
+    f:SetScript("OnDragStop", function(self)
+        self:StopMovingOrSizing()
+        local point, _, relPoint, x, y = self:GetPoint()
+        if point then local p = S().point; p[1], p[2], p[3], p[4] = point, relPoint, x, y end
+    end)
+    f:SetScript("OnUpdate", function(self)
+        if not current then return end
+        if not S().locked then self:SetAlpha(1); return end
+        local now = GetTime()
+        if hideAt then
+            local left = hideAt - now
+            if left <= 0 then
+                hideAt, current, pulsing = nil, nil, false
+                self:Hide()
+                return
+            elseif left < 1 then
+                self:SetAlpha(left)
+                return
+            end
+        end
+        if pulsing then
+            -- smooth fade between 35% and 100% once every ~1.2 seconds
+            self:SetAlpha(0.35 + 0.65 * (0.5 + 0.5 * math.cos(now * 5.2)))
+        else
+            self:SetAlpha(1)
+        end
+    end)
+    f:Hide()
+
+    function A:Layout()
+        local s = S()
+        local p = s.point
+        f:ClearAllPoints()
+        f:SetPoint(p[1], UIParent, p[2], p[3], p[4])
+        fs:SetFont(STANDARD_TEXT_FONT, s.size, "THICKOUTLINE")
+        Paint()
+        f:EnableMouse(not s.locked)
+        bg:SetShown(not s.locked)
+        if not s.locked then
+            -- unlocked: always show (a sample if nothing is up) so it can be dragged
+            fs:SetText(current or (sample .. "  (drag me)"))
+            f:SetAlpha(1)
+            f:Show()
+        elseif not current then
+            f:Hide()
+        end
+        Fit()
+    end
+
+    function A:Show(msg, hold, pulse)
+        -- the same held message again (modules re-check often): leave it running smoothly
+        if hold and msg == current and not hideAt and f:IsShown() and pulsing == (pulse and true or false) then
+            return
+        end
+        current = msg
+        pulsing = pulse and true or false
+        fs:SetText(msg)
+        Paint()
+        Fit()
+        f:SetAlpha(1)
+        f:Show()
+        hideAt = (not hold) and (GetTime() + math.max(1, S().duration or 4)) or nil
+    end
+
+    function A:Hide()
+        current, hideAt, pulsing = nil, nil, false
+        if S().locked then f:Hide() else A:Layout() end
+    end
+
+    function A:IsShowing() return current ~= nil end
+    return A
 end
 
 ----------------------------------------------------------------------
