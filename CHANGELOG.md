@@ -2,6 +2,10 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.11.0
+
+- **Aura Timers** (Combat, new module): time-left numbers on buff and debuff icons, so you can see how long your DoTs and crowd control have left on your target, focus and enemy nameplates. The game counts the time itself, so it keeps working even where the client hides aura times from addons. Choose target / focus / nameplates and the number size for each. It is a new file, so **fully restart the game once** after updating. Shortcut: `/aimbot timers`.
+
 ## 2.10.0
 
 Three new on-screen alerts, each with its own tab and on/off switch. They are new files, so **fully restart the game once** after updating; `/reload` is not enough the first time. Only you see them; nothing is sent to chat. Each has text size, color, a Test button and "Lock position": untick it and drag the text anywhere, then lock it again.

@@ -1,4 +1,4 @@
-AIMBOT UI  v2.10.0  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.11.0  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,13 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.11.0
+  - New module: Aura Timers (Combat). Time-left numbers on buff and debuff icons, so you can see
+    how long your DoTs and crowd control have left on your target, focus and enemy nameplates.
+    The game counts the time itself, so it keeps working even where the client hides aura times
+    from addons. Choose target / focus / nameplates and the number size for each. It is a new
+    file, so FULLY RESTART the game once after updating. Shortcut: /aimbot timers
 
 NEW IN 2.10.0
   Three new on-screen alerts (each has its own tab and on/off switch). They are new files, so

@@ -2,18 +2,13 @@
 
 An all-in-one interface addon suite for **World of Warcraft Forever** (interface 16001).
 
-**Current version: 2.10.0**
+**Current version: 2.11.0**
 
 Open it in game with `/aimbot` (or `/aui`). Every module has its own tab and its own on/off switch, and if one module hits a problem it reports in chat and the rest keep running.
 
-## What's new in 2.10.0
+## What's new in 2.11.0
 
-Three new on-screen alerts, each with its own tab and on/off switch. They are new files, so **fully restart the game once** after updating; `/reload` is not enough the first time. Only you see them; nothing is sent to chat. Each has text size, color, a Test button and "Lock position": untick it and drag the text anywhere, then lock it again.
-
-- **Party Death Alert** (Combat): "<Name> died" in the middle of your screen when a party member dies, name in class color, with a sound. Fades after a few seconds (adjustable). Optional for raid members too. Feign Death is ignored. With Privacy's private mode on it shows the class instead of the name.
-- **Durability Alert** (Quality of life): a pulsing "Repair your gear: 35%" that stays on screen while your gear is below 40% (adjustable), until you repair. Measures your most damaged item or the average of all gear, counts broken items, sound when it first drops.
-- **Talent Point Alert** (Quality of life): a pulsing "1 unspent talent point" that stays on screen until you spend it. Hidden in combat and while the talent window is open (both optional), sound when you get a new point.
-- New `/aimbot` shortcuts: `death`, `repair`, `talent`.
+- **Aura Timers** (Combat, new module): time-left numbers on buff and debuff icons, so you can see how long your DoTs and crowd control have left on your target, focus and enemy nameplates. The game counts the time itself, so it keeps working even where the client hides aura times from addons. Choose target / focus / nameplates and the number size for each. It is a new file, so **fully restart the game once** after updating. Shortcut: `/aimbot timers`.
 
 See [CHANGELOG.md](CHANGELOG.md) for every version.
 
