@@ -46,6 +46,10 @@ local M = {
         stages      = 3,                       -- 3 = 50% / 25% / immune (classic), 2 = 50% / immune
         iconSize    = 26,
         plateSize   = 20,
+        playerFree  = true,                    -- your icons: free position (drag) instead of the player frame
+        playerLocked = true,
+        playerPoint = { "CENTER", "CENTER", 0, -120 },   -- just below your character
+        playerSize  = 32,
         spacing     = 3,
         showTimer   = true,
         showStage   = true,
@@ -420,10 +424,60 @@ local function Position(c, anchorFrame, p)
     if not ok then c:SetPoint("CENTER", UIParent, "CENTER", p.x or 0, (p.y or 0) - 150) end
 end
 
+local function SavePlayerPoint(c)
+    -- Store the centre of the icon row relative to the centre of the screen, so the row
+    -- stays centred where you dropped it however many icons it shows.
+    local cx, cy = c:GetCenter()
+    local ux, uy = UIParent:GetCenter()
+    if Num(cx) and Num(cy) and Num(ux) and Num(uy) then
+        local pt = S().playerPoint
+        pt[1], pt[2], pt[3], pt[4] = "CENTER", "CENTER", math.floor(cx - ux + 0.5), math.floor(cy - uy + 0.5)
+    end
+end
+
+local function SetupDrag(c)
+    if c.dragReady then return end
+    c.dragReady = true
+    c:SetMovable(true)
+    c:SetClampedToScreen(true)
+    c:RegisterForDrag("LeftButton")
+    c:SetScript("OnDragStart", function(self) if not S().playerLocked then self:StartMoving() end end)
+    c:SetScript("OnDragStop", function(self)
+        self:StopMovingOrSizing()
+        SavePlayerPoint(self)
+        local pt = S().playerPoint
+        self:ClearAllPoints()
+        self:SetPoint(pt[1], UIParent, pt[2], pt[3], pt[4])
+    end)
+    c.dragBg = c:CreateTexture(nil, "BACKGROUND")
+    c.dragBg:SetPoint("TOPLEFT", -4, 4)
+    c.dragBg:SetPoint("BOTTOMRIGHT", 4, -4)
+    c.dragBg:SetColorTexture(0.2, 0.6, 1, 0.3)
+    c.dragLabel = c:CreateFontString(nil, "OVERLAY")
+    c.dragLabel:SetFont(STANDARD_TEXT_FONT, 12, "OUTLINE")
+    c.dragLabel:SetPoint("BOTTOM", c, "TOP", 0, 6)
+    c.dragLabel:SetText("Your DR  (drag me, then lock it in the Diminish tab)")
+end
+
 local function PositionFixed(name)
     local c = GetContainer(name)
+    local s = S()
+    if name == "player" then
+        SetupDrag(c)
+        local unlocked = s.playerFree and not s.playerLocked
+        c:EnableMouse(unlocked)
+        c.dragBg:SetShown(unlocked)
+        c.dragLabel:SetShown(unlocked)
+        if s.playerFree then
+            local pt = s.playerPoint
+            c:ClearAllPoints()
+            c:SetPoint(pt[1], UIParent, pt[2], pt[3], pt[4])
+            c.anchorFound = "free"
+            return
+        end
+    end
     local f = NS.ResolveFirst(FRAMES[name])
-    Position(c, f, S().pos[name])
+    Position(c, f, s.pos[name])
     c.anchorFound = f ~= nil
 end
 
@@ -469,10 +523,11 @@ local function FmtTime(sec)
 end
 
 -- Fills container c with the entries for key (plus any secret records), size = icon size.
-local function Fill(c, key, size, now)
+local function Fill(c, key, size, now, sample)
     local s = S()
-    local list = (now < test.untilT) and TEST or Entries(key, now)
-    local sec = (now >= test.untilT) and key and secretRecs[key] or nil
+    local showTest = sample or now < test.untilT
+    local list = showTest and TEST or Entries(key, now)
+    local sec = (not showTest) and key and secretRecs[key] or nil
     local n, sp = 0, s.spacing or 3
     local function Slot()
         n = n + 1
@@ -491,7 +546,11 @@ local function Fill(c, key, size, now)
         b.tex:SetTexture(r.icon or CAT_ICON[e.cat])
         Paint(b, r.src == "test" and (r.stage >= 3 and "immune" or r.stage == 2 and "quarter" or "half") or Severity(r))
         local endT, total
-        if r.src == "test" then endT, total = test.untilT, 30 else endT, total = Window(r, now) end
+        if r.src == "test" then
+            endT, total = (now < test.untilT) and test.untilT or (math.floor(now / 30) * 30 + 30), 30
+        else
+            endT, total = Window(r, now)
+        end
         local left = endT and (endT - now) or nil
         b.timer:SetText((s.showTimer and left and left > 0) and FmtTime(left) or "")
         if s.swipe and endT and total and total > 0 then
@@ -557,9 +616,12 @@ local function RefreshFixed(name, now)
     local s = S()
     local c = GetContainer(name)
     if not (s.enabled and s[name]) then c:Hide(); return end
-    if now < test.untilT then Fill(c, nil, s.iconSize, now); return end
+    local size = (name == "player" and s.playerFree) and (s.playerSize or 32) or s.iconSize
+    -- Unlocked for dragging: always show sample icons so there is something to grab.
+    local dragging = name == "player" and s.playerFree and not s.playerLocked
+    if dragging or now < test.untilT then Fill(c, nil, size, now, true); return end
     if not UnitShown(name) or not Tracked(name) then c:Hide(); return end
-    Fill(c, KeyFor(name), s.iconSize, now)
+    Fill(c, KeyFor(name), size, now)
 end
 
 local plateUnits = {}
@@ -756,7 +818,7 @@ function M.Build(page)
     page:Check("Target frame", function() return S().target end, function(v) S().target = v end)
     page:Check("Focus frame", function() return S().focus end, function(v) S().focus = v end)
     page:Check("Enemy nameplates", function() return S().nameplates end, function(v) S().nameplates = v end)
-    page:Check("Your own DR (next to your player frame)", function() return S().player end,
+    page:Check("Your own DR", function() return S().player end,
         function(v) S().player = v; dirty.player = true end)
     page:Check("Also track friendly players (target / focus)", function() return S().friendly end,
         function(v) S().friendly = v end)
@@ -804,10 +866,30 @@ function M.Build(page)
     page:Color("Immune", function() return S().colorImmune end,
         function(r, g, b) local c = S().colorImmune; c[1], c[2], c[3] = r, g, b end)
 
-    page:Section("Position", "Where the icons sit")
+    page:Section("Your icons", "Where your own DR shows")
+    page:Cycle("Your icons go", {
+            { true, "Anywhere (drag them)" },
+            { false, "Next to your player frame" },
+        },
+        function() return S().playerFree end,
+        function(v) S().playerFree = v; ApplyPositions() end)
+    page:Check("Unlock your icons to drag them", function() return not S().playerLocked end,
+        function(v) S().playerLocked = not v; ApplyPositions() end)
+    page:Note("Unlock, then drag the blue box with sample icons anywhere on screen and lock it again. "
+        .. "They start just below your character in the middle of the screen.")
+    page:Button("Back to the middle of the screen", function()
+        local pt = S().playerPoint
+        pt[1], pt[2], pt[3], pt[4] = "CENTER", "CENTER", 0, -120
+        S().playerFree = true
+        ApplyPositions()
+    end, 240)
+    page:Slider("Icon size (your icons, when placed anywhere)", 14, 64, 1,
+        function() return S().playerSize end, function(v) S().playerSize = v end)
+    PosRows(page, "player", "Next to player frame")
+
+    page:Section("Position", "Where the other icons sit")
     PosRows(page, "target", "Target icons")
     PosRows(page, "focus", "Focus icons")
-    PosRows(page, "player", "Your icons")
     PosRows(page, "plate", "Nameplate icons")
 end
 
@@ -815,4 +897,4 @@ end
 M._t = { AuraState = AuraState, OnDREvent = OnDREvent, ParseEvent = ParseEvent, Entries = Entries,
     Severity = Severity, Window = Window, Expire = Expire, Tracks = function() return tracks end,
     Secret = function() return secretRecs end, Stats = stats, Reset = function() tracks, secretRecs = {}, {} end,
-    BuildSpellMap = BuildSpellMap, NameToCat = function() return NAME_TO_CAT end, Tick = Tick, Test = M.Test }
+    BuildSpellMap = BuildSpellMap, NameToCat = function() return NAME_TO_CAT end, Tick = Tick, Test = M.Test, Container = GetContainer }

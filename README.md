@@ -4,13 +4,13 @@ An all-in-one interface addon suite for **World of Warcraft Forever** (interface
 
 Despite the name, Aimbot UI only changes how your interface looks and what it shows. It does not play, aim or target for you.
 
-**Current version: 2.8.7**
+**Current version: 2.8.8**
 
 Open it in game with `/aimbot` (or `/aui`). Every module has its own tab and its own on/off switch, and if one module hits a problem it reports in chat and the rest keep running.
 
-## What's new in 2.8.7
+## What's new in 2.8.8
 
-- Diminish (new tab "Diminish", or /aimbot dr): diminishing returns icons on your target and focus frames, on enemy nameplates, and for yourself (under your player frame). One icon per kind of crowd control (stuns, incapacitates, disorients, roots, silences, and optionally disarms). The border shows what the NEXT one will do: green 50%, yellow 25%, red immune, and the timer counts down to the reset. "Show test icons" lets you line them up. Size, spacing, colours, timer / % text and the position of each group can be changed. Inspired by the Diminish addon by Wardz (MIT); new code. Forever closes the combat log that Diminish used, so this reads the game's own DR event, and falls back to crowd-control debuffs the game lets addons see (classic rules: 18 s reset, 50% / 25% / immune; a 2-step mode is in Tracking). FIRST VERSION, written without being able to test it in game: run /aimbot diag after some PvP. It records what the game's DR event sends, so it can be fixed for Forever. Grey icons mean the game sent the DR with hidden (secret) details.
+- Diminish: YOUR own DR icons now sit in the middle of the screen, just below your character, instead of under the player frame, and you can drag them anywhere. Diminish tab > Your icons: tick "Unlock your icons to drag them", drag the blue box, then untick it to lock them. They have their own size slider (bigger by default), "Back to the middle of the screen" resets them, and "Your icons go" switches back to the player frame if you prefer.
 
 See [CHANGELOG.md](CHANGELOG.md) for every version.
 
@@ -41,7 +41,7 @@ Download **[AimbotUI.zip](https://github.com/itsalotoflust/Aimbot-UI-WoW-Forever
 | **Chat Mute** | Mute players, guilds and words, with speak times when muted people may talk, a never-mute list, and filters for links, shouting, repeats and strangers. |
 | **FPS / MS** | Frame rate and latency counter at the bottom centre of the screen. |
 | **Privacy** | Stream mode: fake name and BattleTag, class names, whisper inbox (or an "Allow whispers from everyone" switch that shows them normally), and a Be right back screen. |
-| **Diminish** | Diminishing returns icons on target, focus, enemy nameplates and yourself. Border shows what the next crowd control will do (green 50%, yellow 25%, red immune), with a reset timer. First version, not yet tested in game. |
+| **Diminish** | Diminishing returns icons on target, focus, enemy nameplates and yourself (your own icons can be dragged anywhere, by default just below your character). Border shows what the next crowd control will do (green 50%, yellow 25%, red immune), with a reset timer. First version, not yet tested in game. |
 | **Double Press** | Optional. Every action bar key presses twice, on key down and key up. Off by default. |
 | **Memory Cleaner** | A Clear Cache button that runs a garbage collection without freezing the game. |
 

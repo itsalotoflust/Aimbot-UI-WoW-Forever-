@@ -1,4 +1,4 @@
-AIMBOT UI  v2.8.7  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.8.8  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,13 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.8.8
+  - Diminish: YOUR own DR icons now sit in the middle of the screen, just below your character, instead of
+    under the player frame, and you can drag them anywhere. Diminish tab > Your icons: tick "Unlock your
+    icons to drag them", drag the blue box, then untick it to lock them. They have their own size slider
+    (bigger by default), "Back to the middle of the screen" resets them, and "Your icons go" switches
+    back to the player frame if you prefer.
 
 NEW IN 2.8.7
   - Diminish (new tab "Diminish", or /aimbot dr): diminishing returns icons on your target and focus
