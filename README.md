@@ -2,13 +2,14 @@
 
 An all-in-one interface addon suite for **World of Warcraft Forever** (interface 16001).
 
-**Current version: 2.8.15**
+**Current version: 2.8.16**
 
 Open it in game with `/aimbot` (or `/aui`). Every module has its own tab and its own on/off switch, and if one module hits a problem it reports in chat and the rest keep running.
 
-## What's new in 2.8.15
+## What's new in 2.8.16
 
-- Fixed the "AddOn 'AimbotUI' tried to call the protected function 'UNKNOWN()'" error from Double Press. The invisible key watcher (used to flash Button Sparkle on your doubled keys) re-set a keyboard setting on every key press, and the game blocks that call in combat. It is now set once, out of combat, and the key presses themselves no longer touch it. The "never double" key picker got the same guard.
+- Renamed "Button Sparkle" to "Button Flash". Your settings carry over. `/sparkle` still works, and `/aimbot flash` now opens its tab too.
+- Renamed "Double Press" to "Double Press (Wannabe AHK)". The side menu is a little wider, and a "(...)" note at the end of a name is drawn smaller and grey so the full name fits.
 
 See [CHANGELOG.md](CHANGELOG.md) for every version.
 
@@ -32,7 +33,7 @@ Download **[AimbotUI.zip](https://github.com/itsalotoflust/Aimbot-UI-WoW-Forever
 | **General** | Drag, resize and lock the window. Scale, opacity, text size and colours. Module list with a switch for each tab. Reset. |
 | **Lorti Style** | The Lorti UI look, rebuilt for Forever's frames: flat dark action buttons, short keybind text, class coloured health bars, class portraits, darkened frame art, hidden gryphons, dark windows, minimap wheel zoom. Each option is separate. |
 | **Damage Font** | Eight NiceDamage fonts for floating combat text. Needs a full game restart, `/reload` is not enough. |
-| **Button Sparkle** | The classic jButtonFlash look by default: a white star pops to 1.5x and shrinks away, spinning 90 degrees in 0.3 seconds. Presets, live preview, press or release trigger, colour modes, size, speed, extra layers. Also flashes Bartender4, Dominos and ElvUI buttons. |
+| **Button Flash** | The classic jButtonFlash look by default: a white star pops to 1.5x and shrinks away, spinning 90 degrees in 0.3 seconds. Presets, live preview, press or release trigger, colour modes, size, speed, extra layers. Also flashes Bartender4, Dominos and ElvUI buttons. |
 | **Mana Cost** | Shows the mana or resource cost on action bar spells, with position options. |
 | **Range Alert** | Action button icons turn red when your target is out of range. Optional distance readout. |
 | **Spell Trainer** | A WhatsTraining-style list of what you can learn. Open your class trainer once per class to fill it. |
@@ -40,7 +41,7 @@ Download **[AimbotUI.zip](https://github.com/itsalotoflust/Aimbot-UI-WoW-Forever
 | **FPS / MS** | Frame rate and latency counter at the bottom centre of the screen. |
 | **Privacy** | Stream mode: fake name and BattleTag, class names, whisper inbox (or an "Allow whispers from everyone" switch that shows them normally), and a Be right back screen. |
 | **Diminish** | Diminishing returns icons on target, focus, enemy nameplates and yourself (your own icons can be dragged anywhere, by default just below your character). Border shows what the next crowd control will do (green 50%, yellow 25%, red immune), with a reset timer. First version, not yet tested in game. |
-| **Double Press** | Optional. Every action bar key presses twice, on key down and key up. Off by default. |
+| **Double Press (Wannabe AHK)** | Optional. Every action bar key presses twice, on key down and key up. Off by default. |
 | **Memory Cleaner** | A Clear Cache button that runs a garbage collection without freezing the game. |
 
 ## Slash commands
@@ -64,6 +65,6 @@ Forever's frame names could not all be tested from outside the game. Run `/aimbo
 - **NiceDamage** fonts in `media/fonts/`: Montyburns.
 - **What's Training?** by Sveng (MIT licence): the spell, quest spell and weapon skill data in `Data/` is taken from that addon. See `Data/LICENSE-WhatsTraining.txt`.
 - **Diminish** by Wardz (MIT licence): the idea and look of the Diminish tab. The Aimbot UI version is new code; nothing was copied.
-- The window, Button Sparkle, Spell Trainer, Mana Cost, Range Alert and the other modules are original to Aimbot UI. See `CREDITS.txt` in the addon folder.
+- The window, Button Flash, Spell Trainer, Mana Cost, Range Alert and the other modules are original to Aimbot UI. See `CREDITS.txt` in the addon folder.
 
 World of Warcraft is a trademark of Blizzard Entertainment. Aimbot UI is a fan-made addon and is not affiliated with Blizzard or with the authors above.

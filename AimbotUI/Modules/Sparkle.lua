@@ -18,7 +18,7 @@ local ADDON_NAME, NS = ...
 local MEDIA = "Interface\\AddOns\\AimbotUI\\media\\sparkle\\"
 
 local M = {
-    name = "Button Sparkle",
+    name = "Button Flash",
     group = "Combat",
     desc = "A flash on your action buttons when you press them, like jButtonFlash. "
         .. "Presets, shapes, colors, timing and a live preview.   Quick toggle: /sparkle   |   test: /sparkle test",
@@ -769,7 +769,7 @@ function M.Build(page)
     page:Section("Notes", "How the defaults were chosen")
     page:Note("The defaults match jButtonFlash: one white star that pops to 1.5x and shrinks away while "
         .. "spinning 90 degrees in 0.3 seconds. Load the \"Classic jButtonFlash\" preset to get back to it. "
-        .. "If keybind presses don't flash, run /aimbot diag and send me the Button Sparkle lines.")
+        .. "If keybind presses don't flash, run /aimbot diag and send me the Button Flash lines.")
 end
 
 ----------------------------------------------------------------------

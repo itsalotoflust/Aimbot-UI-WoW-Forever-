@@ -21,7 +21,7 @@ local WHITE = "Interface\\Buttons\\WHITE8X8"
 
 local ROUND = "Interface\\AddOns\\" .. ADDON_NAME .. "\\media\\ui\\circle"
 
-local SIDEBAR_W = 190
+local SIDEBAR_W = 220
 local HEADER_H  = 84
 
 local texts   = setmetatable({}, { __mode = "k" })  -- fontstring -> size offset
@@ -1333,8 +1333,8 @@ local function BuildGeneral(page)
         .. "Each tab opens a list of areas: click one to see its options, then click \"All areas\" (or the tab name again) to go back. "
         .. "Every tab has its own Enabled switch and a Reset tab button.")
     page:Note("Commands:  /aimbot  opens the window.   /aimbot <tab>  opens a tab.   "
-        .. "/aimbot <tab> on|off  toggles a module.   /sparkle  toggles the button sparkle.   "
-        .. "Tabs: lorti, damage, sparkle, mana, range, trainer, double, memory, mute, fps, privacy, dr.")
+        .. "/aimbot <tab> on|off  toggles a module.   /sparkle  toggles Button Flash.   "
+        .. "Tabs: lorti, damage, flash, mana, range, trainer, double, memory, mute, fps, privacy, dr.")
     page:Note("Credits: Lorti UI Classic by Lorti, Chordsy, Macumba, Knall, Jozh, Xyz, Arrone and Redskin. "
         .. "NiceDamage by Montyburns. Their artwork and fonts are used here with the original credit.")
 end
@@ -1809,7 +1809,21 @@ local function Create()
         hl:SetColorTexture(1, 1, 1, 0.05)
 
         local dot
-        local fs = UI.Text(btn, label)
+        -- A "(...)" note at the end of a name is drawn smaller and grey so long names fit
+        local main, note = label:match("^(.-)%s*(%b())$")
+        if not main or main == "" then main, note = label, nil end
+        local fs = UI.Text(btn, main)
+        fs:SetWordWrap(false)
+        local noteFs
+        if note then
+            noteFs = UI.Text(btn, note, -3, 0.62, 0.62, 0.67)
+            noteFs:SetPoint("LEFT", fs, "RIGHT", 4, 0)
+            noteFs:SetWordWrap(false)
+        end
+        local function LabelRight(anchor, rel, x)
+            if noteFs then noteFs:SetPoint("RIGHT", anchor, rel, x, 0)
+            else fs:SetPoint("RIGHT", anchor, rel, x, 0) end
+        end
         if mod then
             dot = UI.Round(btn, "ARTWORK", 7)
             dot:SetPoint("LEFT", btn, "LEFT", 12, 0)
@@ -1819,8 +1833,7 @@ local function Create()
         end
         local arrow = UI.Text(btn, "+", 1, 0.50, 0.50, 0.56)
         arrow:SetPoint("RIGHT", btn, "RIGHT", -10, 0)
-        fs:SetPoint("RIGHT", arrow, "LEFT", -6, 0)
-        fs:SetWordWrap(false)
+        LabelRight(arrow, "LEFT", -6)
         btn:SetScript("OnClick", function()
             local t = tabs[key]
             if currentTab == key and t and t.page.menuMode then
@@ -1894,7 +1907,8 @@ local function Create()
             arrow:Hide()
             fs:ClearAllPoints()
             fs:SetPoint("LEFT", btn, "LEFT", dot and 28 or 14, 0)
-            fs:SetPoint("RIGHT", btn, "RIGHT", -6, 0)
+            if noteFs then noteFs:ClearAllPoints(); noteFs:SetPoint("LEFT", fs, "RIGHT", 4, 0) end
+            LabelRight(btn, "RIGHT", -6)
         end
     end
 
@@ -1943,7 +1957,7 @@ end
 local ALIASES = {
     lorti = "lorti", skin = "lorti", ui = "lorti", style = "lorti",
     damage = "damage", font = "damage", fonts = "damage", nicedamage = "damage",
-    sparkle = "sparkle",
+    sparkle = "sparkle", flash = "sparkle", buttonflash = "sparkle",
     mana = "manacost", cost = "manacost", costs = "manacost", manacost = "manacost",
     range = "range",
     train = "trainer", training = "trainer", trainer = "trainer",
@@ -1975,7 +1989,7 @@ SlashCmdList["AIMBOTUI"] = function(msg)
     end
     local key = ALIASES[a] or a
     if not UI.HasTab(key) then
-        NS.Print("unknown tab '" .. a .. "'. Try: general, lorti, damage, sparkle, mana, range, trainer, double, memory, mute, fps, privacy, dr  (or /aimbot clean)")
+        NS.Print("unknown tab '" .. a .. "'. Try: general, lorti, damage, flash, mana, range, trainer, double, memory, mute, fps, privacy, dr  (or /aimbot clean)")
         return
     end
     if (b == "on" or b == "off") and NS.modules[key] then
@@ -2001,7 +2015,7 @@ SlashCmdList["AIMBOTSPARKLE"] = function(msg)
     else m.enabled = not m.enabled end
     NS.ApplyModule("sparkle")
     if win then UI.RefreshAll() end
-    NS.Print("Button sparkle " .. (m.enabled and "|cff00ff00ON|r" or "|cffff4444OFF|r"))
+    NS.Print("Button Flash " .. (m.enabled and "|cff00ff00ON|r" or "|cffff4444OFF|r"))
 end
 
 -- A small window with all the text selected, so it can be copied (Ctrl+C) and pasted anywhere.

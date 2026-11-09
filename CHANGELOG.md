@@ -2,6 +2,11 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.8.16
+
+- Renamed "Button Sparkle" to "Button Flash". Your settings carry over. `/sparkle` still works, and `/aimbot flash` now opens its tab too.
+- Renamed "Double Press" to "Double Press (Wannabe AHK)". The side menu is a little wider, and a "(...)" note at the end of a name is drawn smaller and grey so the full name fits.
+
 ## 2.8.15
 
 - Fixed the "AddOn 'AimbotUI' tried to call the protected function 'UNKNOWN()'" error from Double Press. The invisible key watcher (used to flash Button Sparkle on your doubled keys) re-set a keyboard setting on every key press, and the game blocks that call in combat. It is now set once, out of combat, and the key presses themselves no longer touch it. The "never double" key picker got the same guard.

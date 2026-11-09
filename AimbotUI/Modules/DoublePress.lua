@@ -18,7 +18,7 @@
 local ADDON_NAME, NS = ...
 
 local M = {
-    name = "Double Press",
+    name = "Double Press (Wannabe AHK)",
     group = "QoL",
     desc = "Every action bar keybind presses twice (on key down and key up), like AutoHotKey. "
         .. "Pick keys or macros that should stay single, such as a /cancelaura macro.",

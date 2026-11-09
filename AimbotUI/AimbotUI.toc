@@ -2,7 +2,7 @@
 ## Title: Aimbot UI
 ## Notes: All-in-one UI suite for WoW Forever: Lorti style skin, damage font (NiceDamage), button sparkle, spell trainer list, mana costs, range alert, chat mute with speak times, FPS / MS counter, privacy (stream) mode, Diminish (DR tracker). Open with /aimbot
 ## Author: You (Lorti UI Classic by Lorti, Chordsy, Macumba, Knall, Jozh, Xyz, Arrone, Redskin; NiceDamage by Montyburns; Diminish idea by Wardz)
-## Version: 2.8.15
+## Version: 2.8.16
 ## SavedVariables: AimbotUIDB
 
 Core.lua

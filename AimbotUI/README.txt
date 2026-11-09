@@ -1,4 +1,4 @@
-AIMBOT UI  v2.8.15  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.8.16  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,12 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.8.16
+  - Renamed "Button Sparkle" to "Button Flash". Your settings carry over. /sparkle still works, and
+    "/aimbot flash" now opens its tab too.
+  - Renamed "Double Press" to "Double Press (Wannabe AHK)". The side menu is a little wider, and a
+    "(...)" note at the end of a name is drawn smaller and grey so the full name fits.
 
 NEW IN 2.8.15
   - Fixed the "AddOn 'AimbotUI' tried to call the protected function 'UNKNOWN()'" error from Double
@@ -270,7 +276,7 @@ WHAT IS INSIDE (each one is its own tab with its own on/off switch)
                  color adjustable) so no stray corner pixels show.
   Damage Font    NiceDamage fonts (8 styles) for floating combat text.
                  IMPORTANT: needs a FULL game restart, /reload is not enough.
-  Sparkle        jButtonFlash-style flash on your action buttons. Defaults match
+  Button Flash   jButtonFlash-style flash on your action buttons. Defaults match
                  jButtonFlash exactly (white star pops to 1.5x, shrinks away
                  spinning 90 degrees in 0.3s). Options: 6 presets, live preview,
                  press or release trigger, keyboard / mouse, 7 shapes, custom /
@@ -290,7 +296,7 @@ WHAT IS INSIDE (each one is its own tab with its own on/off switch)
   Spell Trainer  WhatsTraining-style list. Open your class trainer once per
                  class to fill it, then it is remembered.
 
-  Double Press   (category QoL) RougeUI's "Wannabe AutoHotKey": every action bar key
+  Double Press (Wannabe AHK)   (category QoL) RougeUI's "Wannabe AutoHotKey": every action bar key
                  presses twice, on key down and on key up. Off by default; turn on
                  with the Enabled switch. Keys you add to the list stay single
                  (use "Add a key", then press it), and macros with /cancelaura or
