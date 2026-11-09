@@ -1,0 +1,8 @@
+<Bindings>
+	<Binding name="AIMBOTUI_PRIVACY" header="AIMBOTUI" category="ADDONS">
+		if AimbotUI and AimbotUI.Privacy then AimbotUI.Privacy.Toggle() end
+	</Binding>
+	<Binding name="AIMBOTUI_BRB" category="ADDONS">
+		if AimbotUI and AimbotUI.Privacy then AimbotUI.Privacy.ToggleBRB() end
+	</Binding>
+</Bindings>

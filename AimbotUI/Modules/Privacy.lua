@@ -1,0 +1,862 @@
+--[[
+  Aimbot UI - Privacy (stream mode)
+
+  A private mode for streams and screenshots. While it is ON:
+    * other players' names on unit frames, raid frames and nameplates become their
+      class ("Mage"), "Player", or nothing
+    * your own name shows as a name you choose (optionally in a colour you choose)
+    * your BattleTag in the friends window shows as a made-up one
+    * chat shows the same swapped names, whispers can be kept out of chat and read later
+      in a private inbox, and chat bubbles are hidden
+    * the zone name and clock on the minimap can be hidden
+    * a Be Right Back screen covers the game with your message and how long you have been away
+  Turn it OFF and everything is put back.
+
+  This is original code written for Aimbot UI from the public description of the idea.
+  Names are never read back out of anything: replacements are worked out from the unit's
+  class, and every value the client marks as secret is treated as "a player".
+]]
+
+local ADDON_NAME, NS = ...
+
+local M = {
+    name = "Privacy",
+    group = "QoL",
+    desc = "Stream mode. Swaps other players' names for their class, shows a made-up name and BattleTag for "
+        .. "you, keeps whispers out of chat, and has a Be Right Back screen.",
+    defaults = {
+        enabled     = true,
+        startOn     = true,                    -- (kept for old saves) private mode is always on at login
+        names       = "class",                 -- "class", "player" or "hidden"
+        frames      = true,                    -- unit frames, party and raid frames
+        nameplates  = true,
+        chat        = true,
+        ownNameOn   = true,
+        ownName     = "Streamer",
+        ownColorOn  = false,
+        ownColor    = { 0.30, 0.80, 1.00, 1 },
+        tagOn       = true,
+        tag         = "Streamer#1234",
+        hideWhispers = true,
+        bubbles     = true,                    -- hide chat bubbles
+        headNames   = true,                    -- hide the names the game draws above heads
+        hideZone    = true,
+        hideClock   = true,
+        indicator   = false,                   -- small "PRIVATE" tag on screen
+        brbText     = "Be right back",
+        brbTimer    = true,
+        inbox       = {},                      -- { { t=, who=, msg=, out= } ... }
+        inboxMax    = 100,
+        savedBubbles = nil,                    -- the chat-bubble CVars to put back
+    },
+}
+NS.RegisterModule("privacy", M)
+NS.Privacy = M
+
+_G.BINDING_HEADER_AIMBOTUI = "Aimbot UI"
+_G.BINDING_NAME_AIMBOTUI_PRIVACY = "Toggle private mode"
+_G.BINDING_NAME_AIMBOTUI_BRB = "Show / hide Be right back screen"
+
+local function S() return NS.db.mod.privacy end
+local issecret = NS.IsSecret
+
+local active = false
+M.unread = 0
+
+local function Secret(v) return issecret(v) end
+local function IsStr(v) return type(v) == "string" and not Secret(v) end
+
+----------------------------------------------------------------------
+-- Working out a replacement name
+----------------------------------------------------------------------
+local FALLBACK = "Player"
+
+local function ModeLabel(classText)
+    local mode = S().names
+    if mode == "hidden" then return "" end
+    if mode == "player" then return FALLBACK end
+    if IsStr(classText) and classText ~= "" then return classText end
+    return FALLBACK
+end
+
+-- Replacement for a unit token, or nil if the unit should be left alone (NPCs, pets).
+local function NameForUnit(unit)
+    local s = S()
+    if type(unit) ~= "string" then return nil end
+
+    local isPlayer = true
+    local ok, v = pcall(UnitIsPlayer, unit)
+    if ok and not Secret(v) then isPlayer = v and true or false end
+    if not isPlayer then return nil end
+
+    local own = (unit == "player")
+    if not own then
+        local ok2, same = pcall(UnitIsUnit, unit, "player")
+        if ok2 and not Secret(same) and same then own = true end
+    end
+    if own and s.ownNameOn and IsStr(s.ownName) and s.ownName ~= "" then
+        return s.ownName, true
+    end
+
+    local class
+    local ok3, c = pcall(UnitClass, unit)
+    if ok3 and not Secret(c) then class = c end
+    return ModeLabel(class), own
+end
+
+----------------------------------------------------------------------
+-- Text on frames
+----------------------------------------------------------------------
+local original = setmetatable({}, { __mode = "k" })     -- fontstring -> { r, g, b } before we recoloured it
+
+local function SetName(fs, unit, wasOwn)
+    if not (fs and fs.SetText) then return end
+    local label, own = NameForUnit(unit)
+    if label == nil then return end
+    local okT, cur = pcall(fs.GetText, fs)
+    if not (okT and IsStr(cur) and cur == label) then pcall(fs.SetText, fs, label) end
+    local s = S()
+    if own and s.ownColorOn and fs.SetTextColor then
+        if not original[fs] and fs.GetTextColor then
+            local ok, r, g, b = pcall(fs.GetTextColor, fs)
+            if ok and type(r) == "number" and not Secret(r) then original[fs] = { r, g, b } end
+        end
+        local c = s.ownColor
+        pcall(fs.SetTextColor, fs, c[1], c[2], c[3])
+    end
+end
+
+local function RestoreName(fs, unit)
+    if not (fs and fs.SetText) then return end
+    local ok, real = pcall(UnitName, unit)
+    if ok and IsStr(real) then pcall(fs.SetText, fs, real) end
+    local o = original[fs]
+    if o and fs.SetTextColor then pcall(fs.SetTextColor, fs, o[1], o[2], o[3]); original[fs] = nil end
+end
+
+local function ResolveFS(paths)
+    local obj = NS.ResolveFirst(paths)
+    if obj and obj.SetText then return obj end
+end
+
+-- Finding name texts by what they say. Unit frames differ between clients and are restyled by
+-- other addons, so instead of trusting a fixed path we look through the unit frame for any text
+-- that is currently showing the unit's real name, and remember it.
+local bound = {}            -- unit -> { [fontstring] = true }
+local scanCount = 0
+
+local function Scan(root, name, found, budget, depth)
+    if budget.n <= 0 or depth > 6 then return end
+    budget.n = budget.n - 1
+    local ok, regions = pcall(function() return { root:GetRegions() } end)
+    if ok then
+        for _, r in ipairs(regions) do
+            local okT, kind = pcall(r.GetObjectType, r)
+            if okT and kind == "FontString" then
+                local okX, txt = pcall(r.GetText, r)
+                if okX and IsStr(txt) and txt == name then found[#found + 1] = r end
+            end
+        end
+    end
+    local okC, kids = pcall(function() return { root:GetChildren() } end)
+    if okC then
+        for _, k in ipairs(kids) do Scan(k, name, found, budget, depth + 1) end
+    end
+end
+
+local ROOTS = {
+    player = { "PlayerFrame" },
+    target = { "TargetFrame" },
+    focus = { "FocusFrame" },
+    targettarget = { "TargetFrameToT", "TargetFrame.totFrame" },
+}
+for i = 1, 4 do ROOTS["party" .. i] = { "PartyFrame.MemberFrame" .. i, "PartyMemberFrame" .. i } end
+
+local function Discover()
+    scanCount = scanCount + 1
+    for unit, paths in pairs(ROOTS) do
+        local ok, real = pcall(UnitName, unit)
+        if ok and IsStr(real) and real ~= "" then
+            local root = NS.ResolveFirst(paths)
+            if root and root.GetRegions then
+                local found = {}
+                Scan(root, real, found, { n = 400 }, 0)
+                if #found > 0 then
+                    bound[unit] = bound[unit] or {}
+                    for _, fs in ipairs(found) do bound[unit][fs] = true end
+                end
+            end
+        end
+    end
+end
+
+-- Every name text we manage: a list of { fs = FontString, unit = "target" }.
+local function CollectTargets()
+    local list, s = {}, S()
+
+    if s.frames then
+        local fixed = {
+            player = { "PlayerName", "PlayerFrame.name", "PlayerFrame.PlayerFrameContent.PlayerFrameContentMain.Name" },
+            target = { "TargetFrameTextureFrameName", "TargetFrame.name",
+                "TargetFrame.TargetFrameContent.TargetFrameContentMain.Name" },
+            focus = { "FocusFrameTextureFrameName", "FocusFrame.name",
+                "FocusFrame.TargetFrameContent.TargetFrameContentMain.Name" },
+            targettarget = { "TargetFrameToTTextureFrameName", "TargetFrameToT.name",
+                "TargetFrame.totFrame.Name" },
+        }
+        local have = {}
+        for unit, paths in pairs(fixed) do
+            local fs = ResolveFS(paths)
+            if fs then list[#list + 1] = { fs = fs, unit = unit }; have[fs] = true end
+        end
+        for unit, set in pairs(bound) do
+            for fs in pairs(set) do
+                if not have[fs] then list[#list + 1] = { fs = fs, unit = unit }; have[fs] = true end
+            end
+        end
+        for i = 1, 4 do
+            local fs = ResolveFS({ "PartyFrame.MemberFrame" .. i .. ".Name", "PartyFrame.MemberFrame" .. i .. ".name",
+                "PartyMemberFrame" .. i .. "Name" })
+            if fs then list[#list + 1] = { fs = fs, unit = "party" .. i } end
+        end
+        local function Compact(frame)
+            if frame and frame.name and frame.name.SetText then
+                local unit = frame.displayedUnit or frame.unit
+                if type(unit) == "string" then list[#list + 1] = { fs = frame.name, unit = unit } end
+            end
+        end
+        for i = 1, 40 do Compact(_G["CompactRaidFrame" .. i]) end
+        for i = 1, 5 do Compact(_G["CompactPartyFrameMember" .. i]) end
+        for g = 1, 8 do
+            for i = 1, 5 do Compact(_G["CompactRaidGroup" .. g .. "Member" .. i]) end
+        end
+    end
+
+    if s.nameplates and C_NamePlate and C_NamePlate.GetNamePlates then
+        local ok, plates = pcall(C_NamePlate.GetNamePlates)
+        if ok and type(plates) == "table" then
+            for _, plate in ipairs(plates) do
+                local uf = plate.UnitFrame
+                local unit = plate.namePlateUnitToken or (uf and uf.unit)
+                if uf and uf.name and uf.name.SetText and type(unit) == "string" then
+                    list[#list + 1] = { fs = uf.name, unit = unit }
+                end
+            end
+        end
+    end
+    return list
+end
+
+local function Sweep(discover)
+    local on = active and S().enabled
+    if on and discover and S().frames then pcall(Discover) end
+    for _, t in ipairs(CollectTargets()) do
+        if on then SetName(t.fs, t.unit) else RestoreName(t.fs, t.unit) end
+    end
+end
+
+-- Friends window: your BattleTag
+local function TagFS()
+    return ResolveFS({ "FriendsFrameBattlenetFrame.Tag", "FriendsFrame.BattlenetFrame.Tag" })
+end
+
+local function SweepTag()
+    local fs = TagFS()
+    if not fs then return end
+    local s = S()
+    if active and s.enabled and s.tagOn and IsStr(s.tag) and s.tag ~= "" then
+        pcall(fs.SetText, fs, s.tag)
+    elseif BNGetInfo then
+        local ok, _, tag = pcall(BNGetInfo)
+        if ok and IsStr(tag) then pcall(fs.SetText, fs, tag) end
+    end
+end
+
+-- Minimap zone name and clock
+local hidden = setmetatable({}, { __mode = "k" })       -- frame -> its alpha before
+local function Hide(frame, on)
+    if not (frame and frame.SetAlpha) then return end
+    if on then
+        if hidden[frame] == nil then
+            local ok, a = pcall(frame.GetAlpha, frame)
+            hidden[frame] = (ok and type(a) == "number" and not Secret(a)) and a or 1
+        end
+        frame:SetAlpha(0)
+    elseif hidden[frame] ~= nil then
+        frame:SetAlpha(hidden[frame])
+        hidden[frame] = nil
+    end
+end
+
+local function SweepWhere()
+    local s = S()
+    local on = active and s.enabled
+    local zone = NS.ResolveFirst({ "MinimapCluster.ZoneTextButton", "MinimapZoneTextButton", "MinimapZoneText" })
+    local clock = NS.ResolveFirst({ "TimeManagerClockButton", "MinimapCluster.Clock" })
+    Hide(zone, on and s.hideZone)
+    Hide(clock, on and s.hideClock)
+end
+
+----------------------------------------------------------------------
+-- Chat bubbles
+----------------------------------------------------------------------
+local BUBBLE_CVARS = { "chatBubbles", "chatBubblesParty" }
+local HEAD_CVARS = {
+    "UnitNameOwn", "UnitNameFriendlyPlayerName", "UnitNameEnemyPlayerName",
+    "UnitNameFriendlyPetName", "UnitNameEnemyPetName", "UnitNamePlayerGuild", "UnitNamePlayerPVPTitle",
+}
+
+-- Settings we turn off while private are remembered in saved variables and put back afterwards.
+local function RestoreBubbles()
+    local saved = S().savedBubbles
+    if type(saved) ~= "table" then return end
+    for cvar, value in pairs(saved) do pcall(SetCVar, cvar, value) end
+    S().savedBubbles = nil
+end
+
+local function SweepBubbles()
+    local s = S()
+    local want = {}
+    if active and s.enabled then
+        if s.bubbles then for _, c in ipairs(BUBBLE_CVARS) do want[c] = true end end
+        if s.headNames then for _, c in ipairs(HEAD_CVARS) do want[c] = true end end
+    end
+    local saved = s.savedBubbles or {}
+    for cvar in pairs(want) do
+        if saved[cvar] == nil then
+            local ok, v = pcall(GetCVar, cvar)
+            if ok and v ~= nil then saved[cvar] = v end
+        end
+        if saved[cvar] ~= nil then pcall(SetCVar, cvar, "0") end
+    end
+    for cvar, value in pairs(saved) do
+        if not want[cvar] then pcall(SetCVar, cvar, value); saved[cvar] = nil end
+    end
+    s.savedBubbles = next(saved) and saved or nil
+end
+
+----------------------------------------------------------------------
+-- Chat
+----------------------------------------------------------------------
+local WHISPER = {
+    CHAT_MSG_WHISPER = false, CHAT_MSG_WHISPER_INFORM = true,
+    CHAT_MSG_BN_WHISPER = false, CHAT_MSG_BN_WHISPER_INFORM = true,
+}
+local EMOTE = { CHAT_MSG_EMOTE = true, CHAT_MSG_TEXT_EMOTE = true }
+local EVENTS = {
+    "CHAT_MSG_SAY", "CHAT_MSG_YELL", "CHAT_MSG_EMOTE", "CHAT_MSG_TEXT_EMOTE",
+    "CHAT_MSG_WHISPER", "CHAT_MSG_WHISPER_INFORM", "CHAT_MSG_BN_WHISPER", "CHAT_MSG_BN_WHISPER_INFORM",
+    "CHAT_MSG_PARTY", "CHAT_MSG_PARTY_LEADER", "CHAT_MSG_RAID", "CHAT_MSG_RAID_LEADER", "CHAT_MSG_RAID_WARNING",
+    "CHAT_MSG_INSTANCE_CHAT", "CHAT_MSG_INSTANCE_CHAT_LEADER", "CHAT_MSG_BATTLEGROUND", "CHAT_MSG_BATTLEGROUND_LEADER",
+    "CHAT_MSG_GUILD", "CHAT_MSG_OFFICER", "CHAT_MSG_CHANNEL",
+}
+
+local seen, seenOrder = {}, {}
+local function FirstTime(lineID)
+    if type(lineID) ~= "number" or Secret(lineID) then return true end
+    if seen[lineID] then return false end
+    seen[lineID] = true
+    seenOrder[#seenOrder + 1] = lineID
+    if #seenOrder > 200 then seen[table.remove(seenOrder, 1)] = nil end
+    return true
+end
+
+local function Short(name)
+    if Ambiguate then
+        local ok, v = pcall(Ambiguate, name, "none")
+        if ok and IsStr(v) then return v end
+    end
+    return (name:gsub("%-.*$", ""))
+end
+
+local function ChatLabel(author, guid)
+    local s = S()
+    local own = false
+    if IsStr(guid) and UnitGUID then
+        local ok, mine = pcall(UnitGUID, "player")
+        if ok and IsStr(mine) and mine == guid then own = true end
+    end
+    if not own then
+        local ok, me = pcall(UnitName, "player")
+        if ok and IsStr(me) and Short(author) == me then own = true end
+    end
+    if own and s.ownNameOn and IsStr(s.ownName) and s.ownName ~= "" then return s.ownName end
+
+    local class
+    if IsStr(guid) and GetPlayerInfoByGUID then
+        local ok, c = pcall(GetPlayerInfoByGUID, guid)
+        if ok and not Secret(c) then class = c end
+    end
+    local label = ModeLabel(class)
+    if label == "" then label = "Hidden" end
+    return label
+end
+
+local function PlainReplace(text, from, to)
+    if from == "" then return text end
+    local out, i = {}, 1
+    while true do
+        local a, b = text:find(from, i, true)
+        if not a then out[#out + 1] = text:sub(i); break end
+        out[#out + 1] = text:sub(i, a - 1)
+        out[#out + 1] = to
+        i = b + 1
+    end
+    return table.concat(out)
+end
+
+function M.AddInbox(who, msg, out)
+    local s = S()
+    local box = s.inbox
+    box[#box + 1] = { t = time and time() or 0, who = who, msg = msg, out = out and true or false }
+    while #box > (s.inboxMax or 100) do table.remove(box, 1) end
+    if not out then M.unread = M.unread + 1 end
+    if M.RefreshInbox then M.RefreshInbox() end
+end
+
+local function Announce()
+    local n = M.unread
+    if n > 0 and DEFAULT_CHAT_FRAME then
+        DEFAULT_CHAT_FRAME:AddMessage(string.format("|cff4db8ffAimbot UI|r: %d whisper%s waiting in your private inbox (/aprivacy inbox).",
+            n, n == 1 and "" or "s"))
+    end
+end
+
+local function ChatFilter(frame, event, msg, author, lang, chan, target, flags, zoneID, chanIdx, chanBase, unused, lineID, guid, ...)
+    local s = S()
+    if not (active and s.enabled and s.chat) then return false end
+    if Secret(msg) or Secret(author) or type(msg) ~= "string" or type(author) ~= "string" then return false end
+
+    if WHISPER[event] ~= nil and s.hideWhispers then
+        if FirstTime(lineID) then
+            M.AddInbox(Short(author), msg, WHISPER[event])
+            if not WHISPER[event] then Announce() end
+        end
+        return true
+    end
+
+    if author == "" then return false end
+    local label = ChatLabel(author, guid)
+    local newMsg = msg
+    if EMOTE[event] then newMsg = PlainReplace(msg, Short(author), label) end
+    return false, newMsg, label, lang, chan, target, flags, zoneID, chanIdx, chanBase, unused, lineID, guid, ...
+end
+
+----------------------------------------------------------------------
+-- Be right back screen
+----------------------------------------------------------------------
+local brb, brbSince
+local function FmtElapsed(sec)
+    sec = math.max(0, math.floor(sec))
+    local h, m, s2 = math.floor(sec / 3600), math.floor(sec / 60) % 60, sec % 60
+    if h > 0 then return string.format("%d:%02d:%02d", h, m, s2) end
+    return string.format("%d:%02d", m, s2)
+end
+
+local function EnsureBRB()
+    if brb then return brb end
+    local f = CreateFrame("Frame", "AimbotUIPrivacyBRB", UIParent)
+    f:SetAllPoints(UIParent)
+    f:SetFrameStrata("FULLSCREEN_DIALOG")
+    f:SetFrameLevel(200)
+    f:EnableMouse(true)
+    f:Hide()
+    local bg = f:CreateTexture(nil, "BACKGROUND")
+    bg:SetAllPoints()
+    bg:SetColorTexture(0.02, 0.02, 0.03, 1)
+    f.title = f:CreateFontString(nil, "OVERLAY")
+    f.title:SetFont(STANDARD_TEXT_FONT, 46, "OUTLINE")
+    f.title:SetPoint("CENTER", f, "CENTER", 0, 30)
+    f.timer = f:CreateFontString(nil, "OVERLAY")
+    f.timer:SetFont(STANDARD_TEXT_FONT, 24, "OUTLINE")
+    f.timer:SetPoint("TOP", f.title, "BOTTOM", 0, -18)
+    f.timer:SetTextColor(0.7, 0.75, 0.85)
+    f.hint = f:CreateFontString(nil, "OVERLAY")
+    f.hint:SetFont(STANDARD_TEXT_FONT, 12, "")
+    f.hint:SetPoint("BOTTOM", f, "BOTTOM", 0, 24)
+    f.hint:SetTextColor(0.4, 0.4, 0.45)
+    f.hint:SetText("Click, or press the Be right back key again, to come back")
+    f:SetScript("OnMouseDown", function() M.SetBRB(false) end)
+    local acc = 0
+    f:SetScript("OnUpdate", function(self, dt)
+        acc = acc + (dt or 0)
+        if acc < 0.5 then return end
+        acc = 0
+        if S().brbTimer and brbSince then
+            self.timer:SetText("Away for " .. FmtElapsed(GetTime() - brbSince))
+        else
+            self.timer:SetText("")
+        end
+    end)
+    brb = f
+    return f
+end
+
+function M.SetBRB(on)
+    local f = EnsureBRB()
+    if on == nil then on = not f:IsShown() end
+    if on then
+        brbSince = GetTime()
+        f.title:SetText(S().brbText or "Be right back")
+        f.timer:SetText(S().brbTimer and "Away for 0:00" or "")
+        f:Show()
+    else
+        f:Hide()
+        brbSince = nil
+    end
+end
+
+function M.ToggleBRB() M.SetBRB() end
+_G.AimbotUI_ToggleBRB = M.ToggleBRB
+
+----------------------------------------------------------------------
+-- The on-screen tag
+----------------------------------------------------------------------
+local tag
+local function SweepIndicator()
+    local show = active and S().enabled and S().indicator
+    if show then
+        if not tag then
+            tag = CreateFrame("Frame", "AimbotUIPrivacyTag", UIParent)
+            tag:SetSize(110, 20)
+            tag:SetPoint("TOPLEFT", UIParent, "TOPLEFT", 8, -8)
+            tag:SetFrameStrata("HIGH")
+            local bg = tag:CreateTexture(nil, "BACKGROUND")
+            bg:SetAllPoints()
+            bg:SetColorTexture(0.7, 0.1, 0.1, 0.8)
+            local t = tag:CreateFontString(nil, "OVERLAY")
+            t:SetFont(STANDARD_TEXT_FONT, 11, "OUTLINE")
+            t:SetPoint("CENTER")
+            t:SetText("PRIVATE MODE")
+        end
+        tag:Show()
+    elseif tag then
+        tag:Hide()
+    end
+end
+
+----------------------------------------------------------------------
+-- Turning it on and off
+----------------------------------------------------------------------
+local ticker
+local function ApplyAll()
+    pcall(Sweep, true)
+    pcall(SweepTag)
+    pcall(SweepWhere)
+    pcall(SweepBubbles)
+    pcall(SweepIndicator)
+end
+M.ApplyAll = ApplyAll
+
+function M.IsActive() return active and S().enabled end
+
+function M.SetActive(on, quiet)
+    on = on and true or false
+    if on and not S().enabled then
+        NS.Print("Privacy is switched off for this tab. Turn the module on first.")
+        return
+    end
+    active = on
+    ApplyAll()
+    if not quiet then
+        NS.Print("Private mode is " .. (on and "|cffff6666ON|r" or "|cff00ff00OFF|r") .. ".")
+    end
+    if NS.UI and NS.UI.RefreshAll then pcall(NS.UI.RefreshAll) end
+end
+
+function M.Toggle() M.SetActive(not active) end
+
+-- Light safety net, once a second: re-check the name texts we already know about. The heavy work
+-- (searching frames for name texts, CVars, minimap, indicator) only runs when something changes.
+local tickCount = 0
+local function Tick()
+    if not (active and S().enabled) then return end
+    tickCount = tickCount + 1
+    pcall(Sweep, tickCount % 10 == 0)
+    local ff = _G.FriendsFrame
+    if ff and ff.IsShown and ff:IsShown() then pcall(SweepTag) end
+end
+
+-- Many redraws in one moment are folded into a single pass (at most ~10 per second).
+local dirty, dirtyDiscover, dirtyAcc = false, false, 0
+local pump = CreateFrame("Frame")
+pump:SetScript("OnUpdate", function(_, dt)
+    if not dirty then return end
+    dirtyAcc = dirtyAcc + (dt or 0)
+    if dirtyAcc < 0.1 then return end
+    dirtyAcc = 0
+    dirty = false
+    local d = dirtyDiscover
+    dirtyDiscover = false
+    if active and S().enabled then pcall(Sweep, d) end
+end)
+local function MarkDirty(discover)
+    dirty = true
+    if discover then dirtyDiscover = true end
+end
+
+----------------------------------------------------------------------
+-- Slash command
+----------------------------------------------------------------------
+local function OpenInbox()
+    M.unread = 0
+    if NS.UI and NS.UI.Show then NS.UI.Show("privacy") end
+end
+
+local function Slash(msg)
+    local a = (msg or ""):lower():match("^%s*(%S*)") or ""
+    if a == "on" then M.SetActive(true)
+    elseif a == "off" then M.SetActive(false)
+    elseif a == "" or a == "toggle" then M.Toggle()
+    elseif a == "inbox" then OpenInbox()
+    elseif a == "brb" then M.SetBRB()
+    elseif a == "status" then
+        NS.Print(string.format("Private mode: %s   whispers waiting: %d   Be right back: %s",
+            active and "ON" or "off", M.unread, (brb and brb:IsShown()) and "showing" or "off"))
+    else
+        NS.Print("/aprivacy  (on | off | toggle | inbox | brb | status)")
+    end
+end
+
+----------------------------------------------------------------------
+-- Lifecycle
+----------------------------------------------------------------------
+local function HookNames()
+    -- Re-apply the moment the game redraws a name, so the real one never shows for a frame.
+    local function Quick() if active and S().enabled then MarkDirty(false) end end
+    local function Try(target, method)
+        local obj = target
+        if type(target) == "string" then obj = _G[target] end
+        if obj and type(obj[method]) == "function" then pcall(hooksecurefunc, obj, method, Quick) end
+    end
+    -- Raid frames and nameplates redraw their name through this: fix only that one frame, right away.
+    if type(_G.CompactUnitFrame_UpdateName) == "function" then
+        pcall(hooksecurefunc, "CompactUnitFrame_UpdateName", function(frame)
+            if not (active and S().enabled) then return end
+            local fs = frame and frame.name
+            if not (fs and fs.SetText) then return end
+            local unit = frame.displayedUnit or frame.unit
+            if type(unit) ~= "string" then return end
+            local isPlate = unit:find("^nameplate")
+            if (isPlate and S().nameplates) or (not isPlate and S().frames) then pcall(SetName, fs, unit) end
+        end)
+    end
+    Try(_G, "UnitFrame_Update")
+    for _, name in ipairs({ "PlayerFrame", "TargetFrame", "FocusFrame", "PartyFrame" }) do
+        Try(name, "Update")
+        Try(name, "UpdateName")
+    end
+end
+
+function M:Apply()
+    if not S().enabled then
+        if active then M.SetActive(false, true) end
+        if brb and brb:IsShown() then M.SetBRB(false) end
+        return
+    end
+    ApplyAll()
+end
+
+function M:Init()
+    local add = (ChatFrameUtil and ChatFrameUtil.AddMessageEventFilter) or ChatFrame_AddMessageEventFilter
+    if add then
+        for _, ev in ipairs(EVENTS) do pcall(add, ev, ChatFilter) end
+        M.filtersAdded = true
+    end
+    pcall(HookNames)
+
+    for _, ev in ipairs({ "PLAYER_TARGET_CHANGED", "PLAYER_FOCUS_CHANGED", "GROUP_ROSTER_UPDATE",
+        "UNIT_NAME_UPDATE" }) do
+        NS.On(ev, function() if active and S().enabled then MarkDirty(true) end end)
+    end
+    NS.On("PLAYER_ENTERING_WORLD", function()
+        if active and S().enabled then pcall(ApplyAll) end
+    end)
+    -- A new nameplate: fix just that plate.
+    NS.On("NAME_PLATE_UNIT_ADDED", function(_, unit)
+        if not (active and S().enabled and S().nameplates) or type(unit) ~= "string" then return end
+        local ok, plate = pcall(C_NamePlate.GetNamePlateForUnit, unit)
+        local uf = ok and plate and plate.UnitFrame
+        if uf and uf.name and uf.name.SetText then pcall(SetName, uf.name, unit) end
+    end)
+    NS.On("PLAYER_LOGOUT", function()
+        if active then
+            active = false
+            ApplyAll()           -- put everything back so nothing stays hidden after logout
+        end
+    end)
+
+    -- Crash safety: if the game closed while private mode had the bubbles off, put them back.
+
+    if C_Timer and C_Timer.NewTicker then ticker = C_Timer.NewTicker(1, Tick) end
+
+    _G.SLASH_AIMBOTPRIVACY1 = "/aprivacy"
+    _G.SlashCmdList["AIMBOTPRIVACY"] = Slash
+
+    -- Private mode always starts ON at login / reload (turn the whole Privacy module off to disable it).
+    if S().enabled then
+        C_Timer.After(1, function() M.SetActive(true, true) end)
+    end
+end
+
+function M:Diagnose()
+    local s = S()
+    NS.Print(string.format("  private mode: %s   chat filters: %s   whispers in inbox: %d (%d unread)",
+        active and "ON" or "off", tostring(M.filtersAdded), #s.inbox, M.unread))
+    NS.Print(string.format("  name texts found: %d   BattleTag text found: %s   scans: %d",
+        #CollectTargets(), tostring(TagFS() ~= nil), scanCount))
+    for _, t in ipairs(CollectTargets()) do
+        local ok, txt = pcall(t.fs.GetText, t.fs)
+        NS.Print(string.format("    %s -> showing \"%s\"", t.unit, ok and IsStr(txt) and txt or "?"))
+    end
+    local ok, mine = pcall(UnitName, "player")
+    NS.Print("  your real name: " .. (ok and IsStr(mine) and mine or "?")
+        .. "   PlayerFrame found: " .. tostring(_G.PlayerFrame ~= nil))
+    local heads = {}
+    for _, c in ipairs(HEAD_CVARS) do
+        local okc, v = pcall(GetCVar, c)
+        heads[#heads + 1] = c .. "=" .. tostring(okc and v or "n/a")
+    end
+    NS.Print("  head-name settings: " .. table.concat(heads, " "))
+    local loaded = (C_AddOns and C_AddOns.IsAddOnLoaded) or IsAddOnLoaded
+    if loaded and loaded("ForeverEnhancedPrivacy") then
+        NS.Print("  |cffff9944ForeverEnhancedPrivacy is also loaded|r - turn one of the two off so they don't both swap names.")
+    end
+end
+
+----------------------------------------------------------------------
+-- Settings page
+----------------------------------------------------------------------
+local function MaskedCount(n) return n == 1 and "1 whisper" or (n .. " whispers") end
+
+function M.Build(page)
+    page:Section("Private mode", "On or off right now", { pinned = true })
+    page:Check("Private mode is ON", function() return active end,
+        function(v) M.SetActive(v, true) end)
+    local state = page:Note("")
+    table.insert(page.refreshers, function()
+        state:SetText(active and "|cffff6666Names, whispers and location details are hidden.|r"
+            or "Everything is showing normally. Turn it on before you go live.")
+    end)
+    page:Note("Set a key under Game Menu > Options > Key Bindings > Aimbot UI, or type /aprivacy. "
+        .. "/aprivacy brb shows the Be right back screen.")
+
+    page:Section("Names", "What other players are called while private")
+    page:Cycle("Other players' names become", {
+            { "class", "Their class" },
+            { "player", "\"Player\"" },
+            { "hidden", "Nothing" },
+        },
+        function() return S().names end,
+        function(v) S().names = v; ApplyAll() end)
+    page:Check("Unit, party and raid frames", function() return S().frames end,
+        function(v) S().frames = v; ApplyAll() end)
+    page:Check("Nameplates above heads", function() return S().nameplates end,
+        function(v) S().nameplates = v; ApplyAll() end)
+    page:Check("Chat names", function() return S().chat end,
+        function(v) S().chat = v end)
+    page:Check("Hide the names the game draws above heads (including yours)", function() return S().headNames end,
+        function(v) S().headNames = v; ApplyAll() end)
+    page:Note("This is the game's own \"names above heads\" setting. It is put back when you turn private mode off, "
+        .. "log out or reload.")
+    page:Note("NPCs, pets and creatures keep their names. Names in tooltips and some game menus can't be changed "
+        .. "by an addon: see Good to know.")
+
+    page:Section("Your name and BattleTag", "What you show as while private")
+    page:Check("Show a name of my choice for me", function() return S().ownNameOn end,
+        function(v) S().ownNameOn = v; ApplyAll() end)
+    local ownNote = page:Note("")
+    table.insert(page.refreshers, function() ownNote:SetText("Your name now shows as: |cffffffff" .. tostring(S().ownName) .. "|r") end)
+    page:Input("Type a name and press Enter", function(text)
+        S().ownName = text:sub(1, 24)
+        ApplyAll()
+        if NS.UI.RefreshAll then NS.UI.RefreshAll() end
+    end, "Set name")
+    page:Check("Show my name in a colour", function() return S().ownColorOn end,
+        function(v) S().ownColorOn = v; ApplyAll() end)
+    page:Color("My name colour", function() return S().ownColor end,
+        function(r, g, b) local c = S().ownColor; c[1], c[2], c[3] = r, g, b; ApplyAll() end)
+    page:Check("Show a made-up BattleTag in the friends window", function() return S().tagOn end,
+        function(v) S().tagOn = v; ApplyAll() end)
+    local tagNote = page:Note("")
+    table.insert(page.refreshers, function() tagNote:SetText("Your BattleTag now shows as: |cffffffff" .. tostring(S().tag) .. "|r") end)
+    page:Input("Type a BattleTag (like Name#1234) and press Enter", function(text)
+        S().tag = text:sub(1, 32)
+        ApplyAll()
+        if NS.UI.RefreshAll then NS.UI.RefreshAll() end
+    end, "Set tag")
+
+    page:Section("Chat", "Whispers and bubbles")
+    page:Check("Keep whispers out of chat (read them later in the inbox)", function() return S().hideWhispers end,
+        function(v) S().hideWhispers = v end)
+    page:Check("Hide chat bubbles", function() return S().bubbles end,
+        function(v) S().bubbles = v; ApplyAll() end)
+    page:Note("Chat only tells you how many whispers are waiting. Your bubble settings are put back when you "
+        .. "turn private mode off, log out or reload.")
+
+    page:Section("Whisper inbox", "Hidden whispers wait here")
+    local box = page:Container()
+    local text = NS.UI.Text(box, "", -1)
+    text:SetPoint("TOPLEFT", box, "TOPLEFT", 0, 0)
+    text:SetPoint("TOPRIGHT", box, "TOPRIGHT", 0, 0)
+    text:SetJustifyV("TOP")
+    text:SetWordWrap(true)
+    function M.RefreshInbox()
+        local inbox = S().inbox
+        if #inbox == 0 then
+            text:SetText("No hidden whispers yet.")
+        else
+            local lines = {}
+            for i = math.max(1, #inbox - 24), #inbox do
+                local e = inbox[i]
+                local stamp = (date and e.t and e.t > 0) and date("%H:%M", e.t) or "--:--"
+                lines[#lines + 1] = string.format("|cff8a8a92%s|r  %s|cffffffff%s|r: %s",
+                    stamp, e.out and "to " or "", tostring(e.who), tostring(e.msg))
+            end
+            text:SetText(table.concat(lines, "\n"))
+        end
+        local h = text:GetStringHeight()
+        box:SetContentHeight((type(h) == "number" and h or 14) + 6)
+    end
+    table.insert(page.refreshers, M.RefreshInbox)
+    M.RefreshInbox()
+    page:Button("Clear the inbox", function()
+        S().inbox = {}
+        M.unread = 0
+        M.RefreshInbox()
+    end, 160)
+
+    page:Section("Where you are", "Minimap details")
+    page:Check("Hide the zone name on the minimap", function() return S().hideZone end,
+        function(v) S().hideZone = v; ApplyAll() end)
+    page:Check("Hide the clock", function() return S().hideClock end,
+        function(v) S().hideClock = v; ApplyAll() end)
+    page:Check("Show a small PRIVATE MODE tag on screen", function() return S().indicator end,
+        function(v) S().indicator = v; ApplyAll() end)
+    page:Note("The tag is a reminder for you, but it will be visible on stream too.")
+
+    page:Section("Be right back", "Cover the whole screen while you step away")
+    page:Input("Type your message and press Enter", function(text2)
+        S().brbText = text2:sub(1, 60)
+        if brb and brb:IsShown() then brb.title:SetText(S().brbText) end
+        if NS.UI.RefreshAll then NS.UI.RefreshAll() end
+    end, "Set message")
+    local brbNote = page:Note("")
+    table.insert(page.refreshers, function() brbNote:SetText("Message: |cffffffff" .. tostring(S().brbText) .. "|r") end)
+    page:Check("Show how long I've been away", function() return S().brbTimer end,
+        function(v) S().brbTimer = v end)
+    page:Button("Show / hide the Be right back screen", function() M.SetBRB() end, 280)
+
+    page:Section("Good to know", "Limits")
+    page:Note("Things the game does not let an addon change: names in tooltips, the titles of some right-click "
+        .. "menus, and some boxes in the friends and guild windows. Cover those with the Be right back screen "
+        .. "or keep the windows closed on stream.")
+    page:Note("When you type /w and a name, the letters you type show until the chat box switches over.")
+    page:Note("Screenshots: the game's own screenshot key does not wait for this addon, so turn private mode "
+        .. "on first.")
+    page:Note("Changing names on screen is a courtesy for your viewers. It is not a security tool.")
+end
+
+M._t = { NameForUnit = NameForUnit, ChatFilter = ChatFilter, Sweep = Sweep, SweepTag = SweepTag,
+    SweepWhere = SweepWhere, SweepBubbles = SweepBubbles, Slash = Slash, Short = Short,
+    PlainReplace = PlainReplace, CollectTargets = CollectTargets, FmtElapsed = FmtElapsed }

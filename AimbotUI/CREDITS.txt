@@ -1,0 +1,14 @@
+Aimbot UI - credits
+
+Lorti UI Classic (artwork in media/, look and feature set)
+  Lorti, Chordsy, Macumba, Knall, Jozh, Xyz, Arrone, Redskin
+  The logic was re-written for the Retail-style frames used by WoW Forever.
+
+NiceDamage (fonts in media/fonts/, idea)
+  Montyburns
+  Fonts are the 8 fonts shipped with NiceDamage. Original readme: media/fonts/NiceDamage-readme.txt
+
+Everything else (window, Button Sparkle, Spell Trainer, Mana Costs, Range Alert) is original to this addon.
+
+What's Training? by Sveng (MIT license) - the Forever spell, quest spell and weapon skill data in
+the Data folder is taken unchanged from that addon (see Data\LICENSE-WhatsTraining.txt).
