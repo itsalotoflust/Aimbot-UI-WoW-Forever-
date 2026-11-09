@@ -68,7 +68,6 @@ local M = {
         -- unit frames
         darkFrames   = true,
         frameShade   = 0.12,
-        solidNames   = true,               -- solid bar behind unit names instead of the faded art
         artShade     = 0.35,
         classBars    = false,
         reactionBars = true,
@@ -335,19 +334,6 @@ local OTHER_ART = {
     "MinimapCompassTexture", "MinimapCluster.BorderTop",
 }
 
--- The colored strip behind the unit name (hostile red, neutral yellow, friendly green).
--- The game's art for it fades out toward the edge. Swapping the art for a solid texture
--- doesn't work, because the art only fills part of its box (it ran under the portrait).
--- So the game's strip is faded to alpha 0 and our own solid bar is drawn exactly over the
--- health bar's width, at the strip's height, in the color the game gave the strip.
-local NAME_BG_PATHS = {
-    { strip = "TargetFrame.TargetFrameContent.TargetFrameContentMain.ReputationColor", unit = "target" },
-    { strip = "FocusFrame.TargetFrameContent.TargetFrameContentMain.ReputationColor",  unit = "focus" },
-    { strip = "PlayerFrame.PlayerFrameContent.PlayerFrameContentMain.ReputationColor", unit = "player" },
-}
-local SOLID = "Interface\\Buttons\\WHITE8X8"
-local nameBars = setmetatable({}, { __mode = "k" })   -- game strip -> our texture (our own table)
-
 local function ApplyFrameArt()
     local s = S()
     local dark = s.enabled and s.darkFrames
@@ -386,53 +372,6 @@ local MANA_BARS = {
         "FocusFrameManaBar" } },
     { unit = "pet", paths = { "PetFrame.ManaBar", "PetFrameManaBar" } },
 }
-
-local function HealthPathsFor(unit)
-    for _, e in ipairs(HEALTH_BARS) do if e.unit == unit then return e.paths end end
-end
-
-local function NameBarOff(strip)
-    local bar = nameBars[strip]
-    if bar then bar:Hide() end
-    pcall(strip.SetAlpha, strip, 1)
-end
-
-local function NameBarOn(strip, health)
-    local bar = nameBars[strip]
-    if not bar then
-        local parent = strip:GetParent()
-        local okL, layer, sub = pcall(strip.GetDrawLayer, strip)
-        bar = parent:CreateTexture(nil, okL and layer or "BACKGROUND", nil, okL and sub or 0)
-        bar:SetTexture(SOLID)
-        nameBars[strip] = bar
-    end
-    -- same height and vertical place as the game's strip, same width as the health bar
-    local h = strip:GetHeight()
-    if not h or NS.IsSecret(h) or h <= 0 then h = 18 end
-    bar:ClearAllPoints()
-    bar:SetPoint("BOTTOMLEFT", health, "TOPLEFT", 0, 0)
-    bar:SetPoint("BOTTOMRIGHT", health, "TOPRIGHT", 0, 0)
-    bar:SetHeight(h)
-    local okC, r, g, b = pcall(strip.GetVertexColor, strip)
-    if okC and r and not NS.IsSecret(r) and not NS.IsSecret(g) and not NS.IsSecret(b) then
-        bar:SetVertexColor(r, g, b, 1)
-    end
-    local okS, shown = pcall(strip.IsShown, strip)
-    bar:SetShown(not okS or NS.IsSecret(shown) or shown and true or false)
-    pcall(strip.SetAlpha, strip, 0)
-end
-
-local function ApplyNameBars()
-    local s = S()
-    local on = s.enabled and s.solidNames
-    for _, e in ipairs(NAME_BG_PATHS) do
-        local strip = NS.Resolve(e.strip)
-        if strip and strip.SetAlpha then
-            local health = on and NS.ResolveFirst(HealthPathsFor(e.unit) or {})
-            if on and health then NameBarOn(strip, health) else NameBarOff(strip) end
-        end
-    end
-end
 
 local barInfo = {}      -- statusbar -> { unit, kind }   (local table: nothing written to Blizzard frames)
 local barHooked = {}
@@ -744,7 +683,6 @@ local STEPS = {
     { "action buttons",  ApplyButtons },
     { "bar art",         ApplyBarArt },
     { "frame art",       ApplyFrameArt },
-    { "name bars",       ApplyNameBars },
     { "unit bars",       ApplyBars },
     { "portraits",       ApplyPortraits },
     { "hit indicator",   ApplyHit },
@@ -826,10 +764,6 @@ function M:Diagnose()
     for _, p in ipairs(FRAME_ART) do
         if NS.Resolve(p) then NS.Print("  frame art: |cff00ff00" .. p .. "|r") end
     end
-    for _, e in ipairs(NAME_BG_PATHS) do
-        local p = e.strip
-        NS.Print("  name bar: " .. (NS.Resolve(p) and ("|cff00ff00" .. p .. "|r") or ("|cffff4444not found|r " .. p)))
-    end
     local b = _G["ActionButton1"]
     if b then
         NS.Print(string.format("  ActionButton1 parts: icon=%s NormalTexture=%s HotKey=%s Name=%s Count=%s Flash=%s IconMask=%s",
@@ -901,7 +835,6 @@ function M.Build(page)
     page:Slider("Other UI art brightness", 0, 1, 0.05,
         function() return S().artShade end,
         function(v) S().artShade = v; NS.ApplyModule("lorti") end, Pct)
-    page:Check("Solid name background (no fade)", Bind("solidNames"))
     page:Check("Class portraits on target and focus", Bind("classPortraits"))
     page:Check("Hide hit numbers on the player portrait", Bind("hideHit"))
 

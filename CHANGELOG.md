@@ -2,6 +2,10 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.9.3
+
+- Removed the Lorti Style "Solid name background" option from 2.9.1 / 2.9.2. The strip behind unit names is the game's own art again, exactly as before.
+
 ## 2.9.2
 
 - **Lorti Style "Solid name background":** the solid bar now lines up with the health bar under it (same width, same height as the game's strip) instead of running under the portrait. The game's faded strip is hidden while it is on and comes back when you untick it.
