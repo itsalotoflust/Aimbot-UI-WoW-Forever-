@@ -2,6 +2,12 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.13.0
+
+- **Aura Timers:** draws its own buff and debuff icons for your target and focus, each with a countdown of the time left. This client draws its target aura icons where addons can't reach them, so the game's icons are hidden instead (can be turned off).
+  - Buffs first, debuffs with a red border below, stack counts, tooltips on hover.
+  - Icon size, icons per row, how many, "only my debuffs" and position are all in the Aura Timers tab.
+
 ## 2.12.5
 
 - **Aura Timers:** looks for the target and focus aura icons where this client keeps them (`TargetFrame.TargetFrameContent.TargetFrameContentContextual.Auras`).

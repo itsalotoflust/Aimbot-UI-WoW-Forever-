@@ -29,6 +29,17 @@ local M = {
         resize   = true,
         size     = 12,              -- number size on target / focus icons
         plateSize = 10,             -- number size on nameplate icons
+        own = {                     -- our own aura icons for target and focus (this client hides its own from addons)
+            enabled  = true,
+            hideGame = true,        -- hide the game's aura icons so they don't show twice
+            buffs    = true,
+            debuffs  = true,
+            onlyMine = false,       -- debuffs: only the ones you cast
+            iconSize = 22,
+            perRow   = 8,
+            max      = 16,          -- per kind
+            x = 5, y = 32,          -- from the frame's bottom left
+        },
     },
 }
 NS.RegisterModule("auratimers", M)
@@ -438,13 +449,148 @@ local function DoAllPlates()
 end
 
 ----------------------------------------------------------------------
+-- Our own aura icons for target and focus. On this client the game's target aura icons can't
+-- be seen or changed by addons, so we draw our own row of icons from the aura data, each with a
+-- Cooldown that counts down. Times go straight to the Cooldown widget (secret-safe).
+-- The game's icons are hidden with SetAlpha on their container (a method call, nothing written).
+----------------------------------------------------------------------
+local function O() return S().own end
+local own = {}                         -- unit -> { holder, buffs = {icons}, debuffs = {icons} }
+M.stats.ownShown = { target = 0, focus = 0 }
+M.stats.ownErr = nil
+
+local function UnitFrameOf(unit) return unit == "target" and TargetFrame or FocusFrame end
+
+local function NewIcon(holder)
+    local b = CreateFrame("Frame", nil, holder)
+    b.bg = b:CreateTexture(nil, "BACKGROUND")
+    b.bg:SetAllPoints()
+    b.bg:SetColorTexture(0, 0, 0, 1)
+    b.tex = b:CreateTexture(nil, "ARTWORK")
+    b.tex:SetPoint("TOPLEFT", 1, -1)
+    b.tex:SetPoint("BOTTOMRIGHT", -1, 1)
+    b.tex:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    b.cd = CreateFrame("Cooldown", nil, b, "CooldownFrameTemplate")
+    b.cd:SetAllPoints(b.tex)
+    pcall(b.cd.SetDrawEdge, b.cd, false)
+    pcall(b.cd.SetDrawBling, b.cd, false)
+    pcall(b.cd.SetReverse, b.cd, true)
+    pcall(b.cd.SetHideCountdownNumbers, b.cd, false)
+    b.count = b:CreateFontString(nil, "OVERLAY", "NumberFontNormalSmall")
+    b.count:SetPoint("BOTTOMRIGHT", 2, -1)
+    b:EnableMouse(true)
+    b:SetScript("OnEnter", function(self)
+        if not GameTooltip then return end
+        GameTooltip:SetOwner(self, "ANCHOR_BOTTOMRIGHT")
+        local ok = pcall(GameTooltip.SetUnitAura, GameTooltip, self.unit, self.index, self.filter)
+        if ok then GameTooltip:Show() end
+    end)
+    b:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
+    return b
+end
+
+local function OwnSet(unit)
+    local set = own[unit]
+    if set then return set end
+    local frame = UnitFrameOf(unit)
+    if not frame then return nil end
+    local holder = CreateFrame("Frame", nil, frame)
+    holder:SetSize(1, 1)
+    set = { holder = holder, buffs = {}, debuffs = {} }
+    own[unit] = set
+    return set
+end
+
+local function StackText(unit, a)
+    local CU = C_UnitAuras
+    if CU and CU.GetAuraApplicationDisplayCount and a.auraInstanceID ~= nil then
+        local ok, txt = pcall(CU.GetAuraApplicationDisplayCount, unit, a.auraInstanceID, 2, 99)
+        if ok and txt ~= nil then return txt end
+    end
+    local n = a.applications
+    if not IsSecret(n) and type(n) == "number" and n > 1 then return tostring(n) end
+    return ""
+end
+
+-- Fills one kind (buffs or debuffs) and returns how many icons were shown and the rows used.
+local function FillKind(unit, set, kind, startRow)
+    local o = O()
+    local list = set[kind]
+    local filter = (kind == "buffs") and "HELPFUL" or (o.onlyMine and "HARMFUL|PLAYER" or "HARMFUL")
+    local on = (kind == "buffs") and o.buffs or o.debuffs
+    local size, perRow = o.iconSize, math.max(1, o.perRow)
+    local n = 0
+    if on and C_UnitAuras and C_UnitAuras.GetAuraDataByIndex then
+        for i = 1, o.max do
+            local ok, a = pcall(C_UnitAuras.GetAuraDataByIndex, unit, i, filter)
+            if not ok or type(a) ~= "table" then break end
+            n = n + 1
+            local b = list[n]
+            if not b then b = NewIcon(set.holder); list[n] = b end
+            b.unit, b.index, b.filter = unit, i, filter
+            b:SetSize(size, size)
+            b:ClearAllPoints()
+            local col, row = (n - 1) % perRow, startRow + math.floor((n - 1) / perRow)
+            b:SetPoint("TOPLEFT", set.holder, "TOPLEFT", col * (size + 2), -row * (size + 2))
+            pcall(b.tex.SetTexture, b.tex, a.icon)
+            if kind == "debuffs" then b.bg:SetColorTexture(0.8, 0.1, 0.1, 1) else b.bg:SetColorTexture(0, 0, 0, 1) end
+            pcall(b.count.SetText, b.count, StackText(unit, a))
+            local fs = b.cd.GetCountdownFontString and b.cd:GetCountdownFontString()
+            if fs then
+                local okF, font = pcall(fs.GetFont, fs)
+                pcall(fs.SetFont, fs, (okF and font) or STANDARD_TEXT_FONT, S().resize and S().size or math.floor(size * 0.5), "OUTLINE")
+            end
+            if a.auraInstanceID == nil or not Feed(b.cd, unit, a.auraInstanceID) then pcall(b.cd.Clear, b.cd) end
+            b:Show()
+        end
+    end
+    for i = n + 1, #list do list[i]:Hide() end
+    local rows = (n > 0) and math.ceil(n / perRow) or 0
+    return n, rows
+end
+
+local function HideGame(unit, hide)
+    local box = AurasBox(UnitFrameOf(unit))
+    if box then pcall(box.SetAlpha, box, hide and 0 or 1) end
+end
+
+local function DoOwn(unit)
+    local s, o = S(), O()
+    local active = s.enabled and s[unit] and o.enabled
+    local set = own[unit]
+    HideGame(unit, active and o.hideGame)
+    if not active then
+        if set then set.holder:Hide() end
+        M.stats.ownShown[unit] = 0
+        return
+    end
+    set = OwnSet(unit)
+    if not set then return end
+    local okE, exists = pcall(UnitExists, unit)
+    if not okE or IsSecret(exists) or not exists then set.holder:Hide(); return end
+    set.holder:ClearAllPoints()
+    set.holder:SetPoint("TOPLEFT", UnitFrameOf(unit), "BOTTOMLEFT", o.x, o.y)
+    set.holder:Show()
+    local nb, rb = FillKind(unit, set, "buffs", 0)
+    local nd = FillKind(unit, set, "debuffs", rb)
+    M.stats.ownShown[unit] = nb + nd
+end
+M._t_DoOwn = DoOwn
+M._t_own = own
+
+local function SafeOwn(unit)
+    local ok, err = pcall(DoOwn, unit)
+    if not ok then M.stats.ownErr = tostring(err); NS.ReportError("Aura Timers", err) end
+end
+
+----------------------------------------------------------------------
 -- Updates: Blizzard rebuilds the icons when auras change, so redo it right after
 ----------------------------------------------------------------------
 local dirty = { target = false, focus = false, plates = {} }
 local function Flush()
     if not S().enabled then return end
-    if dirty.target then dirty.target = false; DoUnitFrame("target", TargetFrame) end
-    if dirty.focus then dirty.focus = false; DoUnitFrame("focus", FocusFrame) end
+    if dirty.target then dirty.target = false; DoUnitFrame("target", TargetFrame); SafeOwn("target") end
+    if dirty.focus then dirty.focus = false; DoUnitFrame("focus", FocusFrame); SafeOwn("focus") end
     for unit in pairs(dirty.plates) do
         dirty.plates[unit] = nil
         DoPlate(unit)
@@ -458,6 +604,8 @@ function M:Apply()
     ApplyCVar(s.enabled)
     DoUnitFrame("target", TargetFrame)
     DoUnitFrame("focus", FocusFrame)
+    SafeOwn("target")
+    SafeOwn("focus")
     DoAllPlates()
     if not s.enabled then
         for cd in pairs(touched) do Restore(cd) end
@@ -467,6 +615,8 @@ end
 
 function M:Init()
     savedCVar = S().savedCVar
+    if type(S().own) ~= "table" then S().own = {} end
+    for k, v in pairs(M.defaults.own) do if S().own[k] == nil then S().own[k] = v end end
     local runner = CreateFrame("Frame")
     local acc = 0
     runner:SetScript("OnUpdate", function(_, e)
@@ -720,12 +870,33 @@ function M:Diagnose()
         .. tostring(C_UnitAuras and C_UnitAuras.GetAuraDuration ~= nil))
     NS.Print("  TargetFrame.auraPools: " .. tostring(TargetFrame and TargetFrame.auraPools ~= nil)
         .. "   icons found by: " .. tostring(st.layout))
+    local o = O()
+    NS.Print(string.format("  own icons: %s   target %d   focus %d   hide game icons: %s   last error: %s",
+        o.enabled and "on" or "off", st.ownShown.target, st.ownShown.focus, tostring(o.hideGame), tostring(st.ownErr or "none")))
     Probe(TargetFrame, "TargetFrame")
     local ok, err = pcall(DeepProbe)
     if not ok then NS.Print("  deep probe failed: " .. tostring(err)) end
 end
 
 function M.Build(page)
+    local function A() NS.ApplyModule("auratimers") end
+    page:Section("Target and focus aura icons", "Aimbot UI's own buff and debuff icons, with time left")
+    page:Check("Draw my own aura icons with timers", function() return O().enabled end,
+        function(v) O().enabled = v; A() end)
+    page:Check("Hide the game's aura icons", function() return O().hideGame end,
+        function(v) O().hideGame = v; A() end)
+    page:Check("Show buffs", function() return O().buffs end, function(v) O().buffs = v; A() end)
+    page:Check("Show debuffs", function() return O().debuffs end, function(v) O().debuffs = v; A() end)
+    page:Check("Debuffs: only the ones I cast", function() return O().onlyMine end,
+        function(v) O().onlyMine = v; A() end)
+    page:Slider("Icon size", 14, 40, 1, function() return O().iconSize end, function(v) O().iconSize = v; A() end)
+    page:Slider("Icons per row", 3, 16, 1, function() return O().perRow end, function(v) O().perRow = v; A() end)
+    page:Slider("Most icons of each kind", 4, 32, 1, function() return O().max end, function(v) O().max = v; A() end)
+    page:Slider("Move left / right", -150, 150, 1, function() return O().x end, function(v) O().x = v; A() end)
+    page:Slider("Move up / down", -150, 150, 1, function() return O().y end, function(v) O().y = v; A() end)
+    page:Note("This client keeps its own target aura icons out of reach of addons, so Aimbot UI draws its "
+        .. "own: buffs first, debuffs (red border) below. Hover an icon for its tooltip.")
+
     page:Section("Where", "Which aura icons get time-left numbers")
     page:Check("Target frame", function() return S().target end,
         function(v) S().target = v; NS.ApplyModule("auratimers") end)
