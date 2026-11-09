@@ -1,4 +1,4 @@
-AIMBOT UI  v2.13.4  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.13.5  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,10 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.13.5
+  - Talent Point Alert: also reacts to the game's talent point / level change events, so it
+    shows sooner after you level. /aimbot diag lists every place the point count can be read.
 
 NEW IN 2.13.4
   - Aura Timers: no more double tooltips. The game's hidden icons still show their tooltip when

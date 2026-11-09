@@ -130,7 +130,8 @@ end
 function M:Init()
     for _, ev in ipairs({ "PLAYER_LEVEL_UP", "CHARACTER_POINTS_CHANGED", "PLAYER_TALENT_UPDATE",
         "TRAIT_CONFIG_UPDATED", "ACTIVE_PLAYER_SPECIALIZATION_CHANGED", "SPELLS_CHANGED",
-        "PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED" }) do
+        "PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "TRAIT_TREE_CURRENCY_INFO_UPDATED",
+        "TRAIT_NODE_CHANGED", "PLAYER_LEVEL_CHANGED", "UNIT_LEVEL" }) do
         NS.On(ev, SafeUpdate)
     end
     NS.On("PLAYER_ENTERING_WORLD", function()
@@ -153,6 +154,16 @@ end
 function M:Diagnose()
     NS.Print(string.format("  unspent points: %s   read from: %s   talent window open: %s   secret reads: %d",
         tostring(M.stats.count), M.stats.source, tostring(TalentWindowOpen()), M.stats.secret))
+    -- every source, so the quickest one on this client can be seen
+    local function Try(fn, ...)
+        if not fn then return "missing" end
+        local ok, v = pcall(fn, ...)
+        if not ok then return "error" end
+        if IsSecret(v) then return "secret" end
+        return tostring(v)
+    end
+    NS.Print(string.format("  sources: UnitCharacterPoints=%s  GetUnspentTalentPoints=%s  level=%s",
+        Try(UnitCharacterPoints, "player"), Try(GetUnspentTalentPoints), Try(UnitLevel, "player")))
 end
 
 function M.Build(page)

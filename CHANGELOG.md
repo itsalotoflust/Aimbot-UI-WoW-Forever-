@@ -2,6 +2,11 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.13.5
+
+- **Talent Point Alert:** also reacts to the game's talent point and level change events, so it shows sooner after you level.
+- `/aimbot diag` lists every place the point count can be read.
+
 ## 2.13.4
 
 - **Aura Timers:** no more double tooltips. The game's hidden icons still show their tooltip when hovered, and addons can't turn that off.
