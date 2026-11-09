@@ -2,6 +2,11 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.12.0
+
+- **Combat Indicator:** "+Combat" (red) and "-Combat" (green) in the middle of your screen when you enter and leave combat. Text size, both colors, how long it stays, and "Lock position" (untick it and drag the text anywhere). Each of +Combat / -Combat can be turned off, and there is a Test button. The target / focus icons are unchanged.
+- **Party Death Alert:** a skull icon after "<Name> died" (can be turned off).
+
 ## 2.11.0
 
 - **Aura Timers** (Combat, new module): time-left numbers on buff and debuff icons, so you can see how long your DoTs and crowd control have left on your target, focus and enemy nameplates. The game counts the time itself, so it keeps working even where the client hides aura times from addons. Choose target / focus / nameplates and the number size for each. It is a new file, so **fully restart the game once** after updating. Shortcut: `/aimbot timers`.

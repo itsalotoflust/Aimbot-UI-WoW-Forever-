@@ -7,7 +7,7 @@
 local ADDON_NAME, NS = ...
 _G.AimbotUI = NS
 
-NS.version = "2.11.0"
+NS.version = "2.12.0"
 NS.modules = {}
 NS.moduleOrder = {}
 
@@ -159,7 +159,7 @@ function NS.CreateAlertText(globalName, S, sample)
         Fit()
         f:SetAlpha(1)
         f:Show()
-        hideAt = (not hold) and (GetTime() + math.max(1, S().duration or 4)) or nil
+        hideAt = (not hold) and (GetTime() + math.max(0.5, S().duration or 4)) or nil
     end
 
     function A:Hide()

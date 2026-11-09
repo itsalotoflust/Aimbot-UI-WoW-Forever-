@@ -1,4 +1,4 @@
-AIMBOT UI  v2.11.0  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.12.0  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,13 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.12.0
+  - Combat Indicator: "+Combat" (red) and "-Combat" (green) in the middle of your screen when you
+    enter and leave combat. Text size, both colors, how long it stays, and "Lock position" (untick
+    it and drag the text anywhere). Each of +Combat / -Combat can be turned off, and there is a
+    Test button. The target / focus icons are unchanged.
+  - Party Death Alert: a skull icon after "<Name> died" (can be turned off).
 
 NEW IN 2.11.0
   - New module: Aura Timers (Combat). Time-left numbers on buff and debuff icons, so you can see

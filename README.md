@@ -2,13 +2,14 @@
 
 An all-in-one interface addon suite for **World of Warcraft Forever** (interface 16001).
 
-**Current version: 2.11.0**
+**Current version: 2.12.0**
 
 Open it in game with `/aimbot` (or `/aui`). Every module has its own tab and its own on/off switch, and if one module hits a problem it reports in chat and the rest keep running.
 
-## What's new in 2.11.0
+## What's new in 2.12.0
 
-- **Aura Timers** (Combat, new module): time-left numbers on buff and debuff icons, so you can see how long your DoTs and crowd control have left on your target, focus and enemy nameplates. The game counts the time itself, so it keeps working even where the client hides aura times from addons. Choose target / focus / nameplates and the number size for each. It is a new file, so **fully restart the game once** after updating. Shortcut: `/aimbot timers`.
+- **Combat Indicator:** "+Combat" (red) and "-Combat" (green) in the middle of your screen when you enter and leave combat. Text size, both colors, how long it stays, and "Lock position" (untick it and drag the text anywhere). Each of +Combat / -Combat can be turned off, and there is a Test button. The target / focus icons are unchanged.
+- **Party Death Alert:** a skull icon after "<Name> died" (can be turned off).
 
 See [CHANGELOG.md](CHANGELOG.md) for every version.
 

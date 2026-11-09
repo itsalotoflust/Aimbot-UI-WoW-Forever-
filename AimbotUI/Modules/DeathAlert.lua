@@ -19,6 +19,7 @@ local M = {
         enabled   = true,
         raid      = false,          -- also raid members while in a raid
         classColor = true,          -- color the name by class
+        skull     = true,           -- skull raid icon after the text
         sound     = true,
         size      = 32,
         color     = { 1, 0.25, 0.25, 1 },
@@ -32,12 +33,13 @@ NS.RegisterModule("deathalert", M)
 local function S() return NS.db.mod.deathalert end
 local IsSecret = NS.IsSecret
 
+local SKULL = "|TInterface\\TargetingFrame\\UI-RaidTargetingIcon_8:0|t"
 local alert
 local state = {}            -- key -> true (dead) / false (alive)
 M.stats = { deaths = 0, secret = 0, last = nil }
 
 local function Alert()
-    if not alert then alert = NS.CreateAlertText("AimbotUIDeathAlert", S, "Party member died") end
+    if not alert then alert = NS.CreateAlertText("AimbotUIDeathAlert", S, "Party member died " .. SKULL) end
     return alert
 end
 
@@ -78,11 +80,15 @@ local function ColoredName(unit)
     return name
 end
 
+local function Died(name)
+    return name .. " died" .. (S().skull and (" " .. SKULL) or "")
+end
+
 local function Announce(unit)
     local s = S()
-    local msg = ColoredName(unit) .. " died"
+    local msg = Died(ColoredName(unit))
     M.stats.deaths = M.stats.deaths + 1
-    M.stats.last = msg:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
+    M.stats.last = msg:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):gsub("|T.-|t", "{skull}")
     Alert():Show(msg)
     if s.sound then
         local id = (SOUNDKIT and SOUNDKIT.RAID_WARNING) or 8959
@@ -159,11 +165,12 @@ function M.Build(page)
         function(v) S().raid = v; NS.ApplyModule("deathalert") end)
     page:Check("Color the name by class", function() return S().classColor end,
         function(v) S().classColor = v end)
+    page:Check("Skull icon after the text", function() return S().skull end, function(v) S().skull = v end)
     page:Check("Play a sound", function() return S().sound end, function(v) S().sound = v end)
     page:Note("Only you see this; nothing is sent to chat. With Privacy's private mode on, the class is shown instead of the name.")
     page:Button("Test", function()
         if not S().enabled then NS.Print("Party Death Alert is off: turn it on at the top of this tab first."); return end
-        Alert():Show((S().classColor and "|cfffff468Party member|r" or "Party member") .. " died")
+        Alert():Show(Died(S().classColor and "|cfffff468Party member|r" or "Party member"))
     end)
 
     page:Section("Text", "Size, color, position and how long it stays")
