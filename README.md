@@ -8,6 +8,13 @@ Despite the name, Aimbot UI only changes how your interface looks and what it sh
 
 Open it in game with `/aimbot` (or `/aui`). Every module has its own tab and its own on/off switch, and if one module hits a problem it reports in chat and the rest keep running.
 
+## What's new in 2.8.6
+
+- Privacy: new switch "Allow whispers from everyone (real names)" (Privacy tab > Chat). While private mode is on, whispers from everyone - other characters AND Battle.net friends, ones you get and ones you send - show in chat exactly as normal, with the sender's real name instead of "Player" or a class name, so you can see who it is and reply with R or by clicking the name. Off by default. It wins over "Keep whispers out of chat". Names in those whispers WILL be visible on stream.
+- /aimbot diag now says how whispers are being handled.
+
+See [CHANGELOG.md](CHANGELOG.md) for every version.
+
 ## Download
 
 Download **[AimbotUI.zip](https://github.com/itsalotoflust/Aimbot-UI-WoW-Forever-/raw/main/AimbotUI.zip)**. The addon source is also in the `AimbotUI` folder in this repo.
