@@ -2,6 +2,11 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.12.5
+
+- **Aura Timers:** looks for the target and focus aura icons where this client keeps them (`TargetFrame.TargetFrameContent.TargetFrameContentContextual.Auras`).
+- `/aimbot diag` lists what is inside that container, and what the aura functions return for the target with other filters.
+
 ## 2.12.4
 
 - **Aura Timers:** also finds aura icons kept in icon pools under other names on the target and focus frames.

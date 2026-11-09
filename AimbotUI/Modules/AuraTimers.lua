@@ -161,7 +161,7 @@ local function Overlay(icon)
     local cd = overlays[icon]
     if cd then return cd end
     cd = CreateFrame("Cooldown", nil, icon, "CooldownFrameTemplate")
-    local art = icon.Icon or icon.icon
+    local art = icon.Icon or icon.icon or icon.Texture or icon.IconTexture
     if not art and icon.GetName then
         local okN, name = pcall(icon.GetName, icon)
         if okN and type(name) == "string" then art = _G[name .. "Icon"] end
@@ -238,6 +238,14 @@ end
 local function IconAuraID(icon, unit)
     local id = icon.auraInstanceID
     if type(id) == "number" and not IsSecret(id) then return id end
+    -- some layouts keep the aura's data in a table on the icon
+    for _, k in ipairs({ "auraData", "aura", "buttonInfo", "data", "auraInfo", "info" }) do
+        local okT, t = pcall(rawget, icon, k)
+        if okT and type(t) == "table" then
+            local okA, aid = pcall(rawget, t, "auraInstanceID")
+            if okA and type(aid) == "number" and not IsSecret(aid) then return aid end
+        end
+    end
     local okI, index = pcall(icon.GetID, icon)
     if not okI or type(index) ~= "number" or IsSecret(index) or index < 1 then return nil end
     local okN, name = pcall(icon.GetName, icon)
@@ -283,6 +291,22 @@ local function FramePools(frame)
 end
 M._t_FramePools = FramePools
 
+-- This client keeps the target / focus aura icons in <Frame>.TargetFrameContent.TargetFrameContentContextual.Auras
+local function AurasBox(frame)
+    local ok, box = pcall(function()
+        return frame.TargetFrameContent.TargetFrameContentContextual.Auras
+    end)
+    if ok and type(box) == "table" and box.GetChildren then return box end
+end
+M._t_AurasBox = AurasBox
+
+local function Squareish(obj, lo, hi)
+    local okW, w = pcall(obj.GetWidth, obj)
+    local okH, h = pcall(obj.GetHeight, obj)
+    if not okW or not okH or IsSecret(w) or IsSecret(h) then return false end
+    return w >= lo and w <= hi and math.abs(w - h) <= 8
+end
+
 M.stats.layout = "none"
 local function EachAuraIcon(frame, fn)
     local function Layout(v) if frame == TargetFrame then M.stats.layout = v end end
@@ -307,6 +331,23 @@ local function EachAuraIcon(frame, fn)
             keys[#keys + 1] = e.key
         end
         if next(seen) then Layout("pools: " .. table.concat(keys, ",")); return true end
+    end
+    -- the Auras container: every shown icon-sized frame in it is an aura icon
+    local box = AurasBox(frame)
+    if box then
+        local n = 0
+        local okK, kids = pcall(function() return { box:GetChildren() } end)
+        if okK then
+            for _, kid in ipairs(kids) do
+                if not IsCooldown(kid) and Shown(kid) and (IsAuraIcon(kid) or Squareish(kid, 8, 64)) then
+                    n = n + 1; fn(kid)
+                else
+                    -- one level down (an icon inside a holder frame)
+                    WalkIcons(kid, 2, function(icon) if Shown(icon) then n = n + 1; fn(icon) end end, {})
+                end
+            end
+        end
+        if n > 0 then Layout("Auras container"); return true end
     end
     -- this client keeps the icons elsewhere: look for them among the frame's children
     WalkIcons(frame, 6, function(icon) if Shown(icon) then fn(icon) end end, {})
@@ -561,6 +602,83 @@ local function DeepProbe()
             end
         end
         Walk(TargetFrame, 1)
+    end
+    -- 3b. the Auras container itself
+    local box = TargetFrame and AurasBox(TargetFrame)
+    if not box then
+        P("  Auras container: not found")
+    else
+        local function Fields(obj, max)
+            local out = {}
+            pcall(function()
+                for k, v in pairs(obj) do
+                    if type(k) == "string" and k ~= "0" and type(v) ~= "function" then
+                        local t = type(v)
+                        if t == "table" and v.GetObjectType then
+                            local okT, ot = pcall(v.GetObjectType, v); t = okT and ot or "widget"
+                        elseif t == "number" or t == "boolean" then
+                            t = IsSecret(v) and "secret" or tostring(v)
+                        elseif t == "string" then
+                            t = '"' .. v:sub(1, 20) .. '"'
+                        end
+                        out[#out + 1] = k .. "=" .. t
+                    end
+                end
+            end)
+            table.sort(out)
+            local more = #out > max and (" +" .. (#out - max) .. " more") or ""
+            while #out > max do table.remove(out) end
+            return table.concat(out, " ") .. more
+        end
+        local okC, nk = pcall(box.GetNumChildren, box)
+        local okR, nr = pcall(box.GetNumRegions, box)
+        P(string.format("  Auras container %s shown=%s children=%s regions=%s: %s", Size(box), tostring(Shown(box)),
+            tostring(okC and nk), tostring(okR and nr), Fields(box, 30)))
+        local okK, kids = pcall(function() return { box:GetChildren() } end)
+        if okK then
+            for i, kid in ipairs(kids) do
+                if i > 12 then P("  ... more children"); break end
+                local okT, ot = pcall(kid.GetObjectType, kid)
+                local okKC, kc = pcall(kid.GetNumChildren, kid)
+                P(string.format("  Auras child #%d %s %s shown=%s kids=%s: %s", i, okT and ot or "?", Size(kid),
+                    tostring(Shown(kid)), tostring(okKC and kc), Fields(kid, 20)))
+                local okG, grand = pcall(function() return { kid:GetChildren() } end)
+                if okG then
+                    for j, g in ipairs(grand) do
+                        if j > 3 then break end
+                        local okGT, gt = pcall(g.GetObjectType, g)
+                        P(string.format("    inner #%d %s %s shown=%s: %s", j, okGT and gt or "?", Size(g),
+                            tostring(Shown(g)), Fields(g, 14)))
+                    end
+                end
+            end
+        end
+        local okRg, regs = pcall(function() return { box:GetRegions() } end)
+        if okRg then
+            local listed = 0
+            for _, r in ipairs(regs) do
+                if listed >= 8 then break end
+                local okT, ot = pcall(r.GetObjectType, r)
+                if Shown(r) then
+                    listed = listed + 1
+                    P(string.format("  Auras region %s %s", okT and ot or "?", Size(r)))
+                end
+            end
+        end
+    end
+    -- 3c. what the aura functions return for the target with other filters
+    if C_UnitAuras and C_UnitAuras.GetAuraDataByIndex then
+        local function Count(filter)
+            local n = 0
+            for i = 1, 40 do
+                local ok, a = pcall(C_UnitAuras.GetAuraDataByIndex, "target", i, filter)
+                if ok and a then n = n + 1 else break end
+            end
+            return n
+        end
+        P(string.format("  target auras by filter: HARMFUL|PLAYER=%d  HELPFUL|PLAYER=%d   GetUnitAuras=%s GetAuraSlots=%s",
+            Count("HARMFUL|PLAYER"), Count("HELPFUL|PLAYER"), tostring(C_UnitAuras.GetUnitAuras ~= nil),
+            tostring(C_UnitAuras.GetAuraSlots ~= nil)))
     end
     -- 4. named classic buttons
     local named = {}
