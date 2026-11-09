@@ -2,6 +2,10 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.13.3
+
+- **Aura Timers:** enemy buffs show their time-left numbers again. 2.13.2 switched to the game's icons (no numbers) on any enemy with no debuffs. That fallback is removed, since your debuffs on enemies are read fine.
+
 ## 2.13.2
 
 - **Aura Timers:** fixed your debuffs on enemies being invisible. The usual aura lookup returns nothing for enemy debuffs on this client, and the game's icons were hidden.

@@ -674,18 +674,6 @@ local function DoOwn(unit)
     local nb, rb = FillKind(unit, set, "buffs", 0)
     local nd = FillKind(unit, set, "debuffs", rb)
     M.stats.ownShown[unit] = nb + nd
-    -- On an enemy whose debuffs can't be read, give the job back to the game's icons (no
-    -- timers, but your debuffs stay visible) and hide ours so buffs don't show twice.
-    local okC, enemy = pcall(UnitCanAttack, "player", unit)
-    enemy = okC and not IsSecret(enemy) and enemy
-    M.stats.fallback = M.stats.fallback or {}
-    if enemy and o.debuffs and nd == 0 then
-        M.stats.fallback[unit] = true
-        set.holder:Hide()
-        HideGame(unit, false)
-    else
-        M.stats.fallback[unit] = false
-    end
 end
 M._t_DoOwn = DoOwn
 M._t_own = own
@@ -995,9 +983,7 @@ function M:Diagnose()
     for k, v in pairs(st.ways) do ways[#ways + 1] = k .. "=" .. v end
     table.sort(ways)
     NS.Print("  aura reads (last target/focus update): " .. (#ways > 0 and table.concat(ways, "  ") or "none yet"))
-    NS.Print(string.format("  read with: buffs %s, debuffs %s   game icons used instead on enemy: target %s, focus %s",
-        tostring(st.way_buffs or "-"), tostring(st.way_debuffs or "-"),
-        tostring(st.fallback and st.fallback.target), tostring(st.fallback and st.fallback.focus)))
+    NS.Print(string.format("  read with: buffs %s, debuffs %s", tostring(st.way_buffs or "-"), tostring(st.way_debuffs or "-")))
     Probe(TargetFrame, "TargetFrame")
     local ok, err = pcall(DeepProbe)
     if not ok then NS.Print("  deep probe failed: " .. tostring(err)) end

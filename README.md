@@ -2,16 +2,13 @@
 
 An all-in-one interface addon suite for **World of Warcraft Forever** (interface 16001).
 
-**Current version: 2.13.2**
+**Current version: 2.13.3**
 
 Open it in game with `/aimbot` (or `/aui`). Every module has its own tab and its own on/off switch, and if one module hits a problem it reports in chat and the rest keep running.
 
-## What's new in 2.13.2
+## What's new in 2.13.3
 
-- **Aura Timers:** fixed your debuffs on enemies being invisible. The usual aura lookup returns nothing for enemy debuffs on this client, and the game's icons were hidden.
-  - Every other way the game offers to read auras is now tried in turn.
-  - If none of them works on an enemy, the game's own icons are shown instead: no timers, but your debuffs stay visible. Ours are hidden then, so buffs don't show twice.
-  - `/aimbot diag` lists what each way returned.
+- **Aura Timers:** enemy buffs show their time-left numbers again. 2.13.2 switched to the game's icons (no numbers) on any enemy with no debuffs. That fallback is removed, since your debuffs on enemies are read fine.
 
 See [CHANGELOG.md](CHANGELOG.md) for every version.
 
