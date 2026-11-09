@@ -919,7 +919,7 @@ local function BuildGeneral(page)
     page:Button("Reset all window colors", function() ApplyTheme("blue"); UI.ApplyStyle() end, 260)
 
     page:Section("Modules", "Switch whole modules on or off")
-    for _, key in ipairs(NS.moduleOrder) do
+    for _, key in ipairs(SortedModules()) do
         local m = NS.modules[key]
         page:Check(m.name or key,
             function() return NS.Mod(key).enabled end,
@@ -946,10 +946,29 @@ local function BuildGeneral(page)
         .. "Every tab has its own Enabled switch and a Reset tab button.")
     page:Note("Commands:  /aimbot  opens the window.   /aimbot <tab>  opens a tab.   "
         .. "/aimbot <tab> on|off  toggles a module.   /sparkle  toggles the button sparkle.   "
-        .. "Tabs: lorti, damage, sparkle, mana, range, trainer, double, memory.")
+        .. "Tabs: lorti, damage, sparkle, mana, range, trainer, double, memory, mute, fps, privacy, dr.")
     page:Note("Credits: Lorti UI Classic by Lorti, Chordsy, Macumba, Knall, Jozh, Xyz, Arrone and Redskin. "
         .. "NiceDamage by Montyburns. Their artwork and fonts are used here with the original credit.")
 end
+
+-- Side menu order: groups in a fixed order, modules A-Z inside each group.
+local GROUP_ORDER = { Style = 1, Combat = 2, Tools = 3, QoL = 4 }
+local GROUP_LABEL = { Style = "LOOK", Combat = "COMBAT", Tools = "TOOLS", QoL = "QUALITY OF LIFE" }
+local function SortedModules()
+    local list = {}
+    for i, key in ipairs(NS.moduleOrder) do list[#list + 1] = { key = key, i = i } end
+    table.sort(list, function(a, b)
+        local ma, mb = NS.modules[a.key], NS.modules[b.key]
+        local ga, gb = GROUP_ORDER[ma.group or ""] or 9, GROUP_ORDER[mb.group or ""] or 9
+        if ga ~= gb then return ga < gb end
+        local na, nb = string.lower(ma.name or a.key), string.lower(mb.name or b.key)
+        if na ~= nb then return na < nb end
+        return a.i < b.i
+    end)
+    for i, e in ipairs(list) do list[i] = e.key end
+    return list
+end
+UI.SortedModules = SortedModules
 
 local function Create()
     local w = W()
@@ -1310,10 +1329,15 @@ local function Create()
         local y = -10
         for _, e in ipairs(sideEntries) do
             if e.group then
-                y = y - 8
+                y = y - 14
                 e.group:ClearAllPoints()
-                e.group:SetPoint("TOPLEFT", sideChild, "TOPLEFT", 16, y)
-                y = y - 16
+                e.group:SetPoint("TOPLEFT", sideChild, "TOPLEFT", 14, y)
+                if e.line then
+                    e.line:ClearAllPoints()
+                    e.line:SetPoint("LEFT", e.group, "RIGHT", 8, 0)
+                    e.line:SetPoint("RIGHT", sideChild, "RIGHT", -12, 0)
+                end
+                y = y - 20
             else
                 local t = e.tab
                 t.btn:ClearAllPoints()
@@ -1345,8 +1369,11 @@ local function Create()
     local function NewTab(key, label, buildFn, mod)
         if mod and mod.group and mod.group ~= lastGroup2 then
             lastGroup2 = mod.group
-            local g = UI.Text(sideChild, string.upper(mod.group), -2, 0.45, 0.45, 0.50)
-            sideEntries[#sideEntries + 1] = { group = g }
+            local g = UI.Text(sideChild, GROUP_LABEL[mod.group] or string.upper(mod.group), -2, 0.50, 0.50, 0.56)
+            local line = sideChild:CreateTexture(nil, "ARTWORK")
+            line:SetHeight(1)
+            line:SetColorTexture(1, 1, 1, 0.07)
+            sideEntries[#sideEntries + 1] = { group = g, line = line }
         end
 
         local btn = CreateFrame("Button", nil, sideChild)
@@ -1370,13 +1397,13 @@ local function Create()
         local fs = UI.Text(btn, label)
         if mod then
             dot = btn:CreateTexture(nil, "ARTWORK")
-            dot:SetSize(7, 7)
+            dot:SetSize(6, 6)
             dot:SetPoint("LEFT", btn, "LEFT", 12, 0)
             fs:SetPoint("LEFT", dot, "RIGHT", 9, 0)
         else
             fs:SetPoint("LEFT", btn, "LEFT", 14, 0)
         end
-        local arrow = UI.Text(btn, "+", 3, 0.62, 0.62, 0.68)
+        local arrow = UI.Text(btn, "+", 1, 0.50, 0.50, 0.56)
         arrow:SetPoint("RIGHT", btn, "RIGHT", -10, 0)
         fs:SetPoint("RIGHT", arrow, "LEFT", -6, 0)
         fs:SetWordWrap(false)
@@ -1458,7 +1485,7 @@ local function Create()
     end
 
     NewTab("general", "General", BuildGeneral, nil)
-    for _, key in ipairs(NS.moduleOrder) do
+    for _, key in ipairs(SortedModules()) do
         local m = NS.modules[key]
         NewTab(key, m.name or key, function(page)
             if m.Build then m.Build(page) end

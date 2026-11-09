@@ -2,6 +2,11 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.8.11
+
+- Side menu tidied up. Diminish and Spell Trainer moved into Quality of Life, so each group now shows once: LOOK, COMBAT, then QUALITY OF LIFE, with the modules A-Z inside each group (the module list on the General tab uses the same order). Group names have a thin divider line and a bit more space above them, the on/off dots are a little smaller and the +/- markers are softer.
+- Help: the list of `/aimbot` tab names now includes mute, fps, privacy and dr.
+
 ## 2.8.10
 
 - Privacy: targeting yourself (or anyone) no longer flashes the real name for a moment before your Privacy name shows. The name on the target, target-of-target and focus frames is now swapped in the same instant the game draws it, instead of on the next check a moment later. The name texts are looked up once and remembered, and the fix only runs when you change target or focus, so there is no extra work every frame and no FPS cost. `/aimbot diag` now shows how many instant fixes ran.

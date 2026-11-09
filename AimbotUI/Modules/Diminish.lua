@@ -28,7 +28,7 @@ local ADDON_NAME, NS = ...
 
 local M = {
     name = "Diminish",
-    group = "Combat",
+    group = "QoL",
     desc = "Diminishing returns icons on your target, focus, enemy nameplates and yourself. "
         .. "Border colour shows what the next crowd control will do (green 50%, yellow 25%, red immune), "
         .. "the timer shows when it resets.",

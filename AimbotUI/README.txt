@@ -1,4 +1,4 @@
-AIMBOT UI  v2.8.10  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.8.11  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,13 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.8.11
+  - Side menu tidied up. Diminish and Spell Trainer moved into Quality of Life, so each group now shows
+    once: LOOK, COMBAT, then QUALITY OF LIFE, with the modules A-Z inside each group (the module list on
+    the General tab uses the same order). Group names have a thin divider line and a bit more space
+    above them, the on/off dots are a little smaller and the +/- markers are softer.
+  - Help: the list of /aimbot tab names now includes mute, fps, privacy and dr.
 
 NEW IN 2.8.10
   - Privacy: targeting yourself (or anyone) no longer flashes the real name for a moment before your

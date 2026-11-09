@@ -14,7 +14,7 @@ local ADDON_NAME, NS = ...
 
 local M = {
     name = "Spell Trainer",
-    group = "Tools",
+    group = "QoL",
     desc = "Shows which spells you can train now and at upcoming levels, with costs, quest spells and "
         .. "weapon skills. Uses the Forever spell data from What's Training?",
     defaults = {
