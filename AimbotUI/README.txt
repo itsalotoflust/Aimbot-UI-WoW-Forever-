@@ -1,4 +1,4 @@
-AIMBOT UI  v2.9.0  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.9.1  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,12 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.9.1
+  - Lorti Style: new "Solid name background (no fade)" option under "Frame art and portraits"
+    (on by default). The colored strip behind the target and focus name (red, yellow, green) is
+    the game's own art, which fades out toward the edge; it is now drawn as a solid bar in the
+    same color. Untick it to get the game's faded art back. /aimbot diag lists the name bars found.
 
 NEW IN 2.9.0
   Four new modules (each has its own tab and on/off switch). They are new files, so FULLY RESTART

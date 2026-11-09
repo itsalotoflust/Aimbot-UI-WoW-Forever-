@@ -68,6 +68,7 @@ local M = {
         -- unit frames
         darkFrames   = true,
         frameShade   = 0.12,
+        solidNames   = true,               -- solid bar behind unit names instead of the faded art
         artShade     = 0.35,
         classBars    = false,
         reactionBars = true,
@@ -333,6 +334,48 @@ local OTHER_ART = {
     "MainActionBar.BorderArt", "MainMenuBar.BorderArt",
     "MinimapCompassTexture", "MinimapCluster.BorderTop",
 }
+
+-- The colored strip behind the unit name (hostile red, neutral yellow, friendly green).
+-- The game's art for it fades out toward the edge; this swaps in a plain white texture so the
+-- strip is solid. Blizzard still sets its color with SetVertexColor, which carries over.
+local NAME_BG = {
+    "TargetFrame.TargetFrameContent.TargetFrameContentMain.ReputationColor",
+    "FocusFrame.TargetFrameContent.TargetFrameContentMain.ReputationColor",
+    "PlayerFrame.PlayerFrameContent.PlayerFrameContentMain.ReputationColor",
+}
+local SOLID = "Interface\\Buttons\\WHITE8X8"
+local nameBgOrig = setmetatable({}, { __mode = "k" })   -- our own table, nothing stored on the frames
+
+local function ApplyNameBars()
+    local s = S()
+    local on = s.enabled and s.solidNames
+    for _, p in ipairs(NAME_BG) do
+        local t = NS.Resolve(p)
+        if t and t.SetTexture then
+            if on then
+                if not nameBgOrig[t] then
+                    local okA, atlas = pcall(t.GetAtlas, t)
+                    atlas = okA and type(atlas) == "string" and atlas ~= "" and atlas or nil
+                    local okT, tex = pcall(t.GetTexture, t)
+                    local okC, l, r, top, bottom = pcall(t.GetTexCoord, t)
+                    nameBgOrig[t] = { atlas = atlas, tex = okT and tex or nil,
+                        coords = okC and { l, r, top, bottom } or nil }
+                end
+                pcall(t.SetTexture, t, SOLID)
+                pcall(t.SetTexCoord, t, 0, 1, 0, 1)
+            elseif nameBgOrig[t] then
+                local o = nameBgOrig[t]
+                if o.atlas then
+                    pcall(t.SetAtlas, t, o.atlas, false)
+                elseif o.tex then
+                    pcall(t.SetTexture, t, o.tex)
+                    if o.coords then pcall(t.SetTexCoord, t, o.coords[1], o.coords[2], o.coords[3], o.coords[4]) end
+                end
+                nameBgOrig[t] = nil
+            end
+        end
+    end
+end
 
 local function ApplyFrameArt()
     local s = S()
@@ -683,6 +726,7 @@ local STEPS = {
     { "action buttons",  ApplyButtons },
     { "bar art",         ApplyBarArt },
     { "frame art",       ApplyFrameArt },
+    { "name bars",       ApplyNameBars },
     { "unit bars",       ApplyBars },
     { "portraits",       ApplyPortraits },
     { "hit indicator",   ApplyHit },
@@ -764,6 +808,9 @@ function M:Diagnose()
     for _, p in ipairs(FRAME_ART) do
         if NS.Resolve(p) then NS.Print("  frame art: |cff00ff00" .. p .. "|r") end
     end
+    for _, p in ipairs(NAME_BG) do
+        NS.Print("  name bar: " .. (NS.Resolve(p) and ("|cff00ff00" .. p .. "|r") or ("|cffff4444not found|r " .. p)))
+    end
     local b = _G["ActionButton1"]
     if b then
         NS.Print(string.format("  ActionButton1 parts: icon=%s NormalTexture=%s HotKey=%s Name=%s Count=%s Flash=%s IconMask=%s",
@@ -835,6 +882,7 @@ function M.Build(page)
     page:Slider("Other UI art brightness", 0, 1, 0.05,
         function() return S().artShade end,
         function(v) S().artShade = v; NS.ApplyModule("lorti") end, Pct)
+    page:Check("Solid name background (no fade)", Bind("solidNames"))
     page:Check("Class portraits on target and focus", Bind("classPortraits"))
     page:Check("Hide hit numbers on the player portrait", Bind("hideHit"))
 
