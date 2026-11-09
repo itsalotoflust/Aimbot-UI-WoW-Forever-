@@ -38,6 +38,7 @@ local M = {
         tagOn       = true,
         tag         = "Streamer#1234",
         hideWhispers = true,
+        allowWhispers = false,                 -- show every whisper untouched (real sender name)
         bubbles     = true,                    -- hide chat bubbles
         headNames   = true,                    -- hide the names the game draws above heads
         hideZone    = true,
@@ -427,6 +428,12 @@ local function ChatFilter(frame, event, msg, author, lang, chan, target, flags, 
     if not (active and s.enabled and s.chat) then return false end
     if Secret(msg) or Secret(author) or type(msg) ~= "string" or type(author) ~= "string" then return false end
 
+    if WHISPER[event] ~= nil and s.allowWhispers then
+        -- Leave whispers (character and Battle.net, sent and received) exactly as the game
+        -- sends them, so the real name shows and R / clicking the name replies to the right person.
+        return false
+    end
+
     if WHISPER[event] ~= nil and s.hideWhispers then
         if FirstTime(lineID) then
             M.AddInbox(Short(author), msg, WHISPER[event])
@@ -703,6 +710,8 @@ function M:Diagnose()
     local s = S()
     NS.Print(string.format("  private mode: %s   chat filters: %s   whispers in inbox: %d (%d unread)",
         active and "ON" or "off", tostring(M.filtersAdded), #s.inbox, M.unread))
+    NS.Print(string.format("  whispers: %s", s.allowWhispers and "allowed from everyone (real names)"
+        or (s.hideWhispers and "kept in the inbox" or "shown with the sender's name hidden")))
     NS.Print(string.format("  name texts found: %d   BattleTag text found: %s   scans: %d",
         #CollectTargets(), tostring(TagFS() ~= nil), scanCount))
     for _, t in ipairs(CollectTargets()) do
@@ -735,7 +744,9 @@ function M.Build(page)
         function(v) M.SetActive(v, true) end)
     local state = page:Note("")
     table.insert(page.refreshers, function()
-        state:SetText(active and "|cffff6666Names, whispers and location details are hidden.|r"
+        state:SetText(active and (S().allowWhispers
+                and "|cffff6666Names and location details are hidden.|r |cffffd100Whispers are allowed (real names).|r"
+                or "|cffff6666Names, whispers and location details are hidden.|r")
             or "Everything is showing normally. Turn it on before you go live.")
     end)
     page:Note("Set a key under Game Menu > Options > Key Bindings > Aimbot UI, or type /aprivacy. "
@@ -787,11 +798,23 @@ function M.Build(page)
     end, "Set tag")
 
     page:Section("Chat", "Whispers and bubbles")
+    page:Check("Allow whispers from everyone (real names)", function() return S().allowWhispers end,
+        function(v) S().allowWhispers = v; if NS.UI.RefreshAll then NS.UI.RefreshAll() end end,
+        "Whispers from everyone (characters and Battle.net friends) show in chat exactly as normal, "
+        .. "with the sender's real name, so you can see who it is and reply with R. "
+        .. "Their names WILL be visible on stream. Turn this off to hide them again.")
+    local allowNote = page:Note("")
+    table.insert(page.refreshers, function()
+        allowNote:SetText(S().allowWhispers
+            and "|cffffd100Whispers are allowed: everyone's whispers show normally, real names included (visible on stream).|r"
+            or "Whispers follow the settings below (kept in the inbox, or shown with the sender's name hidden).")
+    end)
     page:Check("Keep whispers out of chat (read them later in the inbox)", function() return S().hideWhispers end,
         function(v) S().hideWhispers = v end)
     page:Check("Hide chat bubbles", function() return S().bubbles end,
         function(v) S().bubbles = v; ApplyAll() end)
-    page:Note("Chat only tells you how many whispers are waiting. Your bubble settings are put back when you "
+    page:Note("\"Allow whispers from everyone\" wins over \"Keep whispers out of chat\". "
+        .. "Chat only tells you how many whispers are waiting. Your bubble settings are put back when you "
         .. "turn private mode off, log out or reload.")
 
     page:Section("Whisper inbox", "Hidden whispers wait here")

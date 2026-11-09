@@ -4,6 +4,8 @@ An all-in-one interface addon suite for **World of Warcraft Forever** (interface
 
 Despite the name, Aimbot UI only changes how your interface looks and what it shows. It does not play, aim or target for you.
 
+**Current version: 2.8.6**
+
 Open it in game with `/aimbot` (or `/aui`). Every module has its own tab and its own on/off switch, and if one module hits a problem it reports in chat and the rest keep running.
 
 ## Download
@@ -32,7 +34,7 @@ Download **[AimbotUI.zip](https://github.com/itsalotoflust/Aimbot-UI-WoW-Forever
 | **Spell Trainer** | A WhatsTraining-style list of what you can learn. Open your class trainer once per class to fill it. |
 | **Chat Mute** | Mute players, guilds and words, with speak times when muted people may talk, a never-mute list, and filters for links, shouting, repeats and strangers. |
 | **FPS / MS** | Frame rate and latency counter at the bottom centre of the screen. |
-| **Privacy** | Stream mode: fake name and BattleTag, class names, whisper inbox, and a Be right back screen. |
+| **Privacy** | Stream mode: fake name and BattleTag, class names, whisper inbox (or an "Allow whispers from everyone" switch that shows them normally), and a Be right back screen. |
 | **Double Press** | Optional. Every action bar key presses twice, on key down and key up. Off by default. |
 | **Memory Cleaner** | A Clear Cache button that runs a garbage collection without freezing the game. |
 

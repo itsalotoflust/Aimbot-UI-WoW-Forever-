@@ -1,4 +1,4 @@
-AIMBOT UI  v2.8.1  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.8.6  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,14 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.8.6
+  - Privacy: new switch "Allow whispers from everyone (real names)" (Privacy tab > Chat). While private
+    mode is on, whispers from everyone - other characters AND Battle.net friends, ones you get and ones
+    you send - show in chat exactly as normal, with the sender's real name instead of "Player" or a
+    class name, so you can see who it is and reply with R or by clicking the name. Off by default.
+    It wins over "Keep whispers out of chat". Names in those whispers WILL be visible on stream.
+  - /aimbot diag now says how whispers are being handled.
 
 NEW IN 2.8.5
   - Double Press + Button Sparkle FIX: Double Press was reading its own key bindings back as if they were
