@@ -285,19 +285,201 @@ local function Sweep(discover)
 end
 
 -- Friends window: your BattleTag
+-- The header of the friends window differs between clients (newer ones split the name and the
+-- "#1234" part and add a copy button), so the fixed path alone is not enough. Like the name texts,
+-- the BattleTag texts are found by what they show and remembered; then they are kept swapped for
+-- as long as the friends window is open, so a redraw by the game is put right within a moment.
+local TAG_ROOTS = { "FriendsFrameBattlenetFrame", "FriendsFrame.BattlenetFrame", "FriendsFrame" }
+-- Panels of the friends window that list other people: never touched.
+local TAG_SKIP = { "FriendsListFrame", "IgnoreListFrame", "WhoFrame", "QuickJoinFrame", "RaidFrame",
+    "RecruitAFriendFrame", "FriendsFrameFriendsScrollFrame", "FriendsListFrameScrollFrame",
+    "FriendsListFrame.ScrollBox", "FriendsTooltip" }
+
+local tagBound = {}         -- fontstring -> "full" | "name" | "num"
+local tagOrder = {}         -- the bound fontstrings, in the order found
+local tagOrig = {}          -- fontstring -> { text } as it was before we changed it
+M.tagStats = { scans = 0, secret = 0, applied = 0 }
+
+local function Plain(t)
+    t = t:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):gsub("|T.-|t", ""):gsub("|A.-|a", "")
+    t = t:gsub("^%s+", ""):gsub("%s+$", "")
+    return t
+end
+
 local function TagFS()
     return ResolveFS({ "FriendsFrameBattlenetFrame.Tag", "FriendsFrame.BattlenetFrame.Tag" })
 end
 
-local function SweepTag()
+-- Your real BattleTag split in two ("Name", "#1234"), or nil when the client hides it from addons.
+local function RealTag()
+    if not BNGetInfo then return end
+    local ok, _, tag = pcall(BNGetInfo)
+    if ok and IsStr(tag) and tag ~= "" then
+        local name, num = tag:match("^(.-)(#%d+)$")
+        return tag, name or tag, num
+    end
+end
+
+-- What kind of BattleTag text this is: "full", "name", "num" or nil.
+local function TagKind(text, realTag, realName, realNum)
+    local p = Plain(text)
+    if p == "" then return end
+    if realTag then
+        if p == realTag or p:find(realTag, 1, true) then return "full" end
+        if p == realName then return "name" end
+        if realNum and p == realNum then return "num" end
+        return
+    end
+    if p:match("^[^#%s]+#%d%d%d+$") then return "full" end
+    if p:match("^#%d%d%d+$") then return "num" end
+end
+
+local function Bind(fs, kind)
+    if tagBound[fs] then return end
+    tagBound[fs] = kind
+    tagOrder[#tagOrder + 1] = fs
+end
+
+local function Skipped()
+    local set = {}
+    for _, p in ipairs(TAG_SKIP) do
+        local o = NS.Resolve(p)
+        if o then set[o] = true end
+    end
+    return set
+end
+
+local function ScanTag(root, skip, real, budget, depth, secrets)
+    if budget.n <= 0 or depth > 7 or skip[root] then return end
+    budget.n = budget.n - 1
+    local ok, regions = pcall(function() return { root:GetRegions() } end)
+    if ok then
+        local texts, numFS = {}, nil
+        for _, r in ipairs(regions) do
+            local okT, kind = pcall(r.GetObjectType, r)
+            if okT and kind == "FontString" then
+                local okX, txt = pcall(r.GetText, r)
+                if okX and Secret(txt) then
+                    M.tagStats.secret = M.tagStats.secret + 1
+                    if secrets then secrets[#secrets + 1] = r end
+                elseif okX and type(txt) == "string" then
+                    local k = TagKind(txt, real[1], real[2], real[3])
+                    if k then Bind(r, k) end
+                    if k == "num" then numFS = r end
+                    texts[#texts + 1] = { r, txt }
+                end
+            end
+        end
+        -- Name and "#1234" drawn as two texts side by side, with the real tag unknown: the
+        -- one-word text next to the number is the name.
+        if numFS and not real[1] then
+            for _, t in ipairs(texts) do
+                local p = Plain(t[2])
+                if t[1] ~= numFS and not tagBound[t[1]] and p:match("^[^#%s]+$") then Bind(t[1], "name") end
+            end
+        end
+    end
+    local okC, kids = pcall(function() return { root:GetChildren() } end)
+    if okC then
+        for _, k in ipairs(kids) do ScanTag(k, skip, real, budget, depth + 1, secrets) end
+    end
+end
+
+local function DiscoverTag()
+    M.tagStats.scans = M.tagStats.scans + 1
+    M.tagStats.secret = 0
+    local real = { RealTag() }
+    local skip = Skipped()
+    local seen, secrets = {}, {}
+    for i, p in ipairs(TAG_ROOTS) do
+        local root = NS.Resolve(p)
+        if root and root.GetRegions and not seen[root] then
+            seen[root] = true
+            -- unreadable texts are only collected inside the BattleTag box itself, never the whole window
+            ScanTag(root, skip, real, { n = 300 }, 0, (i < #TAG_ROOTS) and secrets or nil)
+        end
+    end
+    -- Nothing readable looks like a BattleTag, but the BattleTag box holds text the client hides from
+    -- addons: that text can only be your tag, so it is swapped as a whole.
+    if #tagOrder == 0 then
+        for _, r in ipairs(secrets) do Bind(r, "full") end
+    end
+    -- The fixed path still counts if it holds the whole tag and was not found above.
     local fs = TagFS()
-    if not fs then return end
+    if fs and not tagBound[fs] then
+        local ok, kind = pcall(fs.GetObjectType, fs)
+        if ok and kind == "FontString" then
+            local okX, txt = pcall(fs.GetText, fs)
+            if okX and IsStr(txt) and TagKind(txt, real[1], real[2], real[3]) then Bind(fs, "full") end
+        end
+    end
+end
+
+local function FakeParts()
+    local tag = S().tag
+    if not IsStr(tag) or tag == "" then tag = "Streamer#1234" end
+    local name, num = tag:match("^(.-)(#%d+)$")
+    return tag, name or tag, num or ""
+end
+
+local function TagOn()
     local s = S()
-    if active and s.enabled and s.tagOn and IsStr(s.tag) and s.tag ~= "" then
-        pcall(fs.SetText, fs, s.tag)
-    elseif BNGetInfo then
-        local ok, _, tag = pcall(BNGetInfo)
-        if ok and IsStr(tag) then pcall(fs.SetText, fs, tag) end
+    return active and s.enabled and s.tagOn
+end
+
+local function SweepTag(discover)
+    if TagOn() and (discover or #tagOrder == 0) then pcall(DiscoverTag) end
+    local on = TagOn()
+    local full, name, num = FakeParts()
+    for _, fs in ipairs(tagOrder) do
+        local kind = tagBound[fs]
+        if on then
+            local want = (kind == "name" and name) or (kind == "num" and num) or full
+            local okX, cur = pcall(fs.GetText, fs)
+            local same = okX and IsStr(cur) and cur == want
+            if not same then
+                if not tagOrig[fs] and okX and (IsStr(cur) or Secret(cur)) then tagOrig[fs] = { cur } end
+                if pcall(fs.SetText, fs, want) then M.tagStats.applied = M.tagStats.applied + 1 end
+            end
+        elseif tagOrig[fs] then
+            pcall(fs.SetText, fs, tagOrig[fs][1])
+            tagOrig[fs] = nil
+        end
+    end
+    -- Nothing remembered and private mode off: put the real tag back on the fixed text if we can.
+    if not on and #tagOrder == 0 then
+        local fs = TagFS()
+        local tag = RealTag()
+        if fs and tag then pcall(fs.SetText, fs, tag) end
+    end
+end
+
+-- While the friends window is open: re-apply ~6 times a second, look for new texts once a second.
+local tagDriver = CreateFrame("Frame")
+local tagAcc, tagScanAcc = 0, 0
+tagDriver:SetScript("OnUpdate", function(_, dt)
+    if not TagOn() then return end
+    local ff = _G.FriendsFrame
+    if not (ff and ff.IsShown and ff:IsShown()) then return end
+    dt = dt or 0
+    tagAcc, tagScanAcc = tagAcc + dt, tagScanAcc + dt
+    if tagAcc < 0.15 then return end
+    tagAcc = 0
+    local discover = tagScanAcc >= 1
+    if discover then tagScanAcc = 0 end
+    pcall(SweepTag, discover)
+end)
+
+local function HookTag()
+    local ff = _G.FriendsFrame
+    if ff and ff.HookScript then
+        pcall(ff.HookScript, ff, "OnShow", function() if TagOn() then pcall(SweepTag, true) end end)
+    end
+    for _, fn in ipairs({ "FriendsFrame_Update", "FriendsList_Update", "FriendsFrame_UpdateBattlenetFrame",
+        "FriendsFrameBattlenetFrame_Update" }) do
+        if type(_G[fn]) == "function" then
+            pcall(hooksecurefunc, fn, function() if TagOn() then pcall(SweepTag, false) end end)
+        end
     end
 end
 
@@ -612,7 +794,7 @@ end
 local ticker
 local function ApplyAll()
     pcall(Sweep, true)
-    pcall(SweepTag)
+    pcall(SweepTag, true)
     pcall(SweepWhere)
     pcall(SweepBubbles)
     pcall(SweepIndicator)
@@ -644,8 +826,6 @@ local function Tick()
     if not (active and S().enabled) then return end
     tickCount = tickCount + 1
     pcall(Sweep, tickCount % 10 == 0)
-    local ff = _G.FriendsFrame
-    if ff and ff.IsShown and ff:IsShown() then pcall(SweepTag) end
 end
 
 -- Many redraws in one moment are folded into a single pass (at most ~10 per second).
@@ -749,6 +929,7 @@ function M:Init()
         M.filtersAdded = true
     end
     pcall(HookNames)
+    pcall(HookTag)
 
     for _, ev in ipairs({ "PLAYER_TARGET_CHANGED", "PLAYER_FOCUS_CHANGED", "GROUP_ROSTER_UPDATE",
         "UNIT_NAME_UPDATE" }) do
@@ -802,8 +983,20 @@ function M:Diagnose()
         active and "ON" or "off", tostring(M.filtersAdded), #s.inbox, M.unread))
     NS.Print(string.format("  whispers: %s", s.allowWhispers and "allowed from everyone (real names)"
         or (s.hideWhispers and "kept in the inbox" or "shown with the sender's name hidden")))
-    NS.Print(string.format("  name texts found: %d   BattleTag text found: %s   scans: %d",
-        #CollectTargets(), tostring(TagFS() ~= nil), scanCount))
+    NS.Print(string.format("  name texts found: %d   scans: %d", #CollectTargets(), scanCount))
+    if active and s.enabled and s.tagOn then pcall(SweepTag, true) end
+    local realTag = RealTag()
+    NS.Print(string.format("  BattleTag: %s   fixed text found: %s   real tag readable: %s   texts swapped: %d"
+        .. "   unreadable texts in the header: %d   scans: %d   swaps: %d",
+        s.tagOn and "on" or "off", tostring(TagFS() ~= nil), tostring(realTag ~= nil), #tagOrder,
+        M.tagStats.secret, M.tagStats.scans, M.tagStats.applied))
+    for _, fs in ipairs(tagOrder) do
+        local okN, nm = pcall(fs.GetDebugName, fs)
+        local okX, txt = pcall(fs.GetText, fs)
+        local shown = okX and IsStr(txt) and txt or "?"
+        if realTag and IsStr(shown) and Plain(shown):find(realTag, 1, true) then shown = "(your real tag)" end
+        NS.Print(string.format("    %s [%s] -> showing \"%s\"", okN and IsStr(nm) and nm or "?", tagBound[fs], shown))
+    end
     NS.Print(string.format("  instant name fixes (target/focus redraws): %d", M.instantFixes or 0))
     for _, t in ipairs(CollectTargets()) do
         local ok, txt = pcall(t.fs.GetText, t.fs)
@@ -1003,5 +1196,6 @@ function M.Build(page)
 end
 
 M._t = { NameForUnit = NameForUnit, ChatFilter = ChatFilter, Sweep = Sweep, SweepTag = SweepTag,
+    DiscoverTag = DiscoverTag, TagKind = TagKind, TagBound = tagBound, TagDriver = tagDriver,
     SweepWhere = SweepWhere, SweepBubbles = SweepBubbles, Slash = Slash, Short = Short,
     PlainReplace = PlainReplace, CollectTargets = CollectTargets, FmtElapsed = FmtElapsed }

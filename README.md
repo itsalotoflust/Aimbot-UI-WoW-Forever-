@@ -2,15 +2,14 @@
 
 An all-in-one interface addon suite for **World of Warcraft Forever** (interface 16001).
 
-**Current version: 2.14.0**
+**Current version: 2.14.1**
 
 Open it in game with `/aimbot` (or `/aui`). Every module has its own tab and its own on/off switch, and if one module hits a problem it reports in chat and the rest keep running.
 
-## What's new in 2.14.0
+## What's new in 2.14.1
 
-- New: **Loss of Control** (Combat group, `/aimbot loc`). When you are stunned, feared, silenced, rooted and so on, a big icon of the effect shows in the middle of the screen with the time left counting down on it and the effect's name underneath. Built on the game's own loss of control data.
-- Options: show the name, dark swipe, hide the game's own alert, sound, icon / number / name size, name colour. Unlock to drag it, "Test" shows it for 5 seconds.
-- New file: fully restart the game (not just `/reload`) after updating.
+- **Privacy:** your real BattleTag no longer shows in the friends window. The BattleTag texts are found by what they show, the name and `#1234` parts are swapped separately, and they stay swapped while the window is open.
+- `/aimbot diag` lists each BattleTag text found and what it is showing.
 
 See [CHANGELOG.md](CHANGELOG.md) for every version.
 

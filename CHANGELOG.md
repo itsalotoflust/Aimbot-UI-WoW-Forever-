@@ -2,6 +2,13 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.14.1
+
+- **Privacy:** fixed your real BattleTag still showing in the friends window. The addon only changed one fixed text, which may not be the one this client's friends window shows (it can draw the name and the `#1234` part separately, next to a copy button).
+  - BattleTag texts are now found by what they show, and the name and number parts are swapped separately.
+  - They stay swapped while the friends window is open, so a redraw by the game is put right within a moment. Friends in your list are never touched.
+  - `/aimbot diag` lists each BattleTag text found and what it is showing.
+
 ## 2.14.0
 
 - New: **Loss of Control** (Combat group, `/aimbot loc`). When you are stunned, feared, silenced, rooted and so on, a big icon of the effect shows in the middle of the screen with the time left counting down on it and the effect's name underneath. Built on the game's own loss of control data.

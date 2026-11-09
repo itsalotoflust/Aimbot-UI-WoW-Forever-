@@ -1,4 +1,4 @@
-AIMBOT UI  v2.14.0  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.14.1  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,15 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.14.1
+  - Privacy: fixed your real BattleTag still showing in the friends window. The addon only
+    changed one fixed text, which may not be the one this client's friends window shows (it
+    can draw the name and the "#1234" part separately, next to a copy button). It now finds the
+    BattleTag texts by what they show, swaps the name and number parts separately, and keeps
+    them swapped while the friends window is open, so a redraw by the game is put right within
+    a moment. Friends in your list are never touched.
+    /aimbot diag now lists each BattleTag text found and what it is showing.
 
 NEW IN 2.14.0
   - New: Loss of Control (Combat group, /aimbot loc). When you are stunned, feared, silenced,
