@@ -1,4 +1,4 @@
-AIMBOT UI  v2.9.3  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.9.4  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,11 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.9.4
+  - Lorti Style: new "Hide the colored background behind names" option under "Frame art and
+    portraits" (on by default). Removes the red / yellow / green strip behind the target and focus
+    name. Untick it to bring the strip back.
 
 NEW IN 2.9.3
   - Removed the Lorti Style "Solid name background" option from 2.9.1 / 2.9.2. The strip behind

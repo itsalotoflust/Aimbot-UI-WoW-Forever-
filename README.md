@@ -2,13 +2,13 @@
 
 An all-in-one interface addon suite for **World of Warcraft Forever** (interface 16001).
 
-**Current version: 2.9.3**
+**Current version: 2.9.4**
 
 Open it in game with `/aimbot` (or `/aui`). Every module has its own tab and its own on/off switch, and if one module hits a problem it reports in chat and the rest keep running.
 
-## What's new in 2.9.3
+## What's new in 2.9.4
 
-- Removed the Lorti Style "Solid name background" option from 2.9.1 / 2.9.2. The strip behind unit names is the game's own art again, exactly as before.
+- **Lorti Style:** new "Hide the colored background behind names" option under "Frame art and portraits" (on by default). Removes the red / yellow / green strip behind the target and focus name. Untick it to bring the strip back.
 
 See [CHANGELOG.md](CHANGELOG.md) for every version.
 

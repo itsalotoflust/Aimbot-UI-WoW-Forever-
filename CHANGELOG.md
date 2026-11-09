@@ -2,6 +2,10 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.9.4
+
+- **Lorti Style:** new "Hide the colored background behind names" option under "Frame art and portraits" (on by default). Removes the red / yellow / green strip behind the target and focus name. Untick it to bring the strip back.
+
 ## 2.9.3
 
 - Removed the Lorti Style "Solid name background" option from 2.9.1 / 2.9.2. The strip behind unit names is the game's own art again, exactly as before.

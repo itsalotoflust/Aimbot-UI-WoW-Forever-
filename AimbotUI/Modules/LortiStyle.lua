@@ -68,6 +68,7 @@ local M = {
         -- unit frames
         darkFrames   = true,
         frameShade   = 0.12,
+        hideNameBg   = true,               -- hide the colored strip behind unit names
         artShade     = 0.35,
         classBars    = false,
         reactionBars = true,
@@ -333,6 +334,23 @@ local OTHER_ART = {
     "MainActionBar.BorderArt", "MainMenuBar.BorderArt",
     "MinimapCompassTexture", "MinimapCluster.BorderTop",
 }
+
+-- The colored strip behind the unit name (hostile red, neutral yellow, friendly green).
+-- Hidden with SetAlpha(0) so the game can keep updating it; alpha 1 puts it back.
+local NAME_BG = {
+    "TargetFrame.TargetFrameContent.TargetFrameContentMain.ReputationColor",
+    "FocusFrame.TargetFrameContent.TargetFrameContentMain.ReputationColor",
+    "PlayerFrame.PlayerFrameContent.PlayerFrameContentMain.ReputationColor",
+}
+
+local function ApplyNameBg()
+    local s = S()
+    local a = (s.enabled and s.hideNameBg) and 0 or 1
+    for _, p in ipairs(NAME_BG) do
+        local t = NS.Resolve(p)
+        if t and t.SetAlpha then pcall(t.SetAlpha, t, a) end
+    end
+end
 
 local function ApplyFrameArt()
     local s = S()
@@ -683,6 +701,7 @@ local STEPS = {
     { "action buttons",  ApplyButtons },
     { "bar art",         ApplyBarArt },
     { "frame art",       ApplyFrameArt },
+    { "name background", ApplyNameBg },
     { "unit bars",       ApplyBars },
     { "portraits",       ApplyPortraits },
     { "hit indicator",   ApplyHit },
@@ -764,6 +783,9 @@ function M:Diagnose()
     for _, p in ipairs(FRAME_ART) do
         if NS.Resolve(p) then NS.Print("  frame art: |cff00ff00" .. p .. "|r") end
     end
+    for _, p in ipairs(NAME_BG) do
+        if NS.Resolve(p) then NS.Print("  name background: |cff00ff00" .. p .. "|r") end
+    end
     local b = _G["ActionButton1"]
     if b then
         NS.Print(string.format("  ActionButton1 parts: icon=%s NormalTexture=%s HotKey=%s Name=%s Count=%s Flash=%s IconMask=%s",
@@ -835,6 +857,7 @@ function M.Build(page)
     page:Slider("Other UI art brightness", 0, 1, 0.05,
         function() return S().artShade end,
         function(v) S().artShade = v; NS.ApplyModule("lorti") end, Pct)
+    page:Check("Hide the colored background behind names", Bind("hideNameBg"))
     page:Check("Class portraits on target and focus", Bind("classPortraits"))
     page:Check("Hide hit numbers on the player portrait", Bind("hideHit"))
 
