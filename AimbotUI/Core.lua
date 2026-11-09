@@ -7,7 +7,7 @@
 local ADDON_NAME, NS = ...
 _G.AimbotUI = NS
 
-NS.version = "2.8.12"
+NS.version = "2.8.13"
 NS.modules = {}
 NS.moduleOrder = {}
 
@@ -194,6 +194,9 @@ NS.WINDOW_DEFAULTS = {
     titleBar = { 0.12, 0.12, 0.13, 1.00 },
     text     = { 0.90, 0.90, 0.92, 1.00 },
     muted    = { 0.62, 0.62, 0.67, 1.00 },
+    skin     = "modern",          -- "classic" (game style) or "modern" (flat); set by the theme
+    classicBorder = "stone",
+    classicBack   = "dark",
 }
 
 function NS.InitDB()

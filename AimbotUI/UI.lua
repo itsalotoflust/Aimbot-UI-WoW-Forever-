@@ -81,6 +81,45 @@ function UI.Round(parent, layer, size)
     return t
 end
 
+-- Classic WoW style (set once when the window is built; switching style needs a /reload).
+UI.classic = false
+local GOLD = { 1, 0.82, 0 }
+
+-- Classic window borders and backgrounds.
+local CLASSIC_BORDERS = {
+    stone   = { file = "Interface\\DialogFrame\\UI-DialogBox-Border", size = 32, inset = 11, out = 9 },
+    gold    = { file = "Interface\\DialogFrame\\UI-DialogBox-Gold-Border", size = 32, inset = 11, out = 9 },
+    tooltip = { file = "Interface\\Tooltips\\UI-Tooltip-Border", size = 16, inset = 4, out = 3 },
+    none    = { file = nil, size = 0, inset = 0, out = 0 },
+}
+local CLASSIC_BACKS = {
+    dark   = "Interface\\DialogFrame\\UI-DialogBox-Background-Dark",
+    rock   = "Interface\\FrameGeneral\\UI-Background-Rock",
+    marble = "Interface\\FrameGeneral\\UI-Background-Marble",
+    plain  = WHITE,
+}
+
+-- Put a game texture on tex. Returns false (and paints the fallback colour) if it can't load.
+local function Art(tex, file, r, g, b, a)
+    local ok, loaded = pcall(tex.SetTexture, tex, file)
+    if ok and loaded ~= false then return true end
+    tex:SetColorTexture(r or 0, g or 0, b or 0, a or 0.6)
+    return false
+end
+UI.Art = Art
+
+-- A frame (or slider) that can take a Blizzard-style backdrop; plain frame if the template is missing.
+local function BackdropFrame(kind, parent)
+    local ok, f = pcall(CreateFrame, kind or "Frame", nil, parent, "BackdropTemplate")
+    if ok and f then return f end
+    return CreateFrame(kind or "Frame", nil, parent)
+end
+
+local function SetBackdrop(f, def)
+    if not (f and f.SetBackdrop) then return false end
+    return pcall(f.SetBackdrop, f, def)
+end
+
 function UI.Accent(tex, mult)
     accents[tex] = mult or 1
     local c = W().accent
@@ -135,7 +174,37 @@ local function Tip(frame, title, text)
 end
 
 -- Flat button: soft fill, a faint top light, accent wash on hover.
+local function ClassicButton(parent, label, width, height)
+    local b = CreateFrame("Button", nil, parent)
+    b:SetSize(width or 120, height or 22)
+    local function Part(layer, file)
+        local t = b:CreateTexture(nil, layer)
+        t:SetAllPoints()
+        if Art(t, file, 0.45, 0.06, 0.04, 1) then t:SetTexCoord(0, 0.625, 0, 0.6875) end
+        return t
+    end
+    local up = Part("BACKGROUND", "Interface\\Buttons\\UI-Panel-Button-Up")
+    local down = Part("BACKGROUND", "Interface\\Buttons\\UI-Panel-Button-Down")
+    down:Hide()
+    local hl = b:CreateTexture(nil, "HIGHLIGHT")
+    hl:SetAllPoints()
+    if Art(hl, "Interface\\Buttons\\UI-Panel-Button-Highlight", 1, 1, 1, 0.12) then
+        hl:SetTexCoord(0, 0.625, 0, 0.6875)
+        hl:SetBlendMode("ADD")
+    end
+    local fs = UI.Text(b, label, -1, GOLD[1], GOLD[2], GOLD[3])
+    fs:SetPoint("CENTER", 0, 1)
+    fs:SetJustifyH("CENTER")
+    b.label = fs
+    b:SetScript("OnMouseDown", function() up:Hide(); down:Show(); fs:SetPoint("CENTER", 1, 0) end)
+    b:SetScript("OnMouseUp", function() down:Hide(); up:Show(); fs:SetPoint("CENTER", 0, 1) end)
+    b:HookScript("OnEnter", function() fs:SetTextColor(1, 1, 1) end)
+    b:HookScript("OnLeave", function() fs:SetTextColor(GOLD[1], GOLD[2], GOLD[3]) end)
+    return b
+end
+
 function UI.MakeButton(parent, label, width, height)
+    if UI.classic then return ClassicButton(parent, label, width, height) end
     local b = CreateFrame("Button", nil, parent)
     b:SetSize(width or 120, height or 22)
     local fill = b:CreateTexture(nil, "BACKGROUND")
@@ -234,6 +303,37 @@ local function MakeSwitch(parent, get, set)
     end)
     sw.Refresh()
     return sw
+end
+
+-- Blizzard checkbox (classic style). Same interface as a switch: .Refresh().
+local function MakeCheck(parent, get, set)
+    local cb = CreateFrame("Button", nil, parent)
+    cb:SetSize(24, 24)
+    local up = cb:CreateTexture(nil, "ARTWORK")
+    up:SetAllPoints()
+    if not Art(up, "Interface\\Buttons\\UI-CheckBox-Up", 0, 0, 0, 0.6) then
+        up:ClearAllPoints(); up:SetPoint("CENTER"); up:SetSize(16, 16)
+    end
+    local hl = cb:CreateTexture(nil, "HIGHLIGHT")
+    hl:SetAllPoints()
+    if Art(hl, "Interface\\Buttons\\UI-CheckBox-Highlight", 1, 1, 1, 0.12) then hl:SetBlendMode("ADD") end
+    local chk = cb:CreateTexture(nil, "OVERLAY")
+    chk:SetAllPoints()
+    if not Art(chk, "Interface\\Buttons\\UI-CheckBox-Check", GOLD[1], GOLD[2], GOLD[3], 1) then
+        chk:ClearAllPoints(); chk:SetPoint("CENTER"); chk:SetSize(10, 10)
+    end
+    function cb.Refresh() chk:SetShown(get() and true or false) end
+    cb:SetScript("OnClick", function()
+        set(not get())
+        UI.RefreshAll()
+    end)
+    cb.Refresh()
+    return cb
+end
+
+local function Toggle(parent, get, set)
+    if UI.classic then return MakeCheck(parent, get, set) end
+    return MakeSwitch(parent, get, set)
 end
 
 ----------------------------------------------------------------------
@@ -335,7 +435,7 @@ local function LayoutCard(self, card, y, cw)
     card.frame:ClearAllPoints()
     card.frame:SetPoint("TOPLEFT", self.child, "TOPLEFT", 4, -y)
     card.frame:SetPoint("TOPRIGHT", self.child, "TOPRIGHT", -4, -y)
-    local iy = card.title and (card.descText and 60 or 44) or 14
+    local iy = card.title and (card.descText and (UI.classic and 62 or 60) or (UI.classic and 46 or 44)) or 14
     local innerW = cw - 8 - 32
     for _, row in ipairs(card.rows) do
         local h = row.height(innerW)
@@ -409,13 +509,18 @@ function Page:Section(title, desc, opts)
     local f = CreateFrame("Frame", nil, self.child)
     local bg = f:CreateTexture(nil, "BACKGROUND")
     bg:SetAllPoints()
-    bg:SetColorTexture(1, 1, 1, 0.03)
-    Edges(f, 1, 1, 1, 0.055, "BORDER")
-    local shine = f:CreateTexture(nil, "BORDER")         -- faint light along the top edge
-    shine:SetPoint("TOPLEFT", f, "TOPLEFT", 1, -1)
-    shine:SetPoint("TOPRIGHT", f, "TOPRIGHT", -1, -1)
-    shine:SetHeight(1)
-    shine:SetColorTexture(1, 1, 1, 0.05)
+    if UI.classic then
+        bg:SetColorTexture(0, 0, 0, 0.22)
+        Edges(f, 1, 1, 1, 0.06, "BORDER")
+    else
+        bg:SetColorTexture(1, 1, 1, 0.03)
+        Edges(f, 1, 1, 1, 0.055, "BORDER")
+        local shine = f:CreateTexture(nil, "BORDER")     -- faint light along the top edge
+        shine:SetPoint("TOPLEFT", f, "TOPLEFT", 1, -1)
+        shine:SetPoint("TOPRIGHT", f, "TOPRIGHT", -1, -1)
+        shine:SetHeight(1)
+        shine:SetColorTexture(1, 1, 1, 0.05)
+    end
     local card = { frame = f, rows = {}, title = title, desc = desc,
         pinned = (type(opts) == "table" and opts.pinned) and true or false,
         openFirst = (type(opts) == "table" and opts.open) and true or false }
@@ -423,12 +528,22 @@ function Page:Section(title, desc, opts)
         local dot = UI.Round(f, "ARTWORK", 7)
         dot:SetPoint("TOPLEFT", f, "TOPLEFT", 16, -17)
         UI.Accent(dot, 1)
-        local fs = UI.Text(f, title, 2, 1, 1, 1)
+        local fs = UI.Text(f, title, UI.classic and 4 or 2, 1, 1, 1)
         fs:SetPoint("LEFT", dot, "RIGHT", 9, 0)
         card.titleText = fs
+        if UI.classic then
+            -- Blizzard-style divider under the title
+            local div = f:CreateTexture(nil, "ARTWORK")
+            div:SetPoint("TOPLEFT", f, "TOPLEFT", 10, -26)
+            div:SetPoint("TOPRIGHT", f, "TOPRIGHT", -10, -26)
+            div:SetHeight(8)
+            if not Art(div, "Interface\\Common\\UI-TooltipDivider-Transparent", GOLD[1], GOLD[2], GOLD[3], 0.25) then
+                div:SetHeight(1)
+            end
+        end
         if type(desc) == "string" and desc ~= "" then
             local d = UI.Text(f, desc, -1, 0.62, 0.62, 0.67)
-            d:SetPoint("TOPLEFT", f, "TOPLEFT", 32, -32)
+            d:SetPoint("TOPLEFT", f, "TOPLEFT", 32, UI.classic and -36 or -32)
             d:SetPoint("RIGHT", f, "RIGHT", -16, 0)
             d:SetWordWrap(false)
             card.descText = d
@@ -471,11 +586,17 @@ end
 
 function Page:Check(label, get, set, desc)
     local f = AddRow(self, 24, label)
-    local sw = MakeSwitch(f, get, set)
-    sw:SetPoint("RIGHT", f, "RIGHT", 0, 0)
+    local sw = Toggle(f, get, set)
     local fs = UI.Text(f, label)
-    fs:SetPoint("LEFT", f, "LEFT", 0, 0)
-    fs:SetPoint("RIGHT", sw, "LEFT", -12, 0)
+    if UI.classic then
+        sw:SetPoint("LEFT", f, "LEFT", -4, 0)
+        fs:SetPoint("LEFT", sw, "RIGHT", 2, 1)
+        fs:SetPoint("RIGHT", f, "RIGHT", 0, 0)
+    else
+        sw:SetPoint("RIGHT", f, "RIGHT", 0, 0)
+        fs:SetPoint("LEFT", f, "LEFT", 0, 0)
+        fs:SetPoint("RIGHT", sw, "LEFT", -12, 0)
+    end
     fs:SetWordWrap(false)
     if type(desc) == "string" then Tip(sw, label, desc) end
     table.insert(self.refreshers, sw.Refresh)
@@ -519,9 +640,9 @@ function Page:Slider(label, min, max, step, get, set, fmt)
     Tip(val, label, string.format("Click and type a value, then press Enter (%s to %s).",
         fmt and fmt(min) or tostring(min), fmt and fmt(max) or tostring(max)))
 
-    local s = CreateFrame("Slider", nil, f)
+    local s = UI.classic and BackdropFrame("Slider", f) or CreateFrame("Slider", nil, f)
     s:SetPoint("RIGHT", holder, "LEFT", -10, 0)
-    s:SetSize(180, 18)
+    s:SetSize(180, UI.classic and 17 or 18)
     s:SetOrientation("HORIZONTAL")
     s:SetMinMaxValues(min, max)
     s:SetValueStep(step)
@@ -533,18 +654,33 @@ function Page:Slider(label, min, max, step, get, set, fmt)
     track:SetHeight(4)
     track:SetColorTexture(1, 1, 1, 0.10)
 
-    local thumbOK = pcall(s.SetThumbTexture, s, ROUND)
-    if not thumbOK then s:SetThumbTexture(WHITE) end
-    local thumb = s:GetThumbTexture()
-    if thumbOK then rounds[thumb] = true end
-    thumb:SetSize(14, 14)
-    UI.Accent(thumb, 1)
-
-    local fill = s:CreateTexture(nil, "ARTWORK")
-    fill:SetHeight(4)
-    fill:SetPoint("LEFT", track, "LEFT", 0, 0)
-    fill:SetPoint("RIGHT", thumb, "CENTER", 0, 0)
-    UI.Accent(fill, 0.6)
+    local classicBar = UI.classic and SetBackdrop(s, {
+        bgFile = "Interface\\Buttons\\UI-SliderBar-Background",
+        edgeFile = "Interface\\Buttons\\UI-SliderBar-Border",
+        tile = true, tileSize = 8, edgeSize = 8,
+        insets = { left = 3, right = 3, top = 6, bottom = 6 },
+    })
+    local thumb
+    if classicBar then
+        track:Hide()
+        local okT = pcall(s.SetThumbTexture, s, "Interface\\Buttons\\UI-SliderBar-Button-Horizontal")
+        if not okT then s:SetThumbTexture(WHITE) end
+        thumb = s:GetThumbTexture()
+        thumb:SetSize(32, 32)
+        if not okT then thumb:SetSize(10, 16); UI.Accent(thumb, 1) end
+    else
+        local thumbOK = pcall(s.SetThumbTexture, s, ROUND)
+        if not thumbOK then s:SetThumbTexture(WHITE) end
+        thumb = s:GetThumbTexture()
+        if thumbOK then rounds[thumb] = true end
+        thumb:SetSize(14, 14)
+        UI.Accent(thumb, 1)
+        local fill = s:CreateTexture(nil, "ARTWORK")
+        fill:SetHeight(4)
+        fill:SetPoint("LEFT", track, "LEFT", 0, 0)
+        fill:SetPoint("RIGHT", thumb, "CENTER", 0, 0)
+        UI.Accent(fill, 0.6)
+    end
 
     local fs = UI.Text(f, label)
     fs:SetPoint("LEFT", f, "LEFT", 0, 0)
@@ -640,10 +776,123 @@ function Page:Color(label, get, set)
     return btn
 end
 
+-- One shared drop-down list: opens under a box, one row per option, closes on pick,
+-- on a second click, or when the mouse leaves it for a moment.
+local dropList, dropOwner
+local function DropList()
+    if dropList then return dropList end
+    local l = BackdropFrame("Frame", UIParent)
+    l:SetFrameStrata("FULLSCREEN_DIALOG")
+    l:SetClampedToScreen(true)
+    l:EnableMouse(true)
+    l:Hide()
+    if not SetBackdrop(l, {
+        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        tile = true, tileSize = 16, edgeSize = 14,
+        insets = { left = 3, right = 3, top = 3, bottom = 3 },
+    }) then
+        local bg = l:CreateTexture(nil, "BACKGROUND"); bg:SetAllPoints(); bg:SetColorTexture(0.06, 0.06, 0.07, 0.97)
+        Edges(l, 1, 1, 1, 0.15)
+    elseif l.SetBackdropColor then
+        pcall(l.SetBackdropColor, l, 0.04, 0.04, 0.05, 0.96)
+    end
+    l.rows = {}
+    local away = 0
+    l:SetScript("OnUpdate", function(self, dt)
+        if self:IsMouseOver() or (dropOwner and dropOwner:IsMouseOver()) then away = 0; return end
+        away = away + (dt or 0)
+        if away > 1.2 then self:Hide() end
+    end)
+    l:SetScript("OnHide", function() dropOwner = nil; away = 0 end)
+    dropList = l
+    return l
+end
+
+local function OpenDropList(owner, options, cur, onPick)
+    local l = DropList()
+    if l:IsShown() and dropOwner == owner then l:Hide(); return end
+    dropOwner = owner
+    local ROW = 20
+    for i, o in ipairs(options) do
+        local r = l.rows[i]
+        if not r then
+            r = CreateFrame("Button", nil, l)
+            r:SetHeight(ROW)
+            local hl = r:CreateTexture(nil, "HIGHLIGHT")
+            hl:SetAllPoints()
+            UI.Accent(hl, 0.25)
+            r.mark = r:CreateTexture(nil, "ARTWORK")
+            r.mark:SetSize(5, 5)
+            r.mark:SetPoint("LEFT", r, "LEFT", 8, 0)
+            UI.Accent(r.mark, 1)
+            r.text = UI.Text(r, "", -1)
+            r.text:SetPoint("LEFT", r, "LEFT", 20, 0)
+            r.text:SetPoint("RIGHT", r, "RIGHT", -8, 0)
+            r.text:SetWordWrap(false)
+            l.rows[i] = r
+        end
+        r:ClearAllPoints()
+        r:SetPoint("TOPLEFT", l, "TOPLEFT", 4, -4 - (i - 1) * ROW)
+        r:SetPoint("TOPRIGHT", l, "TOPRIGHT", -4, -4 - (i - 1) * ROW)
+        r.text:SetText(o[2])
+        r.mark:SetShown(o[1] == cur)
+        r:SetScript("OnClick", function() l:Hide(); onPick(o[1]) end)
+        r:Show()
+    end
+    for i = #options + 1, #l.rows do l.rows[i]:Hide() end
+    l:SetScale(owner:GetEffectiveScale() / UIParent:GetEffectiveScale())
+    l:SetWidth(math.max(160, owner:GetWidth()))
+    l:SetHeight(#options * ROW + 8)
+    l:ClearAllPoints()
+    l:SetPoint("TOPLEFT", owner, "BOTTOMLEFT", 0, -2)
+    l:Show()
+end
+
+-- The box that opens the list: looks like a game drop-down in the classic style.
+local function MakeDropBox(parent, width, height)
+    if not UI.classic then
+        local b = UI.MakeButton(parent, "", width, height)
+        local arrow = UI.Text(b, "v", -2, 0.62, 0.62, 0.67)
+        arrow:SetPoint("RIGHT", b, "RIGHT", -8, 0)
+        b.label:ClearAllPoints()
+        b.label:SetPoint("LEFT", b, "LEFT", 10, 0)
+        b.label:SetPoint("RIGHT", arrow, "LEFT", -6, 0)
+        b.label:SetJustifyH("LEFT")
+        b.label:SetWordWrap(false)
+        return b
+    end
+    local b = CreateFrame("Button", nil, parent)
+    b:SetSize(width, height)
+    local edge = b:CreateTexture(nil, "BACKGROUND")
+    edge:SetAllPoints()
+    edge:SetColorTexture(0.42, 0.42, 0.45, 1)
+    local fill = b:CreateTexture(nil, "BORDER")
+    fill:SetPoint("TOPLEFT", 1, -1)
+    fill:SetPoint("BOTTOMRIGHT", -1, 1)
+    fill:SetColorTexture(0.02, 0.02, 0.03, 0.92)
+    local arrow = b:CreateTexture(nil, "ARTWORK")
+    arrow:SetSize(height - 2, height - 2)
+    arrow:SetPoint("RIGHT", b, "RIGHT", -1, 0)
+    if not Art(arrow, "Interface\\ChatFrame\\UI-ChatIcon-ScrollDown-Up", GOLD[1], GOLD[2], GOLD[3], 0.8) then
+        arrow:SetSize(8, 8)
+    end
+    local hl = b:CreateTexture(nil, "HIGHLIGHT")
+    hl:SetPoint("TOPLEFT", 1, -1)
+    hl:SetPoint("BOTTOMRIGHT", -1, 1)
+    hl:SetColorTexture(1, 1, 1, 0.06)
+    local fs = UI.Text(b, "", -1, 1, 1, 1)
+    fs:SetPoint("LEFT", b, "LEFT", 8, 0)
+    fs:SetPoint("RIGHT", arrow, "LEFT", -2, 0)
+    fs:SetWordWrap(false)
+    b.label = fs
+    return b
+end
+
 -- options = { { "key", "Label" }, ... }
 function Page:Cycle(label, options, get, set)
     local f = AddRow(self, 26, label)
-    local btn = UI.MakeButton(f, "", 190, 22)
+    local btn = MakeDropBox(f, 190, 22)
     btn:SetPoint("RIGHT", f, "RIGHT", 0, 0)
     local fs = UI.Text(f, label)
     fs:SetPoint("LEFT", f, "LEFT", 0, 0)
@@ -658,11 +907,10 @@ function Page:Cycle(label, options, get, set)
         btn.label:SetText(tostring(cur))
     end
     btn:SetScript("OnClick", function()
-        local cur, idx = get(), 1
-        for i, o in ipairs(options) do if o[1] == cur then idx = i end end
-        idx = idx % #options + 1
-        set(options[idx][1])
-        refresh()
+        OpenDropList(btn, options, get(), function(v)
+            set(v)
+            refresh()
+        end)
     end)
     table.insert(self.refreshers, refresh)
     refresh()
@@ -815,10 +1063,30 @@ function UI.ApplyStyle()
     local w = W()
     win:SetScale(w.scale)
     bgTex:SetColorTexture(w.bg[1], w.bg[2], w.bg[3], w.bg[4])
+    if UI.classic and UI._deco then
+        local bd = CLASSIC_BORDERS[w.classicBorder or "stone"] or CLASSIC_BORDERS.stone
+        local back = CLASSIC_BACKS[w.classicBack or "dark"] or CLASSIC_BACKS.dark
+        local deco = UI._deco
+        deco:ClearAllPoints()
+        deco:SetPoint("TOPLEFT", win, "TOPLEFT", -bd.out, bd.out)
+        deco:SetPoint("BOTTOMRIGHT", win, "BOTTOMRIGHT", bd.out, -bd.out)
+        local ok = SetBackdrop(deco, {
+            bgFile = back, edgeFile = bd.file, tile = true, tileSize = (back == WHITE) and 8 or 256,
+            edgeSize = bd.size, insets = { left = bd.inset, right = bd.inset, top = bd.inset, bottom = bd.inset },
+        })
+        if ok and deco.SetBackdropColor then
+            if back == WHITE then
+                pcall(deco.SetBackdropColor, deco, w.bg[1], w.bg[2], w.bg[3], w.bg[4])
+            else
+                pcall(deco.SetBackdropColor, deco, 1, 1, 1, w.bg[4])
+            end
+            bgTex:SetColorTexture(0, 0, 0, 0)            -- the backdrop is the background now
+        end
+    end
     titleBG:SetColorTexture(w.titleBar[1], w.titleBar[2], w.titleBar[3], w.bg[4])
     sideBG:SetColorTexture(w.sidebar[1], w.sidebar[2], w.sidebar[3], w.sidebar[4])
     for _, e in ipairs(borderEdges) do
-        e:SetColorTexture(w.border[1], w.border[2], w.border[3], w.border[4])
+        e:SetColorTexture(w.border[1], w.border[2], w.border[3], UI.classic and 0 or w.border[4])
     end
     RestyleAccents()
     RestyleTexts()
@@ -864,7 +1132,7 @@ local function BuildHeader(parent, title, desc, key)
     local right = 0
     local sw
     if key then
-        sw = MakeSwitch(h, function() return NS.Mod(key).enabled end,
+        sw = Toggle(h, function() return NS.Mod(key).enabled end,
             function(v) NS.Mod(key).enabled = v; NS.ApplyModule(key) end)
         sw:SetPoint("TOPRIGHT", h, "TOPRIGHT", -16, -18)
         local lbl = UI.Text(h, "Enabled", -1, 0.65, 0.65, 0.70)
@@ -906,16 +1174,30 @@ end
 -- Window
 ----------------------------------------------------------------------
 -- Theme presets. Picking one sets the window colors; any color can be changed afterwards.
+-- Theme presets. Modern themes: { id, name, background, accent }. Classic themes use the
+-- Blizzard-style window (stone or gold border, gold labels, checkboxes, red buttons) and also
+-- pick a border and a background. Any color can be changed afterwards (it becomes Custom).
 local THEMES = {
-    { "blue",     "Aimbot Blue",  { 0.07, 0.07, 0.08 }, { 0.30, 0.70, 1.00 } },
-    { "crimson",  "Crimson",      { 0.09, 0.06, 0.06 }, { 0.92, 0.27, 0.32 } },
-    { "emerald",  "Emerald",      { 0.06, 0.085, 0.07 }, { 0.25, 0.85, 0.52 } },
-    { "violet",   "Violet",       { 0.08, 0.06, 0.10 }, { 0.68, 0.42, 1.00 } },
-    { "gold",     "Gold",         { 0.09, 0.08, 0.06 }, { 1.00, 0.78, 0.25 } },
-    { "orange",   "Ember",        { 0.09, 0.07, 0.06 }, { 1.00, 0.52, 0.20 } },
-    { "graphite", "Graphite",     { 0.12, 0.12, 0.13 }, { 0.78, 0.78, 0.84 } },
-    { "black",    "Pure black",   { 0.00, 0.00, 0.00 }, { 0.30, 0.70, 1.00 } },
+    { "blue",     "Modern: Aimbot Blue",  { 0.07, 0.07, 0.08 }, { 0.30, 0.70, 1.00 } },
+    { "crimson",  "Modern: Crimson",      { 0.09, 0.06, 0.06 }, { 0.92, 0.27, 0.32 } },
+    { "emerald",  "Modern: Emerald",      { 0.06, 0.085, 0.07 }, { 0.25, 0.85, 0.52 } },
+    { "violet",   "Modern: Violet",       { 0.08, 0.06, 0.10 }, { 0.68, 0.42, 1.00 } },
+    { "gold",     "Modern: Gold",         { 0.09, 0.08, 0.06 }, { 1.00, 0.78, 0.25 } },
+    { "orange",   "Modern: Ember",        { 0.09, 0.07, 0.06 }, { 1.00, 0.52, 0.20 } },
+    { "frost",    "Modern: Frost",        { 0.05, 0.07, 0.10 }, { 0.45, 0.88, 1.00 } },
+    { "fel",      "Modern: Fel",          { 0.05, 0.07, 0.04 }, { 0.62, 1.00, 0.22 } },
+    { "rose",     "Modern: Rose",         { 0.09, 0.06, 0.08 }, { 1.00, 0.45, 0.70 } },
+    { "graphite", "Modern: Graphite",     { 0.12, 0.12, 0.13 }, { 0.78, 0.78, 0.84 } },
+    { "black",    "Modern: Pure black",   { 0.00, 0.00, 0.00 }, { 0.30, 0.70, 1.00 } },
+    { "c_stone",  "Classic: Stone",       { 0, 0, 0 }, { 1.00, 0.82, 0.00 }, classic = true, border = "stone",   back = "dark" },
+    { "c_gold",   "Classic: Gold trim",   { 0, 0, 0 }, { 1.00, 0.82, 0.00 }, classic = true, border = "gold",    back = "dark" },
+    { "c_rock",   "Classic: Rock",        { 0, 0, 0 }, { 1.00, 0.82, 0.00 }, classic = true, border = "stone",   back = "rock" },
+    { "c_marble", "Classic: Marble",      { 0, 0, 0 }, { 1.00, 0.82, 0.00 }, classic = true, border = "gold",    back = "marble" },
+    { "c_tip",    "Classic: Tooltip",     { 0.03, 0.03, 0.05 }, { 1.00, 0.82, 0.00 }, classic = true, border = "tooltip", back = "plain" },
+    { "c_horde",  "Classic: Horde",       { 0.10, 0.02, 0.02 }, { 1.00, 0.30, 0.20 }, classic = true, border = "stone", back = "plain" },
+    { "c_ally",   "Classic: Alliance",    { 0.02, 0.04, 0.11 }, { 0.40, 0.65, 1.00 }, classic = true, border = "gold",  back = "plain" },
 }
+
 
 local function ApplyTheme(id)
     for _, t in ipairs(THEMES) do
@@ -929,6 +1211,16 @@ local function ApplyTheme(id)
             w.sidebar[1], w.sidebar[2], w.sidebar[3], w.sidebar[4] = 0, 0, 0, 0.28
             w.text[1], w.text[2], w.text[3] = 0.90, 0.90, 0.92
             w.muted[1], w.muted[2], w.muted[3] = 0.62, 0.62, 0.67
+            w.skin = t.classic and "classic" or "modern"
+            if t.classic then
+                -- gold labels, white titles, light grey notes, like the game's own option panels
+                w.text[1], w.text[2], w.text[3] = 1.00, 0.82, 0.00
+                w.muted[1], w.muted[2], w.muted[3] = 0.78, 0.78, 0.78
+                w.titleBar[1], w.titleBar[2], w.titleBar[3] = 0, 0, 0
+                w.sidebar[1], w.sidebar[2], w.sidebar[3], w.sidebar[4] = 0, 0, 0, 0.30
+                w.classicBorder = t.border or "stone"
+                w.classicBack = t.back or "dark"
+            end
             w.theme = id
             return
         end
@@ -946,10 +1238,28 @@ local function BuildGeneral(page)
     page:Section("Theme", "Pick a ready-made look for this window")
     local options = { { "custom", "Custom" } }
     for _, t in ipairs(THEMES) do options[#options + 1] = { t[1], t[2] } end
-    page:Cycle("Color theme", options,
+    page:Cycle("Theme", options,
         function() return W().theme end,
         function(v) if v ~= "custom" then ApplyTheme(v) end; W().theme = v; UI.ApplyStyle() end)
-    page:Note("Click the button to step through the themes. Changing any color below switches it to Custom.")
+    page:Cycle("Style", { { "classic", "Classic (game style)" }, { "modern", "Modern (flat)" } },
+        function() return W().skin end,
+        function(v) W().skin = v; UI.RefreshAll() end)
+    local styleNote = page:Note("")
+    table.insert(page.refreshers, function()
+        if W().skin ~= UI.builtSkin then
+            styleNote:SetText("|cffff8040The style changes after a reload.|r Click \"Reload now\" below (or type /reload).")
+        else
+            styleNote:SetText("Classic themes use the game's own look: stone or gold border, gold labels, checkboxes "
+                .. "and red buttons. Modern themes are flat with round switches. Changing any color below makes it Custom.")
+        end
+    end)
+    page:Cycle("Classic border", { { "stone", "Stone" }, { "gold", "Gold trim" }, { "tooltip", "Thin (tooltip)" }, { "none", "None" } },
+        function() return W().classicBorder or "stone" end,
+        function(v) W().classicBorder = v; UI.ApplyStyle() end)
+    page:Cycle("Classic background", { { "dark", "Dark" }, { "rock", "Rock" }, { "marble", "Marble" }, { "plain", "Plain color" } },
+        function() return W().classicBack or "dark" end,
+        function(v) W().classicBack = v; UI.ApplyStyle() end)
+    page:Button("Reload now", function() if ReloadUI then ReloadUI() end end, 160)
 
     page:Section("Window", "Size, opacity, text size and locking")
     page:Slider("Window scale", 0.6, 1.6, 0.05,
@@ -990,7 +1300,11 @@ local function BuildGeneral(page)
         function(r, g, b) W().accent[1], W().accent[2], W().accent[3] = r, g, b; Custom() end)
     ColorRow("Text", "text")
     ColorRow("Small grey text (descriptions, notes)", "muted")
-    page:Button("Reset all window colors", function() ApplyTheme("blue"); UI.ApplyStyle() end, 260)
+    page:Button("Reset all window colors", function()
+        local cur = W().theme
+        if cur == "custom" or not cur then cur = UI.classic and "c_stone" or "blue" end
+        ApplyTheme(cur); UI.ApplyStyle()
+    end, 260)
 
     page:Section("Modules", "Switch whole modules on or off")
     for _, key in ipairs(SortedModules()) do
@@ -1028,6 +1342,13 @@ end
 
 local function Create()
     local w = W()
+    -- One time: switch to the classic (game-style) look introduced in 2.8.13.
+    if w.styleV ~= 1 then
+        w.styleV = 1
+        ApplyTheme("c_stone")
+    end
+    UI.classic = (w.skin == "classic")
+    UI.builtSkin = w.skin
     win = CreateFrame("Frame", "AimbotUIWindow", UIParent)
     win:SetFrameStrata("MEDIUM")
     win:SetToplevel(true)
@@ -1050,6 +1371,13 @@ local function Create()
     bgTex = win:CreateTexture(nil, "BACKGROUND")
     bgTex:SetAllPoints()
 
+    -- Classic style: a Blizzard dialog border and background around the window.
+    if UI.classic then
+        local deco = BackdropFrame("Frame", win)
+        deco:SetFrameLevel(win:GetFrameLevel())
+        UI._deco = deco
+    end
+
     local function Edge(p1, p2, width, height)
         local t = win:CreateTexture(nil, "BORDER")
         t:SetPoint(p1); t:SetPoint(p2)
@@ -1062,8 +1390,8 @@ local function Create()
     Edge("TOPLEFT", "BOTTOMLEFT", 1, nil)
     Edge("TOPRIGHT", "BOTTOMRIGHT", 1, nil)
 
-    -- Soft drop shadow: three faint rings just outside the window edge.
-    for i, a in ipairs({ 0.30, 0.16, 0.07 }) do
+    -- Soft drop shadow: three faint rings just outside the window edge (modern style).
+    for i, a in ipairs(UI.classic and {} or { 0.30, 0.16, 0.07 }) do
         local o, prev = i * 2, (i - 1) * 2
         local function S(p1, x1, y1, p2, x2, y2)
             local t = win:CreateTexture(nil, "BACKGROUND", nil, -8)
@@ -1095,6 +1423,7 @@ local function Create()
     mark:SetSize(4, 16)
     UI.Accent(mark, 1)
     local title = UI.Text(tb, "AIMBOT UI", 3, 1, 1, 1)
+    if UI.classic then title:SetTextColor(GOLD[1], GOLD[2], GOLD[3]) end
     title:SetPoint("LEFT", mark, "RIGHT", 8, 0)
     local chip = CreateFrame("Frame", nil, tb)
     chip:SetPoint("LEFT", title, "RIGHT", 10, 0)

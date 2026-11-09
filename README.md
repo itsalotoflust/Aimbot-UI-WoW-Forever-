@@ -2,15 +2,16 @@
 
 An all-in-one interface addon suite for **World of Warcraft Forever** (interface 16001).
 
-**Current version: 2.8.12**
+**Current version: 2.8.13**
 
 Open it in game with `/aimbot` (or `/aui`). Every module has its own tab and its own on/off switch, and if one module hits a problem it reports in chat and the rest keep running.
 
-## What's new in 2.8.12
+## What's new in 2.8.13
 
-- A more modern look for the Aimbot UI window: round toggle switches (pill track with a round knob), round slider handles and round on/off dots in the side menu; flat buttons with a soft accent wash on hover; flatter text boxes; softer cards with a faint top light, a round accent dot before the title and their short description underneath; a bigger page title with an accent underline and "On"/"Off" next to each tab's switch; the version as a small chip in the title bar, a close button that turns red on hover, a soft shadow around the window and a thinner scrollbar.
-- The round shapes use a new image (`media/ui/circle.tga`), so fully restart the game once after updating. Until then they show as squares and everything still works.
-- Fixed: in 2.8.11 the General tab stopped part way (the module on/off list was missing). It builds fully again.
+- New **Classic** style for the window, made to look like the game's own option panels: a stone (or gold) dialog border, a dark textured background, gold labels with white section titles and a divider under each, the game's checkboxes on the left of each setting, red game-style buttons, game-style sliders and drop-down boxes. This is now the default look.
+- Real drop-down lists: clicking a choice box (themes, modes, positions...) opens a list to pick from, instead of stepping through the options one click at a time. Works in both styles.
+- More themes (General tab > Theme). Classic: Stone, Gold trim, Rock, Marble, Tooltip, Horde, Alliance. Modern: Aimbot Blue, Crimson, Emerald, Violet, Gold, Ember, Frost, Fel, Rose, Graphite, Pure black. Plus "Style" (Classic or Modern), "Classic border" (Stone, Gold trim, Thin, None) and "Classic background" (Dark, Rock, Marble, Plain color). Switching between Classic and Modern needs a reload ("Reload now" button); borders, backgrounds and colors change live.
+- "Reset all window colors" now resets to the theme you picked instead of always Aimbot Blue.
 
 See [CHANGELOG.md](CHANGELOG.md) for every version.
 
