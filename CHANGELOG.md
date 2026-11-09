@@ -2,6 +2,13 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.13.2
+
+- **Aura Timers:** fixed your debuffs on enemies being invisible. The usual aura lookup returns nothing for enemy debuffs on this client, and the game's icons were hidden.
+  - Every other way the game offers to read auras is now tried in turn.
+  - If none of them works on an enemy, the game's own icons are shown instead: no timers, but your debuffs stay visible. Ours are hidden then, so buffs don't show twice.
+  - `/aimbot diag` lists what each way returned.
+
 ## 2.13.1
 
 - **Aura Timers:** the target / focus aura row now starts right under the mana bar, lined up with its left edge.

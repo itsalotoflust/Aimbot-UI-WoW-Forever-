@@ -499,7 +499,11 @@ local function NewIcon(holder)
     b:SetScript("OnEnter", function(self)
         if not GameTooltip then return end
         GameTooltip:SetOwner(self, "ANCHOR_BOTTOMRIGHT")
-        local ok = pcall(GameTooltip.SetUnitAura, GameTooltip, self.unit, self.index, self.filter)
+        local ok = false
+        if self.auraID ~= nil and GameTooltip.SetUnitAuraByAuraInstanceID then
+            ok = pcall(GameTooltip.SetUnitAuraByAuraInstanceID, GameTooltip, self.unit, self.auraID)
+        end
+        if not ok then ok = pcall(GameTooltip.SetUnitAura, GameTooltip, self.unit, self.index, self.filter) end
         if ok then GameTooltip:Show() end
     end)
     b:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
@@ -529,22 +533,95 @@ local function StackText(unit, a)
     return ""
 end
 
+-- Reads a unit's auras for one filter. The usual lookup returns nothing for enemy debuffs on this
+-- client, so every way the game offers is tried in turn; the first that returns any aura is used.
+-- Returns a list of aura tables and the name of the way that worked.
+M.stats.ways = {}
+local function Gather(unit, filter, max)
+    local CU = C_UnitAuras
+    local list
+    -- 1. by index
+    if CU and CU.GetAuraDataByIndex then
+        list = {}
+        for i = 1, max do
+            local ok, a = pcall(CU.GetAuraDataByIndex, unit, i, filter)
+            if not ok or type(a) ~= "table" then break end
+            a = { data = a, index = i }; list[#list + 1] = a
+        end
+        M.stats.ways[filter .. " index"] = #list
+        if #list > 0 then return list, "index" end
+    end
+    -- 2. all at once
+    if CU and CU.GetUnitAuras then
+        local ok, all = pcall(CU.GetUnitAuras, unit, filter, max)
+        list = {}
+        if ok and type(all) == "table" then
+            for i, a in ipairs(all) do
+                if type(a) == "table" then list[#list + 1] = { data = a, index = i } end
+            end
+        end
+        M.stats.ways[filter .. " list"] = #list
+        if #list > 0 then return list, "list" end
+    end
+    -- 3. by slot
+    if CU and CU.GetAuraSlots and CU.GetAuraDataBySlot then
+        local ok, res = pcall(function() return { CU.GetAuraSlots(unit, filter, max) } end)
+        list = {}
+        if ok and type(res) == "table" then
+            for k = 2, #res do
+                local slot = res[k]
+                if slot ~= nil then
+                    local okA, a = pcall(CU.GetAuraDataBySlot, unit, slot)
+                    if okA and type(a) == "table" then list[#list + 1] = { data = a, index = #list + 1 } end
+                end
+            end
+        end
+        M.stats.ways[filter .. " slots"] = #list
+        if #list > 0 then return list, "slots" end
+    end
+    -- 4. the old UnitAura
+    if UnitAura then
+        list = {}
+        for i = 1, max do
+            local ok, name, icon, count, _, duration, expires = pcall(UnitAura, unit, i, filter)
+            if not ok or name == nil then break end
+            list[#list + 1] = { data = { icon = icon, applications = count, duration = duration, expirationTime = expires }, index = i }
+        end
+        M.stats.ways[filter .. " UnitAura"] = #list
+        if #list > 0 then return list, "UnitAura" end
+    end
+    return {}, "none"
+end
+
+-- Gives an icon's cooldown the aura's time (from its id, or its own times for the old API).
+local function FeedData(cd, unit, a)
+    if a.auraInstanceID ~= nil and Feed(cd, unit, a.auraInstanceID) then return true end
+    local exp, dur = a.expirationTime, a.duration
+    if exp == nil or dur == nil then return false end
+    if cd.SetCooldownFromExpirationTime and pcall(cd.SetCooldownFromExpirationTime, cd, exp, dur) then return true end
+    if not IsSecret(exp) and not IsSecret(dur) and type(dur) == "number" and dur > 0 and type(exp) == "number" then
+        cd:SetCooldown(exp - dur, dur); return true
+    end
+    return false
+end
+
 -- Fills one kind (buffs or debuffs) and returns how many icons were shown and the rows used.
-local function FillKind(unit, set, kind, startRow)
+local function FillKind(unit, set, kind, startRow, skip)
     local o = O()
     local list = set[kind]
     local filter = (kind == "buffs") and "HELPFUL" or (o.onlyMine and "HARMFUL|PLAYER" or "HARMFUL")
-    local on = (kind == "buffs") and o.buffs or o.debuffs
+    local on = ((kind == "buffs") and o.buffs or o.debuffs) and not skip
     local size, perRow = o.iconSize, math.max(1, o.perRow)
     local n = 0
-    if on and C_UnitAuras and C_UnitAuras.GetAuraDataByIndex then
-        for i = 1, o.max do
-            local ok, a = pcall(C_UnitAuras.GetAuraDataByIndex, unit, i, filter)
-            if not ok or type(a) ~= "table" then break end
+    if on then
+        local auras, way = Gather(unit, filter, o.max)
+        M.stats["way_" .. kind] = way
+        for _, e in ipairs(auras) do
+            local a = e.data
             n = n + 1
             local b = list[n]
             if not b then b = NewIcon(set.holder); list[n] = b end
-            b.unit, b.index, b.filter = unit, i, filter
+            b.unit, b.index, b.filter, b.auraID = unit, e.index, filter, a.auraInstanceID
             b:SetSize(size, size)
             b:ClearAllPoints()
             local col, row = (n - 1) % perRow, startRow + math.floor((n - 1) / perRow)
@@ -558,7 +635,7 @@ local function FillKind(unit, set, kind, startRow)
                 local okF, font = pcall(fs.GetFont, fs)
                 pcall(fs.SetFont, fs, (okF and font) or STANDARD_TEXT_FONT, TimerSize(), "OUTLINE")
             end
-            if a.auraInstanceID == nil or not Feed(b.cd, unit, a.auraInstanceID) then pcall(b.cd.Clear, b.cd) end
+            if not FeedData(b.cd, unit, a) then pcall(b.cd.Clear, b.cd) end
             b:Show()
         end
     end
@@ -597,6 +674,18 @@ local function DoOwn(unit)
     local nb, rb = FillKind(unit, set, "buffs", 0)
     local nd = FillKind(unit, set, "debuffs", rb)
     M.stats.ownShown[unit] = nb + nd
+    -- On an enemy whose debuffs can't be read, give the job back to the game's icons (no
+    -- timers, but your debuffs stay visible) and hide ours so buffs don't show twice.
+    local okC, enemy = pcall(UnitCanAttack, "player", unit)
+    enemy = okC and not IsSecret(enemy) and enemy
+    M.stats.fallback = M.stats.fallback or {}
+    if enemy and o.debuffs and nd == 0 then
+        M.stats.fallback[unit] = true
+        set.holder:Hide()
+        HideGame(unit, false)
+    else
+        M.stats.fallback[unit] = false
+    end
 end
 M._t_DoOwn = DoOwn
 M._t_own = own
@@ -902,6 +991,13 @@ function M:Diagnose()
     local o = O()
     NS.Print(string.format("  own icons: %s   target %d   focus %d   hide game icons: %s   last error: %s",
         o.enabled and "on" or "off", st.ownShown.target, st.ownShown.focus, tostring(o.hideGame), tostring(st.ownErr or "none")))
+    local ways = {}
+    for k, v in pairs(st.ways) do ways[#ways + 1] = k .. "=" .. v end
+    table.sort(ways)
+    NS.Print("  aura reads (last target/focus update): " .. (#ways > 0 and table.concat(ways, "  ") or "none yet"))
+    NS.Print(string.format("  read with: buffs %s, debuffs %s   game icons used instead on enemy: target %s, focus %s",
+        tostring(st.way_buffs or "-"), tostring(st.way_debuffs or "-"),
+        tostring(st.fallback and st.fallback.target), tostring(st.fallback and st.fallback.focus)))
     Probe(TargetFrame, "TargetFrame")
     local ok, err = pcall(DeepProbe)
     if not ok then NS.Print("  deep probe failed: " .. tostring(err)) end
