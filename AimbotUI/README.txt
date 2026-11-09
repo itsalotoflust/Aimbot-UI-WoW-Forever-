@@ -1,4 +1,4 @@
-AIMBOT UI  v2.13.5  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.13.6  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,12 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.13.6
+  - Fixed: the repair, talent point, party death and +Combat / -Combat texts could stay
+    invisible the first time they should show, until the text was unlocked and moved. The text
+    frame was only given its screen position when a setting changed; it now gets it as soon as
+    it is created.
 
 NEW IN 2.13.5
   - Talent Point Alert: also reacts to the game's talent point / level change events, so it

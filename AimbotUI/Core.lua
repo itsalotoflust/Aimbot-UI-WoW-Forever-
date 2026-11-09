@@ -7,7 +7,7 @@
 local ADDON_NAME, NS = ...
 _G.AimbotUI = NS
 
-NS.version = "2.13.5"
+NS.version = "2.13.6"
 NS.modules = {}
 NS.moduleOrder = {}
 
@@ -168,6 +168,9 @@ function NS.CreateAlertText(globalName, S, sample)
     end
 
     function A:IsShowing() return current ~= nil end
+    -- give the frame its position and font now: a frame with no position is never drawn, so
+    -- without this the first alert stayed invisible until a setting was changed
+    A:Layout()
     return A
 end
 

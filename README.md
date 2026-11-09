@@ -2,14 +2,13 @@
 
 An all-in-one interface addon suite for **World of Warcraft Forever** (interface 16001).
 
-**Current version: 2.13.5**
+**Current version: 2.13.6**
 
 Open it in game with `/aimbot` (or `/aui`). Every module has its own tab and its own on/off switch, and if one module hits a problem it reports in chat and the rest keep running.
 
-## What's new in 2.13.5
+## What's new in 2.13.6
 
-- **Talent Point Alert:** also reacts to the game's talent point and level change events, so it shows sooner after you level.
-- `/aimbot diag` lists every place the point count can be read.
+- **Fixed:** the repair, talent point, party death and +Combat / -Combat texts could stay invisible the first time they should show, until the text was unlocked and moved. The text frame was only given its screen position when a setting changed. It now gets it as soon as it's created.
 
 See [CHANGELOG.md](CHANGELOG.md) for every version.
 

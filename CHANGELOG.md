@@ -2,6 +2,10 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.13.6
+
+- **Fixed:** the repair, talent point, party death and +Combat / -Combat texts could stay invisible the first time they should show, until the text was unlocked and moved. The text frame was only given its screen position when a setting changed. It now gets it as soon as it's created.
+
 ## 2.13.5
 
 - **Talent Point Alert:** also reacts to the game's talent point and level change events, so it shows sooner after you level.
