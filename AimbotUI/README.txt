@@ -1,4 +1,4 @@
-AIMBOT UI  v2.14.1  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.14.2  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,13 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.14.2
+  - Privacy: the BattleTag swap now covers the social window, which is where this client
+    shows your tag (SocialUIFrame ... PersonalBattleTagDisplay, found with /fstack). 2.14.1 only
+    looked in the old friends window, whose tag text is hidden here, so it swapped a text you
+    never see. The tag is kept swapped while the social window is open, also when the game
+    hides the text from addons. /aimbot diag lists where each swapped text lives.
 
 NEW IN 2.14.1
   - Privacy: fixed your real BattleTag still showing in the friends window. The addon only

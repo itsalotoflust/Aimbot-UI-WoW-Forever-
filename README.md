@@ -2,14 +2,14 @@
 
 An all-in-one interface addon suite for **World of Warcraft Forever** (interface 16001).
 
-**Current version: 2.14.1**
+**Current version: 2.14.2**
 
 Open it in game with `/aimbot` (or `/aui`). Every module has its own tab and its own on/off switch, and if one module hits a problem it reports in chat and the rest keep running.
 
-## What's new in 2.14.1
+## What's new in 2.14.2
 
-- **Privacy:** your real BattleTag no longer shows in the friends window. The BattleTag texts are found by what they show, the name and `#1234` parts are swapped separately, and they stay swapped while the window is open.
-- `/aimbot diag` lists each BattleTag text found and what it is showing.
+- **Privacy:** your real BattleTag is now swapped in the social window, where this client actually shows it (2.14.1 only covered the old friends window). It stays swapped while the window is open.
+- `/aimbot diag` lists where each swapped BattleTag text lives.
 
 See [CHANGELOG.md](CHANGELOG.md) for every version.
 

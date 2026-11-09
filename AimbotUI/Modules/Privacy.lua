@@ -285,11 +285,20 @@ local function Sweep(discover)
 end
 
 -- Friends window: your BattleTag
--- The header of the friends window differs between clients (newer ones split the name and the
--- "#1234" part and add a copy button), so the fixed path alone is not enough. Like the name texts,
--- the BattleTag texts are found by what they show and remembered; then they are kept swapped for
--- as long as the friends window is open, so a redraw by the game is put right within a moment.
-local TAG_ROOTS = { "FriendsFrameBattlenetFrame", "FriendsFrame.BattlenetFrame", "FriendsFrame" }
+-- Clients differ: older ones draw the tag in FriendsFrame's Battle.net box, Forever draws it in the
+-- social window (SocialUIFrame.BattleNetBar...PersonalBattleTagDisplay.DisplayText, seen with
+-- /fstack) and keeps the old FriendsFrame text hidden. So the known paths are tried and the BattleTag
+-- boxes are also searched for texts that show your tag; what is found is remembered and kept
+-- swapped for as long as either window is open, so a redraw by the game is put right in a moment.
+local TAG_FIXED = {
+    "SocialUIFrame.BattleNetBar.ControlsContainer.PersonalBattleTagDisplay.DisplayText",
+    "FriendsFrameBattlenetFrame.Tag", "FriendsFrame.BattlenetFrame.Tag",
+}
+-- Boxes that hold only your own BattleTag (text hidden from addons in here can only be your tag).
+local TAG_BOXES = { "SocialUIFrame.BattleNetBar", "FriendsFrameBattlenetFrame", "FriendsFrame.BattlenetFrame" }
+-- Whole windows: searched for readable texts only, with the friend lists skipped.
+local TAG_WINDOWS = { "FriendsFrame" }
+local TAG_SHOWN = { "SocialUIFrame", "FriendsFrame" }
 -- Panels of the friends window that list other people: never touched.
 local TAG_SKIP = { "FriendsListFrame", "IgnoreListFrame", "WhoFrame", "QuickJoinFrame", "RaidFrame",
     "RecruitAFriendFrame", "FriendsFrameFriendsScrollFrame", "FriendsListFrameScrollFrame",
@@ -307,7 +316,7 @@ local function Plain(t)
 end
 
 local function TagFS()
-    return ResolveFS({ "FriendsFrameBattlenetFrame.Tag", "FriendsFrame.BattlenetFrame.Tag" })
+    return ResolveFS(TAG_FIXED)
 end
 
 -- Your real BattleTag split in two ("Name", "#1234"), or nil when the client hides it from addons.
@@ -365,6 +374,7 @@ local function ScanTag(root, skip, real, budget, depth, secrets)
                 elseif okX and type(txt) == "string" then
                     local k = TagKind(txt, real[1], real[2], real[3])
                     if k then Bind(r, k) end
+                    if k or tagBound[r] then budget.hits = (budget.hits or 0) + 1 end
                     if k == "num" then numFS = r end
                     texts[#texts + 1] = { r, txt }
                 end
@@ -381,7 +391,22 @@ local function ScanTag(root, skip, real, budget, depth, secrets)
     end
     local okC, kids = pcall(function() return { root:GetChildren() } end)
     if okC then
-        for _, k in ipairs(kids) do ScanTag(k, skip, real, budget, depth + 1, secrets) end
+        for _, k in ipairs(kids) do
+            -- a copyable tag can be an edit box rather than a plain text
+            local okT, kind = pcall(k.GetObjectType, k)
+            if okT and kind == "EditBox" and not skip[k] then
+                local okX, txt = pcall(k.GetText, k)
+                if okX and Secret(txt) then
+                    M.tagStats.secret = M.tagStats.secret + 1
+                    if secrets then secrets[#secrets + 1] = k end
+                elseif okX and type(txt) == "string" then
+                    local tk = TagKind(txt, real[1], real[2], real[3])
+                    if tk then Bind(k, tk) end
+                    if tk or tagBound[k] then budget.hits = (budget.hits or 0) + 1 end
+                end
+            end
+            ScanTag(k, skip, real, budget, depth + 1, secrets)
+        end
     end
 end
 
@@ -390,27 +415,38 @@ local function DiscoverTag()
     M.tagStats.secret = 0
     local real = { RealTag() }
     local skip = Skipped()
-    local seen, secrets = {}, {}
-    for i, p in ipairs(TAG_ROOTS) do
-        local root = NS.Resolve(p)
-        if root and root.GetRegions and not seen[root] then
-            seen[root] = true
-            -- unreadable texts are only collected inside the BattleTag box itself, never the whole window
-            ScanTag(root, skip, real, { n = 300 }, 0, (i < #TAG_ROOTS) and secrets or nil)
+    -- The known paths first: a whole tag there, or text the client hides from addons, is your tag.
+    for _, p in ipairs(TAG_FIXED) do
+        local o = NS.Resolve(p)
+        if type(o) == "table" and o.SetText and o.GetText and not tagBound[o] then
+            local okX, txt = pcall(o.GetText, o)
+            if okX and Secret(txt) then
+                Bind(o, "full")
+            elseif okX and IsStr(txt) then
+                local k = TagKind(txt, real[1], real[2], real[3])
+                if k then Bind(o, k) end
+            end
         end
     end
-    -- Nothing readable looks like a BattleTag, but the BattleTag box holds text the client hides from
-    -- addons: that text can only be your tag, so it is swapped as a whole.
-    if #tagOrder == 0 then
-        for _, r in ipairs(secrets) do Bind(r, "full") end
+    local seen = {}
+    for _, p in ipairs(TAG_BOXES) do
+        local root = NS.Resolve(p)
+        if type(root) == "table" and root.GetRegions and not seen[root] then
+            seen[root] = true
+            local budget, secrets = { n = 300, hits = 0 }, {}
+            ScanTag(root, skip, real, budget, 0, secrets)
+            -- Nothing readable in this box shows (or was swapped from) a BattleTag, but it holds
+            -- hidden text: that text can only be your tag, so it is swapped as a whole.
+            if budget.hits == 0 then
+                for _, r in ipairs(secrets) do Bind(r, "full") end
+            end
+        end
     end
-    -- The fixed path still counts if it holds the whole tag and was not found above.
-    local fs = TagFS()
-    if fs and not tagBound[fs] then
-        local ok, kind = pcall(fs.GetObjectType, fs)
-        if ok and kind == "FontString" then
-            local okX, txt = pcall(fs.GetText, fs)
-            if okX and IsStr(txt) and TagKind(txt, real[1], real[2], real[3]) then Bind(fs, "full") end
+    for _, p in ipairs(TAG_WINDOWS) do
+        local root = NS.Resolve(p)
+        if type(root) == "table" and root.GetRegions and not seen[root] then
+            seen[root] = true
+            ScanTag(root, skip, real, { n = 300 }, 0, nil)
         end
     end
 end
@@ -459,8 +495,15 @@ local tagDriver = CreateFrame("Frame")
 local tagAcc, tagScanAcc = 0, 0
 tagDriver:SetScript("OnUpdate", function(_, dt)
     if not TagOn() then return end
-    local ff = _G.FriendsFrame
-    if not (ff and ff.IsShown and ff:IsShown()) then return end
+    local open = false
+    for _, p in ipairs(TAG_SHOWN) do
+        local w = NS.Resolve(p)
+        if type(w) == "table" and w.IsShown then
+            local ok, shown = pcall(w.IsShown, w)
+            if ok and not Secret(shown) and shown then open = true; break end
+        end
+    end
+    if not open then return end
     dt = dt or 0
     tagAcc, tagScanAcc = tagAcc + dt, tagScanAcc + dt
     if tagAcc < 0.15 then return end
@@ -470,11 +513,19 @@ tagDriver:SetScript("OnUpdate", function(_, dt)
     pcall(SweepTag, discover)
 end)
 
+local tagHooked = {}
 local function HookTag()
-    local ff = _G.FriendsFrame
-    if ff and ff.HookScript then
-        pcall(ff.HookScript, ff, "OnShow", function() if TagOn() then pcall(SweepTag, true) end end)
+    -- The social window may load later than us: called again on ADDON_LOADED, each frame hooked once.
+    for _, p in ipairs({ "SocialUIFrame", "FriendsFrame",
+        "SocialUIFrame.BattleNetBar.ControlsContainer.PersonalBattleTagDisplay" }) do
+        local w = NS.Resolve(p)
+        if type(w) == "table" and w.HookScript and not tagHooked[w] then
+            tagHooked[w] = true
+            pcall(w.HookScript, w, "OnShow", function() if TagOn() then pcall(SweepTag, true) end end)
+        end
     end
+    if tagHooked.funcs then return end
+    tagHooked.funcs = true
     for _, fn in ipairs({ "FriendsFrame_Update", "FriendsList_Update", "FriendsFrame_UpdateBattlenetFrame",
         "FriendsFrameBattlenetFrame_Update" }) do
         if type(_G[fn]) == "function" then
@@ -930,6 +981,7 @@ function M:Init()
     end
     pcall(HookNames)
     pcall(HookTag)
+    NS.On("ADDON_LOADED", function() pcall(HookTag) end)
 
     for _, ev in ipairs({ "PLAYER_TARGET_CHANGED", "PLAYER_FOCUS_CHANGED", "GROUP_ROSTER_UPDATE",
         "UNIT_NAME_UPDATE" }) do

@@ -2,6 +2,13 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.14.2
+
+- **Privacy:** the BattleTag swap now covers the social window, which is where this client shows your tag (`SocialUIFrame` … `PersonalBattleTagDisplay`, found with `/fstack`).
+  - 2.14.1 only looked in the old friends window, whose tag text is hidden on this client, so it swapped a text you never see.
+  - The tag stays swapped while the social window is open, also when the game hides the text from addons.
+  - `/aimbot diag` lists where each swapped text lives.
+
 ## 2.14.1
 
 - **Privacy:** fixed your real BattleTag still showing in the friends window. The addon only changed one fixed text, which may not be the one this client's friends window shows (it can draw the name and the `#1234` part separately, next to a copy button).
