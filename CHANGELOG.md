@@ -2,6 +2,10 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.12.1
+
+- **Aura Timers:** buffs on enemy players (and any other target / focus aura icon the game draws no timer on) now get time-left numbers too. Aura Timers puts its own numbers-only timer on those icons, filled from the aura's own time. `/aimbot diag` shows how many icons got one.
+
 ## 2.12.0
 
 - **Combat Indicator:** "+Combat" (red) and "-Combat" (green) in the middle of your screen when you enter and leave combat. Text size, both colors, how long it stays, and "Lock position" (untick it and drag the text anywhere). Each of +Combat / -Combat can be turned off, and there is a Test button. The target / focus icons are unchanged.

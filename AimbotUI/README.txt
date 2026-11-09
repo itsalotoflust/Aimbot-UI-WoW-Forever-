@@ -1,4 +1,4 @@
-AIMBOT UI  v2.12.0  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.12.1  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,11 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.12.1
+  - Aura Timers: buffs on enemy players (and any other target / focus aura icon the game draws
+    no timer on) now get time-left numbers too. Aura Timers puts its own numbers-only timer on
+    those icons, filled from the aura's own time. /aimbot diag shows how many icons got one.
 
 NEW IN 2.12.0
   - Combat Indicator: "+Combat" (red) and "-Combat" (green) in the middle of your screen when you

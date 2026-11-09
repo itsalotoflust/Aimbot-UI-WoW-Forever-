@@ -9,6 +9,9 @@
   and can make the numbers bigger. The game does the counting, so it also works when the client
   hides the real aura times from addons ("secret" values): this module never reads them.
 
+  Where the game draws no cooldown on an icon at all (enemy players' buffs), a numbers-only
+  cooldown of our own is put on the icon and given the aura's time.
+
   Only method calls on the aura icons' cooldowns; no fields are written on Blizzard frames.
 ]]
 
@@ -36,7 +39,7 @@ local IsSecret = NS.IsSecret
 local CVAR = "countdownForCooldowns"
 local touched = setmetatable({}, { __mode = "k" })   -- cooldown -> { font, size, flags } (our own table)
 local savedCVar                                        -- the player's value before we changed it
-M.stats = { target = 0, focus = 0, plates = 0, cvar = "?" }
+M.stats = { target = 0, focus = 0, plates = 0, targetOwn = 0, focusOwn = 0, cvar = "?", how = "none" }
 
 ----------------------------------------------------------------------
 -- Finding the aura cooldowns
@@ -146,12 +149,110 @@ local function ApplyCVar(on)
     M.stats.cvar = okR and tostring(now) or "?"
 end
 
+----------------------------------------------------------------------
+-- Fallback: icons the game draws no cooldown on (enemy players' buffs on this client) get our
+-- own numbers-only cooldown, filled from the aura's own time. It is created as a child of the
+-- icon so it shows and hides with it. The time is handed straight to the Cooldown widget
+-- (duration object or expiration time), so secret times work and are never read by us.
+----------------------------------------------------------------------
+local overlays = setmetatable({}, { __mode = "k" })    -- aura icon -> our cooldown (our own table)
+
+local function Overlay(icon)
+    local cd = overlays[icon]
+    if cd then return cd end
+    cd = CreateFrame("Cooldown", nil, icon, "CooldownFrameTemplate")
+    local art = icon.Icon or icon.icon
+    if art and art.GetObjectType then cd:SetAllPoints(art) else cd:SetAllPoints(icon) end
+    pcall(cd.SetDrawSwipe, cd, false)
+    pcall(cd.SetDrawEdge, cd, false)
+    pcall(cd.SetDrawBling, cd, false)
+    overlays[icon] = cd
+    return cd
+end
+
+-- Returns true when the cooldown was given the aura's time.
+local function Feed(cd, unit, auraID)
+    local CU = C_UnitAuras
+    if not CU then return false end
+    if CU.GetAuraDuration and cd.SetCooldownFromDurationObject then
+        local ok, dur = pcall(CU.GetAuraDuration, unit, auraID)
+        if ok and dur ~= nil and pcall(cd.SetCooldownFromDurationObject, cd, dur) then
+            M.stats.how = "duration object"
+            return true
+        end
+    end
+    if not CU.GetAuraDataByAuraInstanceID then return false end
+    local ok, a = pcall(CU.GetAuraDataByAuraInstanceID, unit, auraID)
+    if not ok or type(a) ~= "table" then return false end
+    local exp, dur = a.expirationTime, a.duration
+    if exp == nil or dur == nil then return false end
+    if cd.SetCooldownFromExpirationTime and pcall(cd.SetCooldownFromExpirationTime, cd, exp, dur) then
+        M.stats.how = "expiration time"
+        return true
+    end
+    if not IsSecret(exp) and not IsSecret(dur) and type(dur) == "number" and dur > 0 and type(exp) == "number" then
+        cd:SetCooldown(exp - dur, dur)
+        M.stats.how = "SetCooldown"
+        return true
+    end
+    return false
+end
+
+local function Shown(obj)
+    local ok, v = pcall(obj.IsShown, obj)
+    return ok and not IsSecret(v) and v and true or false
+end
+
+local function EachAuraIcon(frame, fn)
+    local pools = frame and frame.auraPools
+    if not (pools and pools.EnumerateActive) then return false end
+    return pcall(function()
+        for obj in pools:EnumerateActive() do fn(obj) end
+    end)
+end
+
 local function DoUnitFrame(key, frame)
     local s = S()
     local on = s.enabled and s[key]
-    M.stats[key] = UnitFrameAuraCooldowns(frame, function(cd)
-        if on then Show(cd, s.size) else Restore(cd) end
+    local found, own = 0, 0
+    local done = EachAuraIcon(frame, function(icon)
+        local bcd = icon.Cooldown or icon.cooldown
+        if not IsCooldown(bcd) then bcd = nil end
+        local mine = overlays[icon]
+        if not on then
+            if bcd then Restore(bcd) end
+            if mine then Restore(mine); mine:Hide() end
+            return
+        end
+        found = found + 1
+        if bcd and Shown(bcd) then
+            -- the game runs a cooldown on this icon: just show its numbers
+            Show(bcd, s.size)
+            if mine then mine:Hide() end
+            return
+        end
+        local id = icon.auraInstanceID
+        if type(id) ~= "number" or IsSecret(id) then
+            if mine then mine:Hide() end
+            return
+        end
+        local cd = Overlay(icon)
+        if Feed(cd, key, id) then
+            cd:Show()
+            Show(cd, s.size)
+            own = own + 1
+        else
+            cd:Hide()
+        end
     end)
+    if not done then
+        -- older layouts without aura pools: just the game's cooldowns
+        found = UnitFrameAuraCooldowns(frame, function(cd)
+            if on then Show(cd, s.size) else Restore(cd) end
+        end)
+    end
+    M.stats[key] = found
+    M.stats[key .. "Own"] = own
 end
 
 local function DoPlate(unit)
@@ -204,6 +305,7 @@ function M:Apply()
     DoAllPlates()
     if not s.enabled then
         for cd in pairs(touched) do Restore(cd) end
+        for _, cd in pairs(overlays) do cd:Hide() end
     end
 end
 
@@ -234,8 +336,10 @@ function M:Diagnose()
     local st = M.stats
     local n = 0
     for _ in pairs(touched) do n = n + 1 end
-    NS.Print(string.format("  countdownForCooldowns = %s   aura cooldowns found: target %d, focus %d, nameplates %d   showing numbers on %d",
-        st.cvar, st.target, st.focus, st.plates, n))
+    NS.Print(string.format("  countdownForCooldowns = %s   aura icons: target %d (own timer on %d), focus %d (own timer on %d), nameplate cooldowns %d   showing numbers on %d",
+        st.cvar, st.target, st.targetOwn, st.focus, st.focusOwn, st.plates, n))
+    NS.Print("  own timers filled by: " .. tostring(st.how) .. "   C_UnitAuras.GetAuraDuration: "
+        .. tostring(C_UnitAuras and C_UnitAuras.GetAuraDuration ~= nil))
     NS.Print("  TargetFrame.auraPools: " .. tostring(TargetFrame and TargetFrame.auraPools ~= nil))
 end
 
