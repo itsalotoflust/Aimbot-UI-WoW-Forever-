@@ -2,13 +2,19 @@
 
 An all-in-one interface addon suite for **World of Warcraft Forever** (interface 16001).
 
-**Current version: 2.8.18**
+**Current version: 2.9.0**
 
 Open it in game with `/aimbot` (or `/aui`). Every module has its own tab and its own on/off switch, and if one module hits a problem it reports in chat and the rest keep running.
 
-## What's new in 2.8.18
+## What's new in 2.9.0
 
-- Privacy: new "Friendly name range (yards)" slider under "Show friendly players' names above heads" (default 60). While friendly names are on it raises how far away nameplates show, so friendly names appear from further away (this also applies to enemy plates). The game has its own maximum; the note under the slider shows the distance the game is really using. Your own range is put back when private mode is turned off. `/aimbot diag` shows it on the "friendly names" line.
+Four new modules, each with its own tab and on/off switch. They are new files, so **fully restart the game once** after updating; `/reload` is not enough the first time.
+
+- **Queue Timer** (Quality of life): when a dungeon, battleground or arena queue pops, a bar counts down the seconds left to accept, a sound plays through the Master channel (heard even with game sounds down), it ticks every second near the end, and the game's taskbar icon flashes. Battlegrounds and arenas show the real time left; the dungeon finder counts from 40. Has a Test button, and the bar can be resized and moved.
+- **Nameplate Icons** (Combat): class icon above friendly players (optionally instead of their name, or only while Privacy's private mode is on), a healer icon on healers (enemy healers in arenas from their spec, anywhere else once they cast a healer-only spell; your group's healers from their role), and enemy players' PvP racial (Will of the Forsaken, Every Man for Himself, Stoneform...) next to their health bar.
+- **Combat Indicator** (Combat): crossed swords next to your target / focus frame while they are in combat, "Zzz" while they are not. Optional on yourself too, with size and position sliders.
+- **Interrupt Ready** (Combat): while an enemy casts, your interrupt (Kick, Pummel, Shield Bash, Counterspell, Earth Shock, Silence, Spell Lock...) shows next to their cast bar on nameplates, target and focus: green edge = ready, grey with a timer = on cooldown. Hides on casts that can't be interrupted.
+- New `/aimbot` shortcuts: `queue`, `plates`, `combat`, `kick`.
 
 See [CHANGELOG.md](CHANGELOG.md) for every version.
 
@@ -40,6 +46,10 @@ Download **[AimbotUI.zip](https://github.com/itsalotoflust/Aimbot-UI-WoW-Forever
 | **FPS / MS** | Frame rate and latency counter at the bottom centre of the screen. |
 | **Privacy** | Stream mode: fake name and BattleTag, class names, whisper inbox (or an "Allow whispers from everyone" switch that shows them normally), and a Be right back screen. |
 | **Diminish** | Diminishing returns icons on target, focus, enemy nameplates and yourself (your own icons can be dragged anywhere, by default just below your character). Border shows what the next crowd control will do (green 50%, yellow 25%, red immune), with a reset timer. First version, not yet tested in game. |
+| **Queue Timer** | Countdown bar, sound and taskbar flash when a dungeon, battleground or arena queue pops. |
+| **Nameplate Icons** | Class icons above friendly players, healer icons on healers, and enemy players' PvP racial on their nameplate. |
+| **Combat Indicator** | Crossed swords or "Zzz" next to your target and focus frames, so you can see whether they are in combat. |
+| **Interrupt Ready** | Your interrupt next to enemy cast bars: green when it's ready, grey with a timer when it isn't. |
 | **Double Press (Wannabe AHK)** | Optional. Every action bar key presses twice, on key down and key up. Off by default. |
 | **Memory Cleaner** | A Clear Cache button that runs a garbage collection without freezing the game. |
 

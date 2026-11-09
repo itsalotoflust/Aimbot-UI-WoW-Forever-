@@ -2,6 +2,16 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.9.0
+
+Four new modules, each with its own tab and on/off switch. They are new files, so **fully restart the game once** after updating; `/reload` is not enough the first time.
+
+- **Queue Timer** (Quality of life): when a dungeon, battleground or arena queue pops, a bar counts down the seconds left to accept, a sound plays through the Master channel (heard even with game sounds down), it ticks every second near the end, and the game's taskbar icon flashes. Battlegrounds and arenas show the real time left; the dungeon finder counts from 40. Has a Test button, and the bar can be resized and moved.
+- **Nameplate Icons** (Combat): class icon above friendly players (optionally instead of their name, or only while Privacy's private mode is on), a healer icon on healers (enemy healers in arenas from their spec, anywhere else once they cast a healer-only spell; your group's healers from their role), and enemy players' PvP racial (Will of the Forsaken, Every Man for Himself, Stoneform...) next to their health bar.
+- **Combat Indicator** (Combat): crossed swords next to your target / focus frame while they are in combat, "Zzz" while they are not. Optional on yourself too, with size and position sliders.
+- **Interrupt Ready** (Combat): while an enemy casts, your interrupt (Kick, Pummel, Shield Bash, Counterspell, Earth Shock, Silence, Spell Lock...) shows next to their cast bar on nameplates, target and focus: green edge = ready, grey with a timer = on cooldown. Hides on casts that can't be interrupted.
+- New `/aimbot` shortcuts: `queue`, `plates`, `combat`, `kick`.
+
 ## 2.8.18
 
 - Privacy: new "Friendly name range (yards)" slider under "Show friendly players' names above heads" (default 60). While friendly names are on it raises how far away nameplates show, so friendly names appear from further away (this also applies to enemy plates). The game has its own maximum; the note under the slider shows the distance the game is really using. Your own range is put back when private mode is turned off. `/aimbot diag` shows it on the "friendly names" line.

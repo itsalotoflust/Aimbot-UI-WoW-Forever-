@@ -1,4 +1,4 @@
-AIMBOT UI  v2.8.18  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.9.0  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,27 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.9.0
+  Four new modules (each has its own tab and on/off switch). They are new files, so FULLY RESTART
+  the game once after updating; /reload is not enough the first time.
+  - Queue Timer (Quality of life): when a dungeon, battleground or arena queue pops, a bar counts
+    down the seconds left to accept, a sound plays through the Master channel (heard even with game
+    sounds down), it ticks every second near the end, and the game's taskbar icon flashes.
+    Battlegrounds and arenas show the real time left; the dungeon finder counts from 40. Has a Test
+    button, and the bar can be resized and moved.
+  - Nameplate Icons (Combat): class icon above friendly players (optionally instead of their name,
+    or only while Privacy's private mode is on), a healer icon on healers (enemy healers in arenas
+    from their spec, anywhere else once they cast a healer-only spell; your group's healers from
+    their role), and enemy players' PvP racial (Will of the Forsaken, Every Man for Himself,
+    Stoneform...) next to their health bar.
+  - Combat Indicator (Combat): crossed swords next to your target / focus frame while they are in
+    combat, "Zzz" while they are not. Optional on yourself too, with size and position sliders.
+  - Interrupt Ready (Combat): while an enemy casts, your interrupt (Kick, Pummel, Shield Bash,
+    Counterspell, Earth Shock, Silence, Spell Lock...) shows next to their cast bar on nameplates,
+    target and focus: green edge = ready, grey with a timer = on cooldown. Hides on casts that
+    can't be interrupted.
+  - New /aimbot shortcuts: queue, plates, combat, kick.
 
 NEW IN 2.8.18
   - Privacy: new "Friendly name range (yards)" slider under "Show friendly players' names above heads"
@@ -308,6 +329,10 @@ WHAT IS INSIDE (each one is its own tab with its own on/off switch)
   Chat Mute      Mute players / guilds / words, with speak times when they may talk.
   FPS / MS       Frame rate and latency counter, bottom centre of the screen.
   Privacy        Stream mode: fake name / BattleTag, class names, whisper inbox, Be right back screen.
+  Queue Timer    Countdown bar, sound and taskbar flash when a queue pops.
+  Nameplate Icons  Friendly class icons above heads, healer icons, enemy PvP racials.
+  Combat Indicator Swords / Zzz next to target and focus: are they in combat?
+  Interrupt Ready  Your interrupt next to enemy cast bars, green when ready.
   Diminish       DR icons on target, focus, enemy nameplates and you (green 50%, yellow 25%, red immune).
   Spell Trainer  WhatsTraining-style list. Open your class trainer once per
                  class to fill it, then it is remembered.
