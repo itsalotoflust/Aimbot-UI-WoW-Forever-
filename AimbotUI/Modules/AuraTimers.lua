@@ -267,19 +267,50 @@ local function WalkIcons(root, depth, fn, seen)
     end
 end
 
+-- Any icon pools kept on the frame under another name (buffPool, debuffPool, ...). Read only.
+local function FramePools(frame)
+    local list = {}
+    local ok = pcall(function()
+        for k, v in pairs(frame) do
+            if type(k) == "string" and type(v) == "table" and k ~= "auraPools"
+                and type(v.EnumerateActive) == "function" then
+                list[#list + 1] = { key = k, pool = v }
+            end
+        end
+    end)
+    table.sort(list, function(a, b) return a.key < b.key end)
+    return ok and list or {}
+end
+M._t_FramePools = FramePools
+
 M.stats.layout = "none"
 local function EachAuraIcon(frame, fn)
+    local function Layout(v) if frame == TargetFrame then M.stats.layout = v end end
     local pools = frame and frame.auraPools
     if pools and pools.EnumerateActive then
         local ok = pcall(function()
             for obj in pools:EnumerateActive() do fn(obj) end
         end)
-        if ok then M.stats.layout = "aura pools"; return true end
+        if ok then Layout("aura pools"); return true end
     end
     if not frame then return false end
+    -- pools under another name
+    local named = FramePools(frame)
+    if #named > 0 then
+        local seen, keys = {}, {}
+        for _, e in ipairs(named) do
+            pcall(function()
+                for obj in e.pool:EnumerateActive() do
+                    if not seen[obj] and IsAuraIcon(obj) then seen[obj] = true; fn(obj) end
+                end
+            end)
+            keys[#keys + 1] = e.key
+        end
+        if next(seen) then Layout("pools: " .. table.concat(keys, ",")); return true end
+    end
     -- this client keeps the icons elsewhere: look for them among the frame's children
     WalkIcons(frame, 6, function(icon) if Shown(icon) then fn(icon) end end, {})
-    M.stats.layout = "searched children"
+    Layout("searched children")
     return true
 end
 
@@ -462,6 +493,105 @@ local function Probe(frame, label)
     NS.Print(string.format("  probe %s: %d small square frames listed, %d cooldown widgets inside", label, lines, cds))
 end
 
+local function PathOf(obj)
+    local parts, cur = {}, obj
+    for _ = 1, 8 do
+        if not cur then break end
+        local okN, n = pcall(cur.GetName, cur)
+        if okN and type(n) == "string" then table.insert(parts, 1, n); break end
+        local okT, t = pcall(cur.GetObjectType, cur)
+        table.insert(parts, 1, "(" .. (okT and t or "?") .. ")")
+        local okP, p = pcall(cur.GetParent, cur)
+        cur = okP and p or nil
+    end
+    return table.concat(parts, ".")
+end
+
+local function Size(obj)
+    local okW, w = pcall(obj.GetWidth, obj)
+    local okH, h = pcall(obj.GetHeight, obj)
+    w = okW and not IsSecret(w) and w or 0
+    h = okH and not IsSecret(h) and h or 0
+    return string.format("%dx%d", w, h)
+end
+
+-- More digging: how many auras the target really has, every cooldown widget under the target
+-- frame, its icon pools, and any frame anywhere that carries an aura id.
+local function DeepProbe()
+    local P = NS.Print
+    -- 1. auras on the target right now
+    local help, harm = 0, 0
+    if C_UnitAuras and C_UnitAuras.GetAuraDataByIndex then
+        for i = 1, 40 do
+            local ok, a = pcall(C_UnitAuras.GetAuraDataByIndex, "target", i, "HELPFUL")
+            if ok and a then help = help + 1 else break end
+        end
+        for i = 1, 40 do
+            local ok, a = pcall(C_UnitAuras.GetAuraDataByIndex, "target", i, "HARMFUL")
+            if ok and a then harm = harm + 1 else break end
+        end
+    end
+    P(string.format("  target has %d buffs, %d debuffs right now%s", help, harm,
+        (help + harm == 0) and "  (target something with buffs/DoTs and run this again)" or ""))
+    -- 2. pools on TargetFrame
+    if TargetFrame then
+        local names = {}
+        for _, e in ipairs(FramePools(TargetFrame)) do
+            local n = 0
+            pcall(function() for _ in e.pool:EnumerateActive() do n = n + 1 end end)
+            names[#names + 1] = e.key .. "(" .. n .. " active)"
+        end
+        P("  TargetFrame pools: " .. (#names > 0 and table.concat(names, " ") or "none"))
+        -- 3. every cooldown widget under the target frame
+        local shown = 0
+        local function Walk(obj, depth)
+            if depth > 8 or shown >= 10 then return end
+            local okK, kids = pcall(function() return { obj:GetChildren() } end)
+            if not okK then return end
+            for _, kid in ipairs(kids) do
+                if IsCooldown(kid) and shown < 10 then
+                    shown = shown + 1
+                    local par = kid:GetParent()
+                    local id = par and rawget(par, "auraInstanceID")
+                    P(string.format("  cooldown %s %s shown=%s parent %s auraID=%s",
+                        PathOf(kid), Size(kid), tostring(Shown(kid)), par and Size(par) or "-",
+                        IsSecret(id) and "secret" or tostring(id)))
+                end
+                Walk(kid, depth + 1)
+            end
+        end
+        Walk(TargetFrame, 1)
+    end
+    -- 4. named classic buttons
+    local named = {}
+    for _, n in ipairs({ "TargetFrameBuff1", "TargetFrameDebuff1", "TargetFrameBuffs", "TargetFrameDebuffs" }) do
+        if _G[n] then named[#named + 1] = n end
+    end
+    P("  named aura frames: " .. (#named > 0 and table.concat(named, " ") or "none"))
+    -- 5. any frame anywhere with an aura id
+    local found, total = 0, 0
+    if EnumerateFrames then
+        local f = EnumerateFrames()
+        local guard = 0
+        while f and guard < 30000 do
+            guard = guard + 1
+            local okR, id = pcall(rawget, f, "auraInstanceID")
+            if okR and id ~= nil then
+                total = total + 1
+                if found < 8 and Shown(f) then
+                    found = found + 1
+                    local okU, u = pcall(rawget, f, "unit")
+                    P(string.format("  aura frame %s %s unit=%s cooldown=%s",
+                        PathOf(f), Size(f), tostring(okU and u or nil), tostring(IconCooldown(f) ~= nil)))
+                end
+            end
+            local okN, nx = pcall(EnumerateFrames, f)
+            f = okN and nx or nil
+        end
+    end
+    P(string.format("  frames with an aura id anywhere: %d (%d shown listed)", total, found))
+end
+
 function M:Diagnose()
     local st = M.stats
     local n = 0
@@ -473,6 +603,8 @@ function M:Diagnose()
     NS.Print("  TargetFrame.auraPools: " .. tostring(TargetFrame and TargetFrame.auraPools ~= nil)
         .. "   icons found by: " .. tostring(st.layout))
     Probe(TargetFrame, "TargetFrame")
+    local ok, err = pcall(DeepProbe)
+    if not ok then NS.Print("  deep probe failed: " .. tostring(err)) end
 end
 
 function M.Build(page)

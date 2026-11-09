@@ -1,4 +1,4 @@
-AIMBOT UI  v2.12.3  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.12.4  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,12 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.12.4
+  - Aura Timers: also finds aura icons kept in icon pools under other names on the target and
+    focus frames. /aimbot diag now digs further: how many buffs and debuffs the target really
+    has, every cooldown widget on the target frame, its icon pools, and any frame in the game
+    carrying an aura id, so the next report shows exactly where this client keeps the icons.
 
 NEW IN 2.12.3
   - Aura Timers: also finds classic style aura buttons (TargetFrameBuff1, TargetFrameDebuff1...)

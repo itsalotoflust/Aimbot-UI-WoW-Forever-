@@ -2,6 +2,11 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.12.4
+
+- **Aura Timers:** also finds aura icons kept in icon pools under other names on the target and focus frames.
+- `/aimbot diag` digs further for Aura Timers: how many buffs and debuffs the target really has, every cooldown widget on the target frame, its icon pools, and any frame in the game carrying an aura id.
+
 ## 2.12.3
 
 - **Aura Timers:** also finds classic style aura buttons (`TargetFrameBuff1`, `TargetFrameDebuff1`...) and looks up their aura by slot number, so those icons get time-left numbers too.
