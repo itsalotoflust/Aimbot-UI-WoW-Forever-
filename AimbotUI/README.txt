@@ -1,4 +1,4 @@
-AIMBOT UI  v2.13.6  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.14.0  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,15 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.14.0
+  - New: Loss of Control (Combat group, /aimbot loc). When you are stunned, feared, silenced,
+    rooted and so on, a big icon of the effect shows in the middle of the screen with the time
+    left counting down on it and the effect's name underneath. Built on the game's own loss of
+    control data, so it covers whatever the game reports.
+    Options: show the name, dark swipe, hide the game's own alert, sound, icon / number / name
+    size, name colour. Unlock it to drag it anywhere, "Test" shows it for 5 seconds.
+    This is a new file: fully restart the game (not just /reload) after updating.
 
 NEW IN 2.13.6
   - Fixed: the repair, talent point, party death and +Combat / -Combat texts could stay

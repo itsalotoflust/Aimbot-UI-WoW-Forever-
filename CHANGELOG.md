@@ -2,6 +2,12 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.14.0
+
+- New: **Loss of Control** (Combat group, `/aimbot loc`). When you are stunned, feared, silenced, rooted and so on, a big icon of the effect shows in the middle of the screen with the time left counting down on it and the effect's name underneath. Built on the game's own loss of control data.
+- Options: show the name, dark swipe, hide the game's own alert, sound, icon / number / name size, name colour. Unlock to drag it, "Test" shows it for 5 seconds.
+- New file: fully restart the game (not just `/reload`) after updating.
+
 ## 2.13.6
 
 - **Fixed:** the repair, talent point, party death and +Combat / -Combat texts could stay invisible the first time they should show, until the text was unlocked and moved. The text frame was only given its screen position when a setting changed. It now gets it as soon as it's created.

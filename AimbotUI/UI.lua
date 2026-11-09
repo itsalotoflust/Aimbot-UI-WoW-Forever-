@@ -1334,7 +1334,7 @@ local function BuildGeneral(page)
         .. "Every tab has its own Enabled switch and a Reset tab button.")
     page:Note("Commands:  /aimbot  opens the window.   /aimbot <tab>  opens a tab.   "
         .. "/aimbot <tab> on|off  toggles a module.   /sparkle  toggles Button Flash.   "
-        .. "Tabs: lorti, damage, flash, mana, range, trainer, double, memory, mute, fps, privacy, dr, queue, plates, combat, kick, death, repair, talent, timers.")
+        .. "Tabs: lorti, damage, flash, mana, range, trainer, double, memory, mute, fps, privacy, dr, queue, plates, combat, kick, death, repair, talent, timers, loc.")
     page:Note("Credits: Lorti UI Classic by Lorti, Chordsy, Macumba, Knall, Jozh, Xyz, Arrone and Redskin. "
         .. "NiceDamage by Montyburns. Their artwork and fonts are used here with the original credit.")
 end
@@ -1976,6 +1976,8 @@ local ALIASES = {
     repair = "durability", dura = "durability", durability = "durability",
     timers = "auratimers", auratimers = "auratimers", dots = "auratimers", auras = "auratimers", duration = "auratimers",
     talent = "talentalert", talents = "talentalert", points = "talentalert", talentalert = "talentalert",
+    loc = "lossofcontrol", lossofcontrol = "lossofcontrol", control = "lossofcontrol", stun = "lossofcontrol",
+    stuns = "lossofcontrol", ccme = "lossofcontrol", losecontrol = "lossofcontrol",
     general = "general", window = "general",
 }
 
@@ -1997,7 +1999,7 @@ SlashCmdList["AIMBOTUI"] = function(msg)
     end
     local key = ALIASES[a] or a
     if not UI.HasTab(key) then
-        NS.Print("unknown tab '" .. a .. "'. Try: general, lorti, damage, flash, mana, range, trainer, double, memory, mute, fps, privacy, dr, queue, plates, combat, kick, death, repair, talent, timers  (or /aimbot clean)")
+        NS.Print("unknown tab '" .. a .. "'. Try: general, lorti, damage, flash, mana, range, trainer, double, memory, mute, fps, privacy, dr, queue, plates, combat, kick, death, repair, talent, timers, loc  (or /aimbot clean)")
         return
     end
     if (b == "on" or b == "off") and NS.modules[key] then
