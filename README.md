@@ -4,13 +4,13 @@ An all-in-one interface addon suite for **World of Warcraft Forever** (interface
 
 Despite the name, Aimbot UI only changes how your interface looks and what it shows. It does not play, aim or target for you.
 
-**Current version: 2.8.9**
+**Current version: 2.8.10**
 
 Open it in game with `/aimbot` (or `/aui`). Every module has its own tab and its own on/off switch, and if one module hits a problem it reports in chat and the rest keep running.
 
-## What's new in 2.8.9
+## What's new in 2.8.10
 
-- Every slider in the window now lets you type a value. Click the number on the right of a slider, type the value you want and press Enter. Escape, or clicking somewhere else, puts the old value back. A typed value is kept inside the slider's range and rounded to its step, and you can type "%" or "s" after it or use a comma for the decimal point. The drag bar still works as before.
+- Privacy: targeting yourself (or anyone) no longer flashes the real name for a moment before your Privacy name shows. The name on the target, target-of-target and focus frames is now swapped in the same instant the game draws it, instead of on the next check a moment later. The name texts are looked up once and remembered, and the fix only runs when you change target or focus, so there is no extra work every frame and no FPS cost. `/aimbot diag` now shows how many instant fixes ran.
 
 See [CHANGELOG.md](CHANGELOG.md) for every version.
 

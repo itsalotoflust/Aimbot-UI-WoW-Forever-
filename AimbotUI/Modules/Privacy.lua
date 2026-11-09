@@ -191,23 +191,49 @@ local function Discover()
     end
 end
 
+local FIXED = {
+    player = { "PlayerName", "PlayerFrame.name", "PlayerFrame.PlayerFrameContent.PlayerFrameContentMain.Name" },
+    target = { "TargetFrameTextureFrameName", "TargetFrame.name",
+        "TargetFrame.TargetFrameContent.TargetFrameContentMain.Name" },
+    focus = { "FocusFrameTextureFrameName", "FocusFrame.name",
+        "FocusFrame.TargetFrameContent.TargetFrameContentMain.Name" },
+    targettarget = { "TargetFrameToTTextureFrameName", "TargetFrameToT.name",
+        "TargetFrame.totFrame.Name" },
+}
+
+-- The name text of each fixed frame is looked up once and remembered, so fixing a name the
+-- instant the game redraws it costs a couple of SetText calls and nothing else.
+local fixedFS = {}
+local function FixedFS(unit)
+    local fs = fixedFS[unit]
+    if not fs and FIXED[unit] then
+        fs = ResolveFS(FIXED[unit])
+        fixedFS[unit] = fs
+    end
+    return fs
+end
+
+-- Fix one unit's name texts right now (same frame as the game's redraw, so no flash).
+M.instantFixes = 0
+local function FixUnit(unit)
+    if not (active and S().enabled and S().frames) then return end
+    M.instantFixes = M.instantFixes + 1
+    local fs = FixedFS(unit)
+    if fs then SetName(fs, unit) end
+    local set = bound[unit]
+    if set then
+        for f in pairs(set) do if f ~= fs then SetName(f, unit) end end
+    end
+end
+
 -- Every name text we manage: a list of { fs = FontString, unit = "target" }.
 local function CollectTargets()
     local list, s = {}, S()
 
     if s.frames then
-        local fixed = {
-            player = { "PlayerName", "PlayerFrame.name", "PlayerFrame.PlayerFrameContent.PlayerFrameContentMain.Name" },
-            target = { "TargetFrameTextureFrameName", "TargetFrame.name",
-                "TargetFrame.TargetFrameContent.TargetFrameContentMain.Name" },
-            focus = { "FocusFrameTextureFrameName", "FocusFrame.name",
-                "FocusFrame.TargetFrameContent.TargetFrameContentMain.Name" },
-            targettarget = { "TargetFrameToTTextureFrameName", "TargetFrameToT.name",
-                "TargetFrame.totFrame.Name" },
-        }
         local have = {}
-        for unit, paths in pairs(fixed) do
-            local fs = ResolveFS(paths)
+        for unit in pairs(FIXED) do
+            local fs = FixedFS(unit)
             if fs then list[#list + 1] = { fs = fs, unit = unit }; have[fs] = true end
         end
         for unit, set in pairs(bound) do
@@ -630,7 +656,21 @@ end
 ----------------------------------------------------------------------
 local function HookNames()
     -- Re-apply the moment the game redraws a name, so the real one never shows for a frame.
-    local function Quick() if active and S().enabled then MarkDirty(false) end end
+    -- The game just redrew a frame: fix that frame's name in the same moment, then let the
+    -- light pass catch anything else.
+    local function Quick(frame)
+        if not (active and S().enabled) then return end
+        local unit
+        if type(frame) == "table" then
+            local ok, u = pcall(function() return frame.unit end)
+            if ok and IsStr(u) then unit = u end
+        end
+        if unit and (FIXED[unit] or bound[unit]) then
+            pcall(FixUnit, unit)
+            if unit == "target" then pcall(FixUnit, "targettarget") end
+        end
+        MarkDirty(false)
+    end
     local function Try(target, method)
         local obj = target
         if type(target) == "string" then obj = _G[target] end
@@ -676,6 +716,11 @@ function M:Init()
         "UNIT_NAME_UPDATE" }) do
         NS.On(ev, function() if active and S().enabled then MarkDirty(true) end end)
     end
+    -- New target or focus: fix the name straight away instead of waiting for the next pass.
+    NS.On("PLAYER_TARGET_CHANGED", function()
+        pcall(FixUnit, "target"); pcall(FixUnit, "targettarget")
+    end)
+    NS.On("PLAYER_FOCUS_CHANGED", function() pcall(FixUnit, "focus") end)
     NS.On("PLAYER_ENTERING_WORLD", function()
         if active and S().enabled then pcall(ApplyAll) end
     end)
@@ -714,6 +759,7 @@ function M:Diagnose()
         or (s.hideWhispers and "kept in the inbox" or "shown with the sender's name hidden")))
     NS.Print(string.format("  name texts found: %d   BattleTag text found: %s   scans: %d",
         #CollectTargets(), tostring(TagFS() ~= nil), scanCount))
+    NS.Print(string.format("  instant name fixes (target/focus redraws): %d", M.instantFixes or 0))
     for _, t in ipairs(CollectTargets()) do
         local ok, txt = pcall(t.fs.GetText, t.fs)
         NS.Print(string.format("    %s -> showing \"%s\"", t.unit, ok and IsStr(txt) and txt or "?"))

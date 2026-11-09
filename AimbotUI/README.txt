@@ -1,4 +1,4 @@
-AIMBOT UI  v2.8.9  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.8.10  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,13 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.8.10
+  - Privacy: targeting yourself (or anyone) no longer flashes the real name for a moment before your
+    Privacy name shows. The name on the target, target-of-target and focus frames is now swapped in the
+    same instant the game draws it, instead of on the next check a moment later. The name texts are
+    looked up once and remembered, and the fix only runs when you change target or focus, so there is no
+    extra work every frame and no FPS cost. /aimbot diag now shows how many instant fixes ran.
 
 NEW IN 2.8.9
   - Every slider in the window now lets you type a value. Click the number on the right of a slider,
