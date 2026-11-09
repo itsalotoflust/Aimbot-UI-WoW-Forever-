@@ -2,6 +2,12 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.8.12
+
+- A more modern look for the Aimbot UI window: round toggle switches (pill track with a round knob), round slider handles and round on/off dots in the side menu; flat buttons with a soft accent wash on hover; flatter text boxes; softer cards with a faint top light, a round accent dot before the title and their short description underneath; a bigger page title with an accent underline and "On"/"Off" next to each tab's switch; the version as a small chip in the title bar, a close button that turns red on hover, a soft shadow around the window and a thinner scrollbar.
+- The round shapes use a new image (`media/ui/circle.tga`), so fully restart the game once after updating. Until then they show as squares and everything still works.
+- Fixed: in 2.8.11 the General tab stopped part way (the module on/off list was missing). It builds fully again.
+
 ## 2.8.11
 
 - Side menu tidied up. Diminish and Spell Trainer moved into Quality of Life, so each group now shows once: LOOK, COMBAT, then QUALITY OF LIFE, with the modules A-Z inside each group (the module list on the General tab uses the same order). Group names have a thin divider line and a bit more space above them, the on/off dots are a little smaller and the +/- markers are softer.

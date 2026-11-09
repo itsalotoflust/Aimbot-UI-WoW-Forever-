@@ -19,12 +19,15 @@ NS.UI = UI
 local FONT  = STANDARD_TEXT_FONT
 local WHITE = "Interface\\Buttons\\WHITE8X8"
 
+local ROUND = "Interface\\AddOns\\" .. ADDON_NAME .. "\\media\\ui\\circle"
+
 local SIDEBAR_W = 190
 local HEADER_H  = 84
 
 local texts   = setmetatable({}, { __mode = "k" })  -- fontstring -> size offset
 local accents = setmetatable({}, { __mode = "k" })  -- texture    -> alpha multiplier
 local roles   = setmetatable({}, { __mode = "k" })  -- fontstring -> "body" | "muted" (follows the text colors)
+local rounds  = setmetatable({}, { __mode = "k" })  -- round textures: coloured with SetVertexColor
 local pages   = {}
 local tabs    = {}
 local tabList = {}
@@ -58,10 +61,30 @@ function UI.Text(parent, text, offset, r, g, b)
     return fs
 end
 
+-- Paint a texture with a flat colour. Round textures keep their shape and are tinted instead.
+local function Paint(tex, r, g, b, a)
+    if rounds[tex] then tex:SetVertexColor(r, g, b, a or 1) else tex:SetColorTexture(r, g, b, a or 1) end
+end
+UI.Paint = Paint
+
+-- A round (circle) texture. If the image can't be found (it needs a full game restart the
+-- first time), it falls back to a plain square so nothing goes missing.
+function UI.Round(parent, layer, size)
+    local t = parent:CreateTexture(nil, layer or "ARTWORK")
+    local ok, loaded = pcall(t.SetTexture, t, ROUND)
+    if ok and loaded ~= false then
+        rounds[t] = true
+    else
+        t:SetColorTexture(1, 1, 1, 1)
+    end
+    if size then t:SetSize(size, size) end
+    return t
+end
+
 function UI.Accent(tex, mult)
     accents[tex] = mult or 1
     local c = W().accent
-    tex:SetColorTexture(c[1], c[2], c[3], (c[4] or 1) * (mult or 1))
+    Paint(tex, c[1], c[2], c[3], (c[4] or 1) * (mult or 1))
 end
 
 local function RestyleTexts()
@@ -78,7 +101,7 @@ end
 local function RestyleAccents()
     local c = W().accent
     for tex, mult in pairs(accents) do
-        tex:SetColorTexture(c[1], c[2], c[3], (c[4] or 1) * mult)
+        Paint(tex, c[1], c[2], c[3], (c[4] or 1) * mult)
     end
 end
 
@@ -111,26 +134,26 @@ local function Tip(frame, title, text)
     frame:HookScript("OnLeave", function() GameTooltip:Hide() end)
 end
 
+-- Flat button: soft fill, a faint top light, accent wash on hover.
 function UI.MakeButton(parent, label, width, height)
     local b = CreateFrame("Button", nil, parent)
     b:SetSize(width or 120, height or 22)
-    local edge = b:CreateTexture(nil, "BACKGROUND")
-    edge:SetAllPoints()
-    edge:SetColorTexture(0.30, 0.30, 0.34, 1)
-    local fill = b:CreateTexture(nil, "BORDER")
-    fill:SetPoint("TOPLEFT", 1, -1)
-    fill:SetPoint("BOTTOMRIGHT", -1, 1)
-    fill:SetColorTexture(0.14, 0.14, 0.16, 1)
+    local fill = b:CreateTexture(nil, "BACKGROUND")
+    fill:SetAllPoints()
+    fill:SetColorTexture(1, 1, 1, 0.07)
+    local top = b:CreateTexture(nil, "BORDER")
+    top:SetPoint("TOPLEFT"); top:SetPoint("TOPRIGHT")
+    top:SetHeight(1)
+    top:SetColorTexture(1, 1, 1, 0.06)
     local hl = b:CreateTexture(nil, "HIGHLIGHT")
-    hl:SetPoint("TOPLEFT", 1, -1)
-    hl:SetPoint("BOTTOMRIGHT", -1, 1)
-    UI.Accent(hl, 0.22)
-    local fs = UI.Text(b, label)
+    hl:SetAllPoints()
+    UI.Accent(hl, 0.28)
+    local fs = UI.Text(b, label, -1)
     fs:SetPoint("CENTER")
     fs:SetJustifyH("CENTER")
     b.label = fs
-    b:SetScript("OnMouseDown", function() fill:SetColorTexture(0.10, 0.10, 0.12, 1) end)
-    b:SetScript("OnMouseUp",   function() fill:SetColorTexture(0.14, 0.14, 0.16, 1) end)
+    b:SetScript("OnMouseDown", function() fill:SetColorTexture(0, 0, 0, 0.25) end)
+    b:SetScript("OnMouseUp",   function() fill:SetColorTexture(1, 1, 1, 0.07) end)
     return b
 end
 
@@ -172,27 +195,36 @@ end
 ----------------------------------------------------------------------
 -- Switch (on/off pill). Used by every checkbox-style setting.
 ----------------------------------------------------------------------
+-- Toggle switch: a pill-shaped track (two round ends and a middle) with a round knob.
 local function MakeSwitch(parent, get, set)
     local sw = CreateFrame("Button", nil, parent)
-    sw:SetSize(40, 20)
-    local track = sw:CreateTexture(nil, "BACKGROUND")
-    track:SetAllPoints()
-    local knob = sw:CreateTexture(nil, "ARTWORK")
-    knob:SetSize(16, 16)
-    knob:SetColorTexture(0.96, 0.96, 0.98, 1)
-    local hl = sw:CreateTexture(nil, "HIGHLIGHT")
-    hl:SetAllPoints()
-    hl:SetColorTexture(1, 1, 1, 0.07)
+    sw:SetSize(36, 18)
+    local capL = UI.Round(sw, "BACKGROUND", 18)
+    capL:SetPoint("LEFT", sw, "LEFT", 0, 0)
+    local capR = UI.Round(sw, "BACKGROUND", 18)
+    capR:SetPoint("RIGHT", sw, "RIGHT", 0, 0)
+    local mid = sw:CreateTexture(nil, "BACKGROUND")
+    mid:SetPoint("TOPLEFT", sw, "TOPLEFT", 9, 0)
+    mid:SetPoint("BOTTOMRIGHT", sw, "BOTTOMRIGHT", -9, 0)
+    local knob = UI.Round(sw, "ARTWORK", 14)
+    local glow = UI.Round(sw, "HIGHLIGHT", 22)
+    glow:SetPoint("CENTER", knob, "CENTER", 0, 0)
+    Paint(glow, 1, 1, 1, 0.10)
 
+    local function Track(r, g, b, a)
+        Paint(capL, r, g, b, a); Paint(capR, r, g, b, a); Paint(mid, r, g, b, a)
+    end
     function sw.Refresh()
         local on = get() and true or false
         knob:ClearAllPoints()
         if on then
             local c = W().accent
-            track:SetColorTexture(c[1], c[2], c[3], 0.95)
+            Track(c[1], c[2], c[3], 1)
+            Paint(knob, 1, 1, 1, 1)
             knob:SetPoint("RIGHT", sw, "RIGHT", -2, 0)
         else
-            track:SetColorTexture(0.26, 0.26, 0.29, 1)
+            Track(0.22, 0.22, 0.25, 1)
+            Paint(knob, 0.62, 0.62, 0.66, 1)
             knob:SetPoint("LEFT", sw, "LEFT", 2, 0)
         end
     end
@@ -212,14 +244,14 @@ Page.__index = Page
 
 local function MakeScrollbar(parent, sf)
     local bar = CreateFrame("Frame", nil, parent)
-    bar:SetWidth(6)
-    bar:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -2, -4)
+    bar:SetWidth(4)
+    bar:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -3, -4)
     bar:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", -2, 4)
     local track = bar:CreateTexture(nil, "BACKGROUND")
     track:SetAllPoints()
-    track:SetColorTexture(1, 1, 1, 0.04)
+    track:SetColorTexture(1, 1, 1, 0.03)
     local thumb = CreateFrame("Button", nil, bar)
-    thumb:SetWidth(6)
+    thumb:SetWidth(4)
     local tex = thumb:CreateTexture(nil, "ARTWORK")
     tex:SetAllPoints()
     UI.Accent(tex, 0.55)
@@ -303,7 +335,7 @@ local function LayoutCard(self, card, y, cw)
     card.frame:ClearAllPoints()
     card.frame:SetPoint("TOPLEFT", self.child, "TOPLEFT", 4, -y)
     card.frame:SetPoint("TOPRIGHT", self.child, "TOPRIGHT", -4, -y)
-    local iy = card.title and 40 or 12
+    local iy = card.title and (card.descText and 60 or 44) or 14
     local innerW = cw - 8 - 32
     for _, row in ipairs(card.rows) do
         local h = row.height(innerW)
@@ -311,10 +343,10 @@ local function LayoutCard(self, card, y, cw)
         row.frame:SetPoint("TOPLEFT", card.frame, "TOPLEFT", 16, -iy)
         row.frame:SetPoint("TOPRIGHT", card.frame, "TOPRIGHT", -16, -iy)
         row.frame:SetHeight(h)
-        iy = iy + h + 6
+        iy = iy + h + 8
     end
     card.frame:SetHeight(iy + 8)
-    return iy + 8 + 12
+    return iy + 8 + 14
 end
 
 function Page:Reflow()
@@ -377,19 +409,30 @@ function Page:Section(title, desc, opts)
     local f = CreateFrame("Frame", nil, self.child)
     local bg = f:CreateTexture(nil, "BACKGROUND")
     bg:SetAllPoints()
-    bg:SetColorTexture(1, 1, 1, 0.035)
-    Edges(f, 1, 1, 1, 0.07, "BORDER")
+    bg:SetColorTexture(1, 1, 1, 0.03)
+    Edges(f, 1, 1, 1, 0.055, "BORDER")
+    local shine = f:CreateTexture(nil, "BORDER")         -- faint light along the top edge
+    shine:SetPoint("TOPLEFT", f, "TOPLEFT", 1, -1)
+    shine:SetPoint("TOPRIGHT", f, "TOPRIGHT", -1, -1)
+    shine:SetHeight(1)
+    shine:SetColorTexture(1, 1, 1, 0.05)
     local card = { frame = f, rows = {}, title = title, desc = desc,
         pinned = (type(opts) == "table" and opts.pinned) and true or false,
         openFirst = (type(opts) == "table" and opts.open) and true or false }
     if title then
-        local accent = f:CreateTexture(nil, "ARTWORK")
-        accent:SetPoint("TOPLEFT", f, "TOPLEFT", 1, -1)
-        accent:SetSize(3, 24)
-        UI.Accent(accent, 1)
-        local fs = UI.Text(f, title, 1, 1, 1, 1)
-        fs:SetPoint("TOPLEFT", f, "TOPLEFT", 16, -11)
+        local dot = UI.Round(f, "ARTWORK", 7)
+        dot:SetPoint("TOPLEFT", f, "TOPLEFT", 16, -17)
+        UI.Accent(dot, 1)
+        local fs = UI.Text(f, title, 2, 1, 1, 1)
+        fs:SetPoint("LEFT", dot, "RIGHT", 9, 0)
         card.titleText = fs
+        if type(desc) == "string" and desc ~= "" then
+            local d = UI.Text(f, desc, -1, 0.62, 0.62, 0.67)
+            d:SetPoint("TOPLEFT", f, "TOPLEFT", 32, -32)
+            d:SetPoint("RIGHT", f, "RIGHT", -16, 0)
+            d:SetWordWrap(false)
+            card.descText = d
+        end
     end
     table.insert(self.cards, card)
     self.current = card
@@ -456,11 +499,11 @@ function Page:Slider(label, min, max, step, get, set, fmt)
     holder:SetSize(58, 20)
     local edge = holder:CreateTexture(nil, "BACKGROUND")
     edge:SetAllPoints()
-    edge:SetColorTexture(0.30, 0.30, 0.34, 1)
+    edge:SetColorTexture(1, 1, 1, 0.10)
     local inner = holder:CreateTexture(nil, "BORDER")
     inner:SetPoint("TOPLEFT", 1, -1)
     inner:SetPoint("BOTTOMRIGHT", -1, 1)
-    inner:SetColorTexture(0.08, 0.08, 0.09, 1)
+    inner:SetColorTexture(0.05, 0.05, 0.06, 1)
 
     local val = CreateFrame("EditBox", nil, holder)
     val:SetPoint("TOPLEFT", holder, "TOPLEFT", 4, -1)
@@ -488,11 +531,13 @@ function Page:Slider(label, min, max, step, get, set, fmt)
     track:SetPoint("LEFT", s, "LEFT", 0, 0)
     track:SetPoint("RIGHT", s, "RIGHT", 0, 0)
     track:SetHeight(4)
-    track:SetColorTexture(0.24, 0.24, 0.27, 1)
+    track:SetColorTexture(1, 1, 1, 0.10)
 
-    s:SetThumbTexture(WHITE)
+    local thumbOK = pcall(s.SetThumbTexture, s, ROUND)
+    if not thumbOK then s:SetThumbTexture(WHITE) end
     local thumb = s:GetThumbTexture()
-    thumb:SetSize(10, 16)
+    if thumbOK then rounds[thumb] = true end
+    thumb:SetSize(14, 14)
     UI.Accent(thumb, 1)
 
     local fill = s:CreateTexture(nil, "ARTWORK")
@@ -548,7 +593,7 @@ function Page:Slider(label, min, max, step, get, set, fmt)
         val:HighlightText()
     end)
     val:SetScript("OnEditFocusLost", function()
-        edge:SetColorTexture(0.30, 0.30, 0.34, 1)
+        edge:SetColorTexture(1, 1, 1, 0.10)
         val:HighlightText(0, 0)
         show(get() or min)
     end)
@@ -561,11 +606,11 @@ end
 function Page:Color(label, get, set)
     local f = AddRow(self, 24, label)
     local btn = CreateFrame("Button", nil, f)
-    btn:SetSize(44, 20)
+    btn:SetSize(40, 18)
     btn:SetPoint("RIGHT", f, "RIGHT", 0, 0)
     local edge = btn:CreateTexture(nil, "BACKGROUND")
     edge:SetAllPoints()
-    edge:SetColorTexture(0.55, 0.55, 0.60, 1)
+    edge:SetColorTexture(1, 1, 1, 0.25)
     local swatch = btn:CreateTexture(nil, "ARTWORK")
     swatch:SetPoint("TOPLEFT", 1, -1)
     swatch:SetPoint("BOTTOMRIGHT", -1, 1)
@@ -653,11 +698,11 @@ function Page:Input(placeholder, onSubmit, buttonText)
     holder:SetHeight(24)
     local edge = holder:CreateTexture(nil, "BACKGROUND")
     edge:SetAllPoints()
-    edge:SetColorTexture(0.30, 0.30, 0.34, 1)
+    edge:SetColorTexture(1, 1, 1, 0.10)
     local fill = holder:CreateTexture(nil, "BORDER")
     fill:SetPoint("TOPLEFT", 1, -1)
     fill:SetPoint("BOTTOMRIGHT", -1, 1)
-    fill:SetColorTexture(0.08, 0.08, 0.09, 1)
+    fill:SetColorTexture(0.05, 0.05, 0.06, 1)
 
     local box = CreateFrame("EditBox", nil, holder)
     box:SetPoint("TOPLEFT", holder, "TOPLEFT", 7, -2)
@@ -695,7 +740,7 @@ function Page:Input(placeholder, onSubmit, buttonText)
         showHint()
     end)
     box:SetScript("OnEditFocusLost", function()
-        edge:SetColorTexture(0.30, 0.30, 0.34, 1)
+        edge:SetColorTexture(1, 1, 1, 0.10)
         showHint()
     end)
     btn:SetScript("OnClick", submit)
@@ -719,6 +764,25 @@ function Page:Container()
     return f
 end
 
+-- Side menu order: groups in a fixed order, modules A-Z inside each group.
+local GROUP_ORDER = { Style = 1, Combat = 2, Tools = 3, QoL = 4 }
+local GROUP_LABEL = { Style = "LOOK", Combat = "COMBAT", Tools = "TOOLS", QoL = "QUALITY OF LIFE" }
+local function SortedModules()
+    local list = {}
+    for i, key in ipairs(NS.moduleOrder) do list[#list + 1] = { key = key, i = i } end
+    table.sort(list, function(a, b)
+        local ma, mb = NS.modules[a.key], NS.modules[b.key]
+        local ga, gb = GROUP_ORDER[ma.group or ""] or 9, GROUP_ORDER[mb.group or ""] or 9
+        if ga ~= gb then return ga < gb end
+        local na, nb = string.lower(ma.name or a.key), string.lower(mb.name or b.key)
+        if na ~= nb then return na < nb end
+        return a.i < b.i
+    end)
+    for i, e in ipairs(list) do list[i] = e.key end
+    return list
+end
+UI.SortedModules = SortedModules
+
 ----------------------------------------------------------------------
 -- Window-wide refresh
 ----------------------------------------------------------------------
@@ -728,9 +792,9 @@ local function RefreshTabDots()
             local on = NS.Mod(t.key) and NS.Mod(t.key).enabled
             if on then
                 local c = W().accent
-                t.dot:SetColorTexture(c[1], c[2], c[3], 1)
+                Paint(t.dot, c[1], c[2], c[3], 1)
             else
-                t.dot:SetColorTexture(0.32, 0.32, 0.35, 1)
+                Paint(t.dot, 0.32, 0.32, 0.35, 1)
             end
         end
     end
@@ -802,17 +866,23 @@ local function BuildHeader(parent, title, desc, key)
     if key then
         sw = MakeSwitch(h, function() return NS.Mod(key).enabled end,
             function(v) NS.Mod(key).enabled = v; NS.ApplyModule(key) end)
-        sw:SetPoint("TOPRIGHT", h, "TOPRIGHT", -14, -14)
+        sw:SetPoint("TOPRIGHT", h, "TOPRIGHT", -16, -18)
         local lbl = UI.Text(h, "Enabled", -1, 0.65, 0.65, 0.70)
         lbl:SetPoint("RIGHT", sw, "LEFT", -8, 0)
+        local refreshSwitch = sw.Refresh
+        function sw.Refresh()
+            refreshSwitch()
+            local on = NS.Mod(key) and NS.Mod(key).enabled
+            lbl:SetText(on and "On" or "Off")
+        end
         local reset = UI.MakeButton(h, "Reset tab", 84, 20)
         reset:SetPoint("TOPRIGHT", sw, "BOTTOMRIGHT", 0, -8)
         reset:SetScript("OnClick", function() NS.ResetModule(key) end)
         right = 130
     end
 
-    local t = UI.Text(h, title, 6, 1, 1, 1)
-    t:SetPoint("TOPLEFT", h, "TOPLEFT", 16, -14)
+    local t = UI.Text(h, title, 8, 1, 1, 1)
+    t:SetPoint("TOPLEFT", h, "TOPLEFT", 18, -16)
     local d = UI.Text(h, desc or "", -1, 0.62, 0.62, 0.67)
     d:SetPoint("TOPLEFT", t, "BOTTOMLEFT", 0, -6)
     d:SetPoint("RIGHT", h, "RIGHT", -(right + 16), 0)
@@ -821,10 +891,14 @@ local function BuildHeader(parent, title, desc, key)
     if d.SetMaxLines then d:SetMaxLines(3) end
 
     local line = h:CreateTexture(nil, "ARTWORK")
-    line:SetPoint("BOTTOMLEFT", h, "BOTTOMLEFT", 10, 0)
-    line:SetPoint("BOTTOMRIGHT", h, "BOTTOMRIGHT", -10, 0)
+    line:SetPoint("BOTTOMLEFT", h, "BOTTOMLEFT", 18, 0)
+    line:SetPoint("BOTTOMRIGHT", h, "BOTTOMRIGHT", -18, 0)
     line:SetHeight(1)
-    line:SetColorTexture(1, 1, 1, 0.08)
+    line:SetColorTexture(1, 1, 1, 0.06)
+    local under = h:CreateTexture(nil, "ARTWORK", nil, 1)   -- short accent underline below the title area
+    under:SetPoint("BOTTOMLEFT", h, "BOTTOMLEFT", 18, 0)
+    under:SetSize(36, 2)
+    UI.Accent(under, 1)
     return h, sw
 end
 
@@ -951,24 +1025,6 @@ local function BuildGeneral(page)
         .. "NiceDamage by Montyburns. Their artwork and fonts are used here with the original credit.")
 end
 
--- Side menu order: groups in a fixed order, modules A-Z inside each group.
-local GROUP_ORDER = { Style = 1, Combat = 2, Tools = 3, QoL = 4 }
-local GROUP_LABEL = { Style = "LOOK", Combat = "COMBAT", Tools = "TOOLS", QoL = "QUALITY OF LIFE" }
-local function SortedModules()
-    local list = {}
-    for i, key in ipairs(NS.moduleOrder) do list[#list + 1] = { key = key, i = i } end
-    table.sort(list, function(a, b)
-        local ma, mb = NS.modules[a.key], NS.modules[b.key]
-        local ga, gb = GROUP_ORDER[ma.group or ""] or 9, GROUP_ORDER[mb.group or ""] or 9
-        if ga ~= gb then return ga < gb end
-        local na, nb = string.lower(ma.name or a.key), string.lower(mb.name or b.key)
-        if na ~= nb then return na < nb end
-        return a.i < b.i
-    end)
-    for i, e in ipairs(list) do list[i] = e.key end
-    return list
-end
-UI.SortedModules = SortedModules
 
 local function Create()
     local w = W()
@@ -1006,6 +1062,21 @@ local function Create()
     Edge("TOPLEFT", "BOTTOMLEFT", 1, nil)
     Edge("TOPRIGHT", "BOTTOMRIGHT", 1, nil)
 
+    -- Soft drop shadow: three faint rings just outside the window edge.
+    for i, a in ipairs({ 0.30, 0.16, 0.07 }) do
+        local o, prev = i * 2, (i - 1) * 2
+        local function S(p1, x1, y1, p2, x2, y2)
+            local t = win:CreateTexture(nil, "BACKGROUND", nil, -8)
+            t:SetColorTexture(0, 0, 0, a)
+            t:SetPoint(p1, win, p1, x1, y1)
+            t:SetPoint(p2, win, p2, x2, y2)
+        end
+        S("TOPLEFT", -o, o, "TOPRIGHT", o, prev)              -- top band
+        S("BOTTOMLEFT", -o, -prev, "BOTTOMRIGHT", o, -o)       -- bottom band
+        S("TOPLEFT", -o, prev, "BOTTOMLEFT", -prev, -prev)     -- left band
+        S("TOPRIGHT", prev, prev, "BOTTOMRIGHT", o, -prev)     -- right band
+    end
+
     -- Title bar
     local tb = CreateFrame("Frame", nil, win)
     tb:SetPoint("TOPLEFT", 1, -1)
@@ -1025,11 +1096,26 @@ local function Create()
     UI.Accent(mark, 1)
     local title = UI.Text(tb, "AIMBOT UI", 3, 1, 1, 1)
     title:SetPoint("LEFT", mark, "RIGHT", 8, 0)
-    local ver = UI.Text(tb, "v" .. NS.version, -2, 0.50, 0.50, 0.56)
-    ver:SetPoint("LEFT", title, "RIGHT", 8, -1)
+    local chip = CreateFrame("Frame", nil, tb)
+    chip:SetPoint("LEFT", title, "RIGHT", 10, 0)
+    chip:SetHeight(16)
+    local chipBG = chip:CreateTexture(nil, "BACKGROUND")
+    chipBG:SetAllPoints()
+    UI.Accent(chipBG, 0.18)
+    local ver = UI.Text(chip, "v" .. NS.version, -3, 0.85, 0.85, 0.90)
+    ver:SetPoint("CENTER", chip, "CENTER", 0, 0)
+    chip:SetWidth(math.max(34, (ver:GetStringWidth() or 30) + 12))
 
-    local close = UI.MakeButton(tb, "X", 24, 22)
-    close:SetPoint("RIGHT", -6, 0)
+    local close = CreateFrame("Button", nil, tb)
+    close:SetSize(28, 24)
+    close:SetPoint("RIGHT", -5, 0)
+    local closeHL = close:CreateTexture(nil, "HIGHLIGHT")
+    closeHL:SetAllPoints()
+    closeHL:SetColorTexture(0.85, 0.22, 0.25, 0.85)
+    local closeX = UI.Text(close, "X", 0, 0.70, 0.70, 0.75)
+    closeX:SetPoint("CENTER", 0, 0)
+    close:SetScript("OnEnter", function() closeX:SetTextColor(1, 1, 1) end)
+    close:SetScript("OnLeave", function() closeX:SetTextColor(0.70, 0.70, 0.75) end)
     close:SetScript("OnClick", function() win:Hide() end)
 
     local tline = tb:CreateTexture(nil, "ARTWORK")
@@ -1080,11 +1166,11 @@ local function Create()
     sHolder:SetHeight(26)
     local sEdge = sHolder:CreateTexture(nil, "BACKGROUND")
     sEdge:SetAllPoints()
-    sEdge:SetColorTexture(0.30, 0.30, 0.34, 1)
+    sEdge:SetColorTexture(1, 1, 1, 0.10)
     local sFill = sHolder:CreateTexture(nil, "BORDER")
     sFill:SetPoint("TOPLEFT", 1, -1)
     sFill:SetPoint("BOTTOMRIGHT", -1, 1)
-    sFill:SetColorTexture(0.08, 0.08, 0.09, 1)
+    sFill:SetColorTexture(0.05, 0.05, 0.06, 1)
     searchBox = CreateFrame("EditBox", nil, sHolder)
     searchBox:SetPoint("TOPLEFT", sHolder, "TOPLEFT", 8, -2)
     searchBox:SetPoint("BOTTOMRIGHT", sHolder, "BOTTOMRIGHT", -24, 2)
@@ -1287,7 +1373,7 @@ local function Create()
         Refresh()
     end)
     searchBox:SetScript("OnEditFocusLost", function()
-        sEdge:SetColorTexture(0.30, 0.30, 0.34, 1)
+        sEdge:SetColorTexture(1, 1, 1, 0.10)
         Refresh()
     end)
     searchBox:SetScript("OnEnterPressed", function()
@@ -1381,11 +1467,11 @@ local function Create()
 
         local sel = btn:CreateTexture(nil, "BACKGROUND")
         sel:SetAllPoints()
-        UI.Accent(sel, 0.16)
+        UI.Accent(sel, 0.13)
         sel:Hide()
         local selBar = btn:CreateTexture(nil, "ARTWORK")
-        selBar:SetPoint("TOPLEFT", btn, "TOPLEFT", 0, 0)
-        selBar:SetPoint("BOTTOMLEFT", btn, "BOTTOMLEFT", 0, 0)
+        selBar:SetPoint("TOPLEFT", btn, "TOPLEFT", 0, -6)
+        selBar:SetPoint("BOTTOMLEFT", btn, "BOTTOMLEFT", 0, 6)
         selBar:SetWidth(3)
         UI.Accent(selBar, 1)
         selBar:Hide()
@@ -1396,8 +1482,7 @@ local function Create()
         local dot
         local fs = UI.Text(btn, label)
         if mod then
-            dot = btn:CreateTexture(nil, "ARTWORK")
-            dot:SetSize(6, 6)
+            dot = UI.Round(btn, "ARTWORK", 7)
             dot:SetPoint("LEFT", btn, "LEFT", 12, 0)
             fs:SetPoint("LEFT", dot, "RIGHT", 9, 0)
         else

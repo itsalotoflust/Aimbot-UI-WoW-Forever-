@@ -1,4 +1,4 @@
-AIMBOT UI  v2.8.11  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.8.12  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,21 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.8.12
+  - A more modern look for the Aimbot UI window:
+      * round toggle switches (pill track with a round knob), round slider handles and round on/off
+        dots in the side menu
+      * flat buttons with a soft accent wash on hover, and flatter text boxes and slider value boxes
+      * cards have a softer background, a faint top light, a round accent dot before the title and
+        their short description underneath
+      * a bigger page title with a short accent underline, and "On"/"Off" next to each tab's switch
+      * the version shows as a small chip in the title bar, the close button turns red on hover
+      * a soft shadow around the window, a thinner scrollbar, and a little more breathing room
+    The round shapes use a new image (media\ui\circle.tga), so FULLY RESTART the game once (a
+    /reload will not find a new file). Until then they show as squares and everything still works.
+  - Fixed: in 2.8.11 the General tab stopped part way (the module on/off list was missing) because
+    of the new side menu sorting. It builds fully again.
 
 NEW IN 2.8.11
   - Side menu tidied up. Diminish and Spell Trainer moved into Quality of Life, so each group now shows
