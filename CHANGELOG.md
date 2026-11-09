@@ -2,6 +2,10 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.8.18
+
+- Privacy: new "Friendly name range (yards)" slider under "Show friendly players' names above heads" (default 60). While friendly names are on it raises how far away nameplates show, so friendly names appear from further away (this also applies to enemy plates). The game has its own maximum; the note under the slider shows the distance the game is really using. Your own range is put back when private mode is turned off. `/aimbot diag` shows it on the "friendly names" line.
+
 ## 2.8.17
 
 - Privacy "Show friendly players' names above heads" now actually turns on. This client uses the newer names for the friendly nameplate settings (`nameplateShowFriendlyPlayers`, `nameplateShowOnlyNameForFriendlyPlayerUnits`...), and 2.8.14 only set the older names, which the game ignored. Both sets are now listed and whichever exists is used. While it is on, friendly pet, guardian, minion and totem plates are also off so only players get a name; everything is put back when private mode is turned off. `/aimbot diag` shows the real values of these settings.

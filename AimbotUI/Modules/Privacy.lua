@@ -42,6 +42,7 @@ local M = {
         bubbles     = true,                    -- hide chat bubbles
         headNames   = true,                    -- hide the names the game draws above heads
         friendlyNames = false,                 -- show friendly players above heads, with their Privacy name
+        friendlyRange = 60,                    -- nameplate distance (yards) while friendly names are on
         hideZone    = true,
         hideClock   = true,
         indicator   = false,                   -- small "PRIVATE" tag on screen
@@ -376,6 +377,9 @@ local function SweepBubbles()
         if s.friendlyNames then
             if FriendlyPlatesAllowed() then
                 for c, v in pairs(FRIENDLY_CVARS) do want[c] = v end
+                -- how far away plates (and so friendly names) show; the game caps it at its own max
+                local r = tonumber(s.friendlyRange)
+                if r and r > 0 then want.nameplateMaxDistance = tostring(math.floor(r)) end
                 M.friendlyBlocked = false
             else
                 M.friendlyBlocked = true
@@ -820,6 +824,8 @@ function M:Diagnose()
         if okc and v ~= nil then fp[#fp + 1] = c .. "=" .. tostring(v) end
     end
     if #fp == 0 then fp[1] = "(this client has none of the friendly nameplate settings)" end
+    local okd, dist = pcall(GetCVar, "nameplateMaxDistance")
+    fp[#fp + 1] = "nameplateMaxDistance=" .. tostring(okd and dist or "n/a") .. " (asked for " .. tostring(S().friendlyRange) .. ")"
     NS.Print(string.format("  friendly names: %s%s   %s", S().friendlyNames and "on" or "off",
         M.friendlyBlocked and " (off in this dungeon/raid)" or "", table.concat(fp, " ")))
     local loaded = (C_AddOns and C_AddOns.IsAddOnLoaded) or IsAddOnLoaded
@@ -871,6 +877,15 @@ function M.Build(page)
         .. "and swaps each name for the Privacy name you picked above (class, \"Player\" or nothing). "
         .. "Your own name is not shown. Friendly NPC plates stay off. Your nameplate settings are put back "
         .. "when private mode is turned off.")
+    page:Slider("Friendly name range (yards)", 20, 100, 1, function() return S().friendlyRange or 60 end,
+        function(v) S().friendlyRange = v; ApplyAll() end)
+    local rangeNote = page:Note("")
+    table.insert(page.refreshers, function()
+        local ok, d = pcall(GetCVar, "nameplateMaxDistance")
+        rangeNote:SetText("How far away nameplates show while this is on (enemy plates too). The game has its own "
+            .. "maximum and uses the lower of the two. The game is using: |cffffffff" .. tostring(ok and d or "?")
+            .. "|r yards. Your own range is put back when private mode is turned off.")
+    end)
     local fnNote = page:Note("")
     table.insert(page.refreshers, function()
         fnNote:SetText(S().friendlyNames and M.friendlyBlocked

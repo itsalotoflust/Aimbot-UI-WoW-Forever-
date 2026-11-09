@@ -1,4 +1,4 @@
-AIMBOT UI  v2.8.17  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.8.18  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,13 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.8.18
+  - Privacy: new "Friendly name range (yards)" slider under "Show friendly players' names above heads"
+    (default 60). While friendly names are on it raises how far away nameplates show, so friendly
+    names appear from further away (this also applies to enemy plates). The game has its own maximum;
+    the note under the slider shows the distance the game is really using. Your own range is put back
+    when private mode is turned off. /aimbot diag shows it on the "friendly names" line.
 
 NEW IN 2.8.17
   - Privacy "Show friendly players' names above heads" now actually turns on. This client uses the
