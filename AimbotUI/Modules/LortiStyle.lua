@@ -336,46 +336,17 @@ local OTHER_ART = {
 }
 
 -- The colored strip behind the unit name (hostile red, neutral yellow, friendly green).
--- The game's art for it fades out toward the edge; this swaps in a plain white texture so the
--- strip is solid. Blizzard still sets its color with SetVertexColor, which carries over.
-local NAME_BG = {
-    "TargetFrame.TargetFrameContent.TargetFrameContentMain.ReputationColor",
-    "FocusFrame.TargetFrameContent.TargetFrameContentMain.ReputationColor",
-    "PlayerFrame.PlayerFrameContent.PlayerFrameContentMain.ReputationColor",
+-- The game's art for it fades out toward the edge. Swapping the art for a solid texture
+-- doesn't work, because the art only fills part of its box (it ran under the portrait).
+-- So the game's strip is faded to alpha 0 and our own solid bar is drawn exactly over the
+-- health bar's width, at the strip's height, in the color the game gave the strip.
+local NAME_BG_PATHS = {
+    { strip = "TargetFrame.TargetFrameContent.TargetFrameContentMain.ReputationColor", unit = "target" },
+    { strip = "FocusFrame.TargetFrameContent.TargetFrameContentMain.ReputationColor",  unit = "focus" },
+    { strip = "PlayerFrame.PlayerFrameContent.PlayerFrameContentMain.ReputationColor", unit = "player" },
 }
 local SOLID = "Interface\\Buttons\\WHITE8X8"
-local nameBgOrig = setmetatable({}, { __mode = "k" })   -- our own table, nothing stored on the frames
-
-local function ApplyNameBars()
-    local s = S()
-    local on = s.enabled and s.solidNames
-    for _, p in ipairs(NAME_BG) do
-        local t = NS.Resolve(p)
-        if t and t.SetTexture then
-            if on then
-                if not nameBgOrig[t] then
-                    local okA, atlas = pcall(t.GetAtlas, t)
-                    atlas = okA and type(atlas) == "string" and atlas ~= "" and atlas or nil
-                    local okT, tex = pcall(t.GetTexture, t)
-                    local okC, l, r, top, bottom = pcall(t.GetTexCoord, t)
-                    nameBgOrig[t] = { atlas = atlas, tex = okT and tex or nil,
-                        coords = okC and { l, r, top, bottom } or nil }
-                end
-                pcall(t.SetTexture, t, SOLID)
-                pcall(t.SetTexCoord, t, 0, 1, 0, 1)
-            elseif nameBgOrig[t] then
-                local o = nameBgOrig[t]
-                if o.atlas then
-                    pcall(t.SetAtlas, t, o.atlas, false)
-                elseif o.tex then
-                    pcall(t.SetTexture, t, o.tex)
-                    if o.coords then pcall(t.SetTexCoord, t, o.coords[1], o.coords[2], o.coords[3], o.coords[4]) end
-                end
-                nameBgOrig[t] = nil
-            end
-        end
-    end
-end
+local nameBars = setmetatable({}, { __mode = "k" })   -- game strip -> our texture (our own table)
 
 local function ApplyFrameArt()
     local s = S()
@@ -415,6 +386,53 @@ local MANA_BARS = {
         "FocusFrameManaBar" } },
     { unit = "pet", paths = { "PetFrame.ManaBar", "PetFrameManaBar" } },
 }
+
+local function HealthPathsFor(unit)
+    for _, e in ipairs(HEALTH_BARS) do if e.unit == unit then return e.paths end end
+end
+
+local function NameBarOff(strip)
+    local bar = nameBars[strip]
+    if bar then bar:Hide() end
+    pcall(strip.SetAlpha, strip, 1)
+end
+
+local function NameBarOn(strip, health)
+    local bar = nameBars[strip]
+    if not bar then
+        local parent = strip:GetParent()
+        local okL, layer, sub = pcall(strip.GetDrawLayer, strip)
+        bar = parent:CreateTexture(nil, okL and layer or "BACKGROUND", nil, okL and sub or 0)
+        bar:SetTexture(SOLID)
+        nameBars[strip] = bar
+    end
+    -- same height and vertical place as the game's strip, same width as the health bar
+    local h = strip:GetHeight()
+    if not h or NS.IsSecret(h) or h <= 0 then h = 18 end
+    bar:ClearAllPoints()
+    bar:SetPoint("BOTTOMLEFT", health, "TOPLEFT", 0, 0)
+    bar:SetPoint("BOTTOMRIGHT", health, "TOPRIGHT", 0, 0)
+    bar:SetHeight(h)
+    local okC, r, g, b = pcall(strip.GetVertexColor, strip)
+    if okC and r and not NS.IsSecret(r) and not NS.IsSecret(g) and not NS.IsSecret(b) then
+        bar:SetVertexColor(r, g, b, 1)
+    end
+    local okS, shown = pcall(strip.IsShown, strip)
+    bar:SetShown(not okS or NS.IsSecret(shown) or shown and true or false)
+    pcall(strip.SetAlpha, strip, 0)
+end
+
+local function ApplyNameBars()
+    local s = S()
+    local on = s.enabled and s.solidNames
+    for _, e in ipairs(NAME_BG_PATHS) do
+        local strip = NS.Resolve(e.strip)
+        if strip and strip.SetAlpha then
+            local health = on and NS.ResolveFirst(HealthPathsFor(e.unit) or {})
+            if on and health then NameBarOn(strip, health) else NameBarOff(strip) end
+        end
+    end
+end
 
 local barInfo = {}      -- statusbar -> { unit, kind }   (local table: nothing written to Blizzard frames)
 local barHooked = {}
@@ -808,7 +826,8 @@ function M:Diagnose()
     for _, p in ipairs(FRAME_ART) do
         if NS.Resolve(p) then NS.Print("  frame art: |cff00ff00" .. p .. "|r") end
     end
-    for _, p in ipairs(NAME_BG) do
+    for _, e in ipairs(NAME_BG_PATHS) do
+        local p = e.strip
         NS.Print("  name bar: " .. (NS.Resolve(p) and ("|cff00ff00" .. p .. "|r") or ("|cffff4444not found|r " .. p)))
     end
     local b = _G["ActionButton1"]

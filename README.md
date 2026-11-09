@@ -2,13 +2,13 @@
 
 An all-in-one interface addon suite for **World of Warcraft Forever** (interface 16001).
 
-**Current version: 2.9.1**
+**Current version: 2.9.2**
 
 Open it in game with `/aimbot` (or `/aui`). Every module has its own tab and its own on/off switch, and if one module hits a problem it reports in chat and the rest keep running.
 
-## What's new in 2.9.1
+## What's new in 2.9.2
 
-- **Lorti Style:** new "Solid name background (no fade)" option under "Frame art and portraits" (on by default). The colored strip behind the target and focus name (red, yellow, green) is the game's own art, which fades out toward the edge; it is now drawn as a solid bar in the same color. Untick it to get the game's faded art back. `/aimbot diag` lists the name bars it found.
+- **Lorti Style "Solid name background":** the solid bar now lines up with the health bar under it (same width, same height as the game's strip) instead of running under the portrait. The game's faded strip is hidden while it is on and comes back when you untick it.
 
 See [CHANGELOG.md](CHANGELOG.md) for every version.
 

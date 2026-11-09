@@ -2,6 +2,10 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.9.2
+
+- **Lorti Style "Solid name background":** the solid bar now lines up with the health bar under it (same width, same height as the game's strip) instead of running under the portrait. The game's faded strip is hidden while it is on and comes back when you untick it.
+
 ## 2.9.1
 
 - **Lorti Style:** new "Solid name background (no fade)" option under "Frame art and portraits" (on by default). The colored strip behind the target and focus name (red, yellow, green) is the game's own art, which fades out toward the edge; it is now drawn as a solid bar in the same color. Untick it to get the game's faded art back. `/aimbot diag` lists the name bars it found.
