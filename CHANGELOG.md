@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to Aimbot UI, newest first. Each version is also posted as a [GitHub Release](https://github.com/itsalotoflust/Aimbot-UI-WoW-Forever-/releases).
+All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
 ## 2.8.6
 
