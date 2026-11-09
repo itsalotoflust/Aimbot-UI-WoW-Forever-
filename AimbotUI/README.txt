@@ -1,4 +1,4 @@
-AIMBOT UI  v2.13.3  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.13.4  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,12 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.13.4
+  - Aura Timers: no more double tooltips. The game's hidden icons still show their tooltip when
+    hovered (addons can't turn that off), so our icons no longer show one of their own and let
+    the mouse pass through. "My icons show their own tooltip" in the Aura Timers tab turns ours
+    back on.
 
 NEW IN 2.13.3
   - Aura Timers: enemy buffs have their time-left numbers again. 2.13.2 switched back to the

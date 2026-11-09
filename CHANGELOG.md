@@ -2,6 +2,12 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.13.4
+
+- **Aura Timers:** no more double tooltips. The game's hidden icons still show their tooltip when hovered, and addons can't turn that off.
+  - Our icons no longer show a tooltip of their own, and the mouse passes through them.
+  - "My icons show their own tooltip" in the Aura Timers tab turns ours back on.
+
 ## 2.13.3
 
 - **Aura Timers:** enemy buffs show their time-left numbers again. 2.13.2 switched to the game's icons (no numbers) on any enemy with no debuffs. That fallback is removed, since your debuffs on enemies are read fine.

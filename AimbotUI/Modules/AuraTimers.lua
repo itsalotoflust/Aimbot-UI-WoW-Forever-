@@ -42,6 +42,7 @@ local M = {
             timerSize = 0,          -- countdown text size, 0 = fit the icon
             spacing = 3,
             layout = 2,             -- settings version (2: placed under the mana bar)
+            tooltip = false,        -- our own tooltip (the game's hidden icons already show one)
         },
     },
 }
@@ -495,7 +496,7 @@ local function NewIcon(holder)
     pcall(b.cd.SetHideCountdownNumbers, b.cd, false)
     b.count = b:CreateFontString(nil, "OVERLAY", "NumberFontNormalSmall")
     b.count:SetPoint("BOTTOMRIGHT", 2, -1)
-    b:EnableMouse(true)
+    b:EnableMouse(O().tooltip and true or false)
     b:SetScript("OnEnter", function(self)
         if not GameTooltip then return end
         GameTooltip:SetOwner(self, "ANCHOR_BOTTOMRIGHT")
@@ -622,6 +623,7 @@ local function FillKind(unit, set, kind, startRow, skip)
             local b = list[n]
             if not b then b = NewIcon(set.holder); list[n] = b end
             b.unit, b.index, b.filter, b.auraID = unit, e.index, filter, a.auraInstanceID
+            b:EnableMouse(o.tooltip and true or false)
             b:SetSize(size, size)
             b:ClearAllPoints()
             local col, row = (n - 1) % perRow, startRow + math.floor((n - 1) / perRow)
@@ -1000,6 +1002,10 @@ function M.Build(page)
     page:Check("Show debuffs", function() return O().debuffs end, function(v) O().debuffs = v; A() end)
     page:Check("Debuffs: only the ones I cast", function() return O().onlyMine end,
         function(v) O().onlyMine = v; A() end)
+    page:Check("My icons show their own tooltip", function() return O().tooltip end,
+        function(v) O().tooltip = v; A() end)
+    page:Note("Leave this off while the game's icons are hidden: they still show their tooltip when hovered, "
+        .. "so with it on you'd see two.")
     page:Slider("Icon size", 14, 40, 1, function() return O().iconSize end, function(v) O().iconSize = v; A() end)
     page:Slider("Time text size (0 = fit the icon)", 0, 24, 1, function() return O().timerSize end,
         function(v) O().timerSize = v; A() end)
@@ -1010,7 +1016,7 @@ function M.Build(page)
     page:Slider("Move up / down", -150, 150, 1, function() return O().y end, function(v) O().y = v; A() end)
     page:Button("Reset position", function() O().x, O().y = 0, -4; A() end)
     page:Note("This client keeps its own target aura icons out of reach of addons, so Aimbot UI draws its "
-        .. "own under the mana bar: buffs first, debuffs (red border) below. Hover an icon for its tooltip.")
+        .. "own under the mana bar: buffs first, debuffs (red border) below.")
 
     page:Section("Where", "Which aura icons get time-left numbers")
     page:Check("Target frame", function() return S().target end,

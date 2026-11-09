@@ -2,13 +2,15 @@
 
 An all-in-one interface addon suite for **World of Warcraft Forever** (interface 16001).
 
-**Current version: 2.13.3**
+**Current version: 2.13.4**
 
 Open it in game with `/aimbot` (or `/aui`). Every module has its own tab and its own on/off switch, and if one module hits a problem it reports in chat and the rest keep running.
 
-## What's new in 2.13.3
+## What's new in 2.13.4
 
-- **Aura Timers:** enemy buffs show their time-left numbers again. 2.13.2 switched to the game's icons (no numbers) on any enemy with no debuffs. That fallback is removed, since your debuffs on enemies are read fine.
+- **Aura Timers:** no more double tooltips. The game's hidden icons still show their tooltip when hovered, and addons can't turn that off.
+  - Our icons no longer show a tooltip of their own, and the mouse passes through them.
+  - "My icons show their own tooltip" in the Aura Timers tab turns ours back on.
 
 See [CHANGELOG.md](CHANGELOG.md) for every version.
 
