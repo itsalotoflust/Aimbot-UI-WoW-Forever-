@@ -4,14 +4,13 @@ An all-in-one interface addon suite for **World of Warcraft Forever** (interface
 
 Despite the name, Aimbot UI only changes how your interface looks and what it shows. It does not play, aim or target for you.
 
-**Current version: 2.8.6**
+**Current version: 2.8.7**
 
 Open it in game with `/aimbot` (or `/aui`). Every module has its own tab and its own on/off switch, and if one module hits a problem it reports in chat and the rest keep running.
 
-## What's new in 2.8.6
+## What's new in 2.8.7
 
-- Privacy: new switch "Allow whispers from everyone (real names)" (Privacy tab > Chat). While private mode is on, whispers from everyone - other characters AND Battle.net friends, ones you get and ones you send - show in chat exactly as normal, with the sender's real name instead of "Player" or a class name, so you can see who it is and reply with R or by clicking the name. Off by default. It wins over "Keep whispers out of chat". Names in those whispers WILL be visible on stream.
-- /aimbot diag now says how whispers are being handled.
+- Diminish (new tab "Diminish", or /aimbot dr): diminishing returns icons on your target and focus frames, on enemy nameplates, and for yourself (under your player frame). One icon per kind of crowd control (stuns, incapacitates, disorients, roots, silences, and optionally disarms). The border shows what the NEXT one will do: green 50%, yellow 25%, red immune, and the timer counts down to the reset. "Show test icons" lets you line them up. Size, spacing, colours, timer / % text and the position of each group can be changed. Inspired by the Diminish addon by Wardz (MIT); new code. Forever closes the combat log that Diminish used, so this reads the game's own DR event, and falls back to crowd-control debuffs the game lets addons see (classic rules: 18 s reset, 50% / 25% / immune; a 2-step mode is in Tracking). FIRST VERSION, written without being able to test it in game: run /aimbot diag after some PvP. It records what the game's DR event sends, so it can be fixed for Forever. Grey icons mean the game sent the DR with hidden (secret) details.
 
 See [CHANGELOG.md](CHANGELOG.md) for every version.
 
@@ -42,6 +41,7 @@ Download **[AimbotUI.zip](https://github.com/itsalotoflust/Aimbot-UI-WoW-Forever
 | **Chat Mute** | Mute players, guilds and words, with speak times when muted people may talk, a never-mute list, and filters for links, shouting, repeats and strangers. |
 | **FPS / MS** | Frame rate and latency counter at the bottom centre of the screen. |
 | **Privacy** | Stream mode: fake name and BattleTag, class names, whisper inbox (or an "Allow whispers from everyone" switch that shows them normally), and a Be right back screen. |
+| **Diminish** | Diminishing returns icons on target, focus, enemy nameplates and yourself. Border shows what the next crowd control will do (green 50%, yellow 25%, red immune), with a reset timer. First version, not yet tested in game. |
 | **Double Press** | Optional. Every action bar key presses twice, on key down and key up. Off by default. |
 | **Memory Cleaner** | A Clear Cache button that runs a garbage collection without freezing the game. |
 
@@ -49,7 +49,7 @@ Download **[AimbotUI.zip](https://github.com/itsalotoflust/Aimbot-UI-WoW-Forever
 
 ```
 /aimbot  or  /aui            open or close the window
-/aimbot lorti | damage | sparkle | mana | range | trainer | double | mute | fps | privacy | general
+/aimbot lorti | damage | sparkle | mana | range | trainer | double | mute | fps | privacy | dr | general
 /sparkle on | off | test
 /amute target | guild | allow 15 | stop | status | unmute NAME | on | off
 /aprivacy on | off | toggle | inbox | brb | status
@@ -65,6 +65,7 @@ Forever's frame names could not all be tested from outside the game. Run `/aimbo
 - **Lorti UI Classic** artwork in `media/`, and its look and feature set: Lorti, Chordsy, Macumba, Knall, Jozh, Xyz, Arrone and Redskin. The logic was rewritten for Forever's frames.
 - **NiceDamage** fonts in `media/fonts/`: Montyburns.
 - **What's Training?** by Sveng (MIT licence): the spell, quest spell and weapon skill data in `Data/` is taken from that addon. See `Data/LICENSE-WhatsTraining.txt`.
+- **Diminish** by Wardz (MIT licence): the idea and look of the Diminish tab. The Aimbot UI version is new code; nothing was copied.
 - The window, Button Sparkle, Spell Trainer, Mana Cost, Range Alert and the other modules are original to Aimbot UI. See `CREDITS.txt` in the addon folder.
 
 World of Warcraft is a trademark of Blizzard Entertainment. Aimbot UI is a fan-made addon and is not affiliated with Blizzard or with the authors above.

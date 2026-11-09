@@ -1,4 +1,4 @@
-AIMBOT UI  v2.8.6  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.8.7  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,20 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.8.7
+  - Diminish (new tab "Diminish", or /aimbot dr): diminishing returns icons on your target and focus
+    frames, on enemy nameplates, and for yourself (under your player frame). One icon per kind of crowd
+    control (stuns, incapacitates, disorients, roots, silences, and optionally disarms). The border shows
+    what the NEXT one will do: green 50%, yellow 25%, red immune, and the timer counts down to the reset.
+    "Show test icons" lets you line them up. Size, spacing, colours, timer / % text and the position of
+    each group can be changed.
+    Inspired by the Diminish addon by Wardz (MIT); new code. Forever closes the combat log that Diminish
+    used, so this reads the game's own DR event, and falls back to crowd-control debuffs the game lets
+    addons see (classic rules: 18 s reset, 50% / 25% / immune; a 2-step mode is in Tracking).
+    FIRST VERSION, written without being able to test it in game: run /aimbot diag after some PvP. It
+    records what the game's DR event sends, so it can be fixed for Forever. Grey icons mean the game
+    sent the DR with hidden (secret) details.
 
 NEW IN 2.8.6
   - Privacy: new switch "Allow whispers from everyone (real names)" (Privacy tab > Chat). While private
@@ -199,6 +213,7 @@ WHAT IS INSIDE (each one is its own tab with its own on/off switch)
   Chat Mute      Mute players / guilds / words, with speak times when they may talk.
   FPS / MS       Frame rate and latency counter, bottom centre of the screen.
   Privacy        Stream mode: fake name / BattleTag, class names, whisper inbox, Be right back screen.
+  Diminish       DR icons on target, focus, enemy nameplates and you (green 50%, yellow 25%, red immune).
   Spell Trainer  WhatsTraining-style list. Open your class trainer once per
                  class to fill it, then it is remembered.
 
@@ -213,7 +228,7 @@ WHAT IS INSIDE (each one is its own tab with its own on/off switch)
 
 COMMANDS
   /aimbot  /aui                open or close the window
-  /aimbot lorti | damage | sparkle | mana | range | trainer | double | mute | fps | privacy | general
+  /aimbot lorti | damage | sparkle | mana | range | trainer | double | mute | fps | privacy | dr | general
   /sparkle on | off | test
   /aprivacy  (on | off | toggle | inbox | brb | status)
   /amute  (target | guild | allow 15 | stop | status | unmute NAME | on | off)

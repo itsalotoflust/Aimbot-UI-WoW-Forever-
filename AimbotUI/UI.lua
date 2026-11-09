@@ -1453,6 +1453,7 @@ local ALIASES = {
     mute = "mute", chat = "mute", chatmute = "mute", silence = "mute", ignore = "mute",
     fps = "fps", ms = "fps", latency = "fps", ping = "fps", counter = "fps",
     privacy = "privacy", stream = "privacy", streamer = "privacy", incognito = "privacy", private = "privacy",
+    diminish = "diminish", dr = "diminish", drs = "diminish", diminishing = "diminish",
     general = "general", window = "general",
 }
 
@@ -1474,7 +1475,7 @@ SlashCmdList["AIMBOTUI"] = function(msg)
     end
     local key = ALIASES[a] or a
     if not UI.HasTab(key) then
-        NS.Print("unknown tab '" .. a .. "'. Try: general, lorti, damage, sparkle, mana, range, trainer, double, memory, mute, fps, privacy  (or /aimbot clean)")
+        NS.Print("unknown tab '" .. a .. "'. Try: general, lorti, damage, sparkle, mana, range, trainer, double, memory, mute, fps, privacy, dr  (or /aimbot clean)")
         return
     end
     if (b == "on" or b == "off") and NS.modules[key] then
