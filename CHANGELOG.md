@@ -2,6 +2,12 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.13.1
+
+- **Aura Timers:** the target / focus aura row now starts right under the mana bar, lined up with its left edge.
+  - The time text is sized to fit the icon, so it no longer spills over the next icon. A new "Time text size" slider sets it (0 = fit the icon).
+  - There's a "Space between icons" slider and a "Reset position" button.
+
 ## 2.13.0
 
 - **Aura Timers:** draws its own buff and debuff icons for your target and focus, each with a countdown of the time left. This client draws its target aura icons where addons can't reach them, so the game's icons are hidden instead (can be turned off).

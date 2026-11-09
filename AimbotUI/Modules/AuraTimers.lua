@@ -38,7 +38,10 @@ local M = {
             iconSize = 22,
             perRow   = 8,
             max      = 16,          -- per kind
-            x = 5, y = 32,          -- from the frame's bottom left
+            x = 0, y = -4,          -- from the bottom left of the frame's mana bar
+            timerSize = 0,          -- countdown text size, 0 = fit the icon
+            spacing = 3,
+            layout = 2,             -- settings version (2: placed under the mana bar)
         },
     },
 }
@@ -461,6 +464,20 @@ M.stats.ownErr = nil
 
 local function UnitFrameOf(unit) return unit == "target" and TargetFrame or FocusFrame end
 
+-- The row starts under the frame's mana bar, lined up with its left edge.
+local function AnchorOf(unit)
+    local frame = UnitFrameOf(unit)
+    local ok, bar = pcall(function() return frame.TargetFrameContent.TargetFrameContentMain.ManaBar end)
+    if ok and type(bar) == "table" and bar.GetObjectType then return bar, true end
+    return frame, false
+end
+
+local function TimerSize()
+    local o = O()
+    if o.timerSize and o.timerSize > 0 then return o.timerSize end
+    return math.max(6, math.floor(o.iconSize * 0.42 + 0.5))
+end
+
 local function NewIcon(holder)
     local b = CreateFrame("Frame", nil, holder)
     b.bg = b:CreateTexture(nil, "BACKGROUND")
@@ -531,14 +548,15 @@ local function FillKind(unit, set, kind, startRow)
             b:SetSize(size, size)
             b:ClearAllPoints()
             local col, row = (n - 1) % perRow, startRow + math.floor((n - 1) / perRow)
-            b:SetPoint("TOPLEFT", set.holder, "TOPLEFT", col * (size + 2), -row * (size + 2))
+            local gap = o.spacing or 3
+            b:SetPoint("TOPLEFT", set.holder, "TOPLEFT", col * (size + gap), -row * (size + gap))
             pcall(b.tex.SetTexture, b.tex, a.icon)
             if kind == "debuffs" then b.bg:SetColorTexture(0.8, 0.1, 0.1, 1) else b.bg:SetColorTexture(0, 0, 0, 1) end
             pcall(b.count.SetText, b.count, StackText(unit, a))
             local fs = b.cd.GetCountdownFontString and b.cd:GetCountdownFontString()
             if fs then
                 local okF, font = pcall(fs.GetFont, fs)
-                pcall(fs.SetFont, fs, (okF and font) or STANDARD_TEXT_FONT, S().resize and S().size or math.floor(size * 0.5), "OUTLINE")
+                pcall(fs.SetFont, fs, (okF and font) or STANDARD_TEXT_FONT, TimerSize(), "OUTLINE")
             end
             if a.auraInstanceID == nil or not Feed(b.cd, unit, a.auraInstanceID) then pcall(b.cd.Clear, b.cd) end
             b:Show()
@@ -569,7 +587,12 @@ local function DoOwn(unit)
     local okE, exists = pcall(UnitExists, unit)
     if not okE or IsSecret(exists) or not exists then set.holder:Hide(); return end
     set.holder:ClearAllPoints()
-    set.holder:SetPoint("TOPLEFT", UnitFrameOf(unit), "BOTTOMLEFT", o.x, o.y)
+    local anchor, isBar = AnchorOf(unit)
+    if isBar then
+        set.holder:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", o.x, o.y)
+    else
+        set.holder:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", o.x + 5, o.y + 36)
+    end
     set.holder:Show()
     local nb, rb = FillKind(unit, set, "buffs", 0)
     local nd = FillKind(unit, set, "debuffs", rb)
@@ -616,7 +639,13 @@ end
 function M:Init()
     savedCVar = S().savedCVar
     if type(S().own) ~= "table" then S().own = {} end
-    for k, v in pairs(M.defaults.own) do if S().own[k] == nil then S().own[k] = v end end
+    local o = S().own
+    if o.layout == nil then
+        -- 2.13.0 placed the row from the frame corner (5, 32): move it under the mana bar
+        if o.x == 5 and o.y == 32 then o.x, o.y = 0, -4 end
+        o.layout = 2
+    end
+    for k, v in pairs(M.defaults.own) do if o[k] == nil then o[k] = v end end
     local runner = CreateFrame("Frame")
     local acc = 0
     runner:SetScript("OnUpdate", function(_, e)
@@ -890,12 +919,16 @@ function M.Build(page)
     page:Check("Debuffs: only the ones I cast", function() return O().onlyMine end,
         function(v) O().onlyMine = v; A() end)
     page:Slider("Icon size", 14, 40, 1, function() return O().iconSize end, function(v) O().iconSize = v; A() end)
+    page:Slider("Time text size (0 = fit the icon)", 0, 24, 1, function() return O().timerSize end,
+        function(v) O().timerSize = v; A() end)
+    page:Slider("Space between icons", 0, 10, 1, function() return O().spacing end, function(v) O().spacing = v; A() end)
     page:Slider("Icons per row", 3, 16, 1, function() return O().perRow end, function(v) O().perRow = v; A() end)
     page:Slider("Most icons of each kind", 4, 32, 1, function() return O().max end, function(v) O().max = v; A() end)
     page:Slider("Move left / right", -150, 150, 1, function() return O().x end, function(v) O().x = v; A() end)
     page:Slider("Move up / down", -150, 150, 1, function() return O().y end, function(v) O().y = v; A() end)
+    page:Button("Reset position", function() O().x, O().y = 0, -4; A() end)
     page:Note("This client keeps its own target aura icons out of reach of addons, so Aimbot UI draws its "
-        .. "own: buffs first, debuffs (red border) below. Hover an icon for its tooltip.")
+        .. "own under the mana bar: buffs first, debuffs (red border) below. Hover an icon for its tooltip.")
 
     page:Section("Where", "Which aura icons get time-left numbers")
     page:Check("Target frame", function() return S().target end,

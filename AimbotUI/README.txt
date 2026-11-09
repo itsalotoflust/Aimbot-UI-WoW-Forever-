@@ -1,4 +1,4 @@
-AIMBOT UI  v2.13.0  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.13.1  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,12 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.13.1
+  - Aura Timers: the target / focus aura row now starts right under the mana bar, lined up with
+    its left edge. The time text is sized to fit the icon so it no longer spills over the next
+    icon (own slider "Time text size", 0 = fit the icon), a little more space between icons,
+    and a "Reset position" button.
 
 NEW IN 2.13.0
   - Aura Timers: draws its own buff and debuff icons for your target and focus, each with a

@@ -2,15 +2,15 @@
 
 An all-in-one interface addon suite for **World of Warcraft Forever** (interface 16001).
 
-**Current version: 2.13.0**
+**Current version: 2.13.1**
 
 Open it in game with `/aimbot` (or `/aui`). Every module has its own tab and its own on/off switch, and if one module hits a problem it reports in chat and the rest keep running.
 
-## What's new in 2.13.0
+## What's new in 2.13.1
 
-- **Aura Timers:** draws its own buff and debuff icons for your target and focus, each with a countdown of the time left. This client draws its target aura icons where addons can't reach them, so the game's icons are hidden instead (can be turned off).
-  - Buffs first, debuffs with a red border below, stack counts, tooltips on hover.
-  - Icon size, icons per row, how many, "only my debuffs" and position are all in the Aura Timers tab.
+- **Aura Timers:** the target / focus aura row now starts right under the mana bar, lined up with its left edge.
+  - The time text is sized to fit the icon, so it no longer spills over the next icon. A new "Time text size" slider sets it (0 = fit the icon).
+  - There's a "Space between icons" slider and a "Reset position" button.
 
 See [CHANGELOG.md](CHANGELOG.md) for every version.
 
