@@ -4,13 +4,13 @@ An all-in-one interface addon suite for **World of Warcraft Forever** (interface
 
 Despite the name, Aimbot UI only changes how your interface looks and what it shows. It does not play, aim or target for you.
 
-**Current version: 2.8.8**
+**Current version: 2.8.9**
 
 Open it in game with `/aimbot` (or `/aui`). Every module has its own tab and its own on/off switch, and if one module hits a problem it reports in chat and the rest keep running.
 
-## What's new in 2.8.8
+## What's new in 2.8.9
 
-- Diminish: YOUR own DR icons now sit in the middle of the screen, just below your character, instead of under the player frame, and you can drag them anywhere. Diminish tab > Your icons: tick "Unlock your icons to drag them", drag the blue box, then untick it to lock them. They have their own size slider (bigger by default), "Back to the middle of the screen" resets them, and "Your icons go" switches back to the player frame if you prefer.
+- Every slider in the window now lets you type a value. Click the number on the right of a slider, type the value you want and press Enter. Escape, or clicking somewhere else, puts the old value back. A typed value is kept inside the slider's range and rounded to its step, and you can type "%" or "s" after it or use a comma for the decimal point. The drag bar still works as before.
 
 See [CHANGELOG.md](CHANGELOG.md) for every version.
 

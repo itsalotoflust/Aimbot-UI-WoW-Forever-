@@ -440,15 +440,44 @@ function Page:Check(label, get, set, desc)
     return sw
 end
 
+-- The number on the right of a slider is a small text box: click it, type a value and press
+-- Enter (Escape or clicking away puts the old value back). Typed values are kept inside the
+-- slider's range and rounded to its step.
+local function ParseNumber(text)
+    if type(text) ~= "string" then return nil end
+    text = text:gsub(",", "."):gsub("[^%d%.%-]", "")
+    return tonumber(text)
+end
+
 function Page:Slider(label, min, max, step, get, set, fmt)
     local f = AddRow(self, 24, label)
-    local val = UI.Text(f, "")
-    val:SetPoint("RIGHT", f, "RIGHT", 0, 0)
-    val:SetWidth(54)
-    val:SetJustifyH("RIGHT")
+    local holder = CreateFrame("Frame", nil, f)
+    holder:SetPoint("RIGHT", f, "RIGHT", 0, 0)
+    holder:SetSize(58, 20)
+    local edge = holder:CreateTexture(nil, "BACKGROUND")
+    edge:SetAllPoints()
+    edge:SetColorTexture(0.30, 0.30, 0.34, 1)
+    local inner = holder:CreateTexture(nil, "BORDER")
+    inner:SetPoint("TOPLEFT", 1, -1)
+    inner:SetPoint("BOTTOMRIGHT", -1, 1)
+    inner:SetColorTexture(0.08, 0.08, 0.09, 1)
+
+    local val = CreateFrame("EditBox", nil, holder)
+    val:SetPoint("TOPLEFT", holder, "TOPLEFT", 4, -1)
+    val:SetPoint("BOTTOMRIGHT", holder, "BOTTOMRIGHT", -4, 1)
+    val:SetAutoFocus(false)
+    val:SetMaxLetters(12)
+    val:SetJustifyH("CENTER")
+    val:SetFont(FONT, (NS.db and W().fontSize or 12), "")
+    texts[val] = 0
+    roles[val] = "body"
+    local tc = (NS.db and W().text) or { 0.90, 0.90, 0.92 }
+    val:SetTextColor(tc[1], tc[2], tc[3])
+    Tip(val, label, string.format("Click and type a value, then press Enter (%s to %s).",
+        fmt and fmt(min) or tostring(min), fmt and fmt(max) or tostring(max)))
 
     local s = CreateFrame("Slider", nil, f)
-    s:SetPoint("RIGHT", val, "LEFT", -10, 0)
+    s:SetPoint("RIGHT", holder, "LEFT", -10, 0)
     s:SetSize(180, 18)
     s:SetOrientation("HORIZONTAL")
     s:SetMinMaxValues(min, max)
@@ -479,10 +508,13 @@ function Page:Slider(label, min, max, step, get, set, fmt)
 
     local refreshing = false
     local function show(v) val:SetText(fmt and fmt(v) or tostring(v)) end
+    local function snap(v)
+        v = math.floor(v / step + 0.5) * step
+        return tonumber(string.format("%.4f", v))
+    end
     s:SetScript("OnValueChanged", function(_, v)
         if refreshing then return end
-        v = math.floor(v / step + 0.5) * step
-        v = tonumber(string.format("%.4f", v))
+        v = snap(v)
         show(v)
         set(v)
     end)
@@ -490,9 +522,36 @@ function Page:Slider(label, min, max, step, get, set, fmt)
         refreshing = true
         local v = get() or min
         s:SetValue(v)
-        show(v)
+        if not val:HasFocus() then show(v) end
         refreshing = false
     end
+
+    local function commit()
+        local v = ParseNumber(val:GetText())
+        if v then
+            v = snap(math.max(min, math.min(max, v)))
+            refreshing = true
+            s:SetValue(v)
+            refreshing = false
+            set(v)
+            show(v)
+        else
+            show(get() or min)
+        end
+        val:ClearFocus()
+    end
+    val:SetScript("OnEnterPressed", commit)
+    val:SetScript("OnEscapePressed", function() show(get() or min); val:ClearFocus() end)
+    val:SetScript("OnEditFocusGained", function()
+        local a = W().accent
+        edge:SetColorTexture(a[1], a[2], a[3], 1)
+        val:HighlightText()
+    end)
+    val:SetScript("OnEditFocusLost", function()
+        edge:SetColorTexture(0.30, 0.30, 0.34, 1)
+        val:HighlightText(0, 0)
+        show(get() or min)
+    end)
     table.insert(self.refreshers, refresh)
     refresh()
     self:Reflow()

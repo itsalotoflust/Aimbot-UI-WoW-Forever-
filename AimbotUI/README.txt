@@ -1,4 +1,4 @@
-AIMBOT UI  v2.8.8  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.8.9  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,12 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.8.9
+  - Every slider in the window now lets you type a value. Click the number on the right of a slider,
+    type the value you want and press Enter. Escape, or clicking somewhere else, puts the old value
+    back. A typed value is kept inside the slider's range and rounded to its step, and you can type
+    "%" or "s" after it or use a comma for the decimal point. The drag bar still works as before.
 
 NEW IN 2.8.8
   - Diminish: YOUR own DR icons now sit in the middle of the screen, just below your character, instead of
