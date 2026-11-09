@@ -1,4 +1,4 @@
-AIMBOT UI  v2.8.16  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.8.17  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,15 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.8.17
+  - Privacy "Show friendly players' names above heads" now actually turns on. This client uses the
+    newer names for the friendly nameplate settings (nameplateShowFriendlyPlayers,
+    nameplateShowOnlyNameForFriendlyPlayerUnits...), and 2.8.14 only set the older names, which the
+    game ignored. Both sets are now listed and whichever exists is used. While it is on, friendly
+    pet, guardian, minion and totem plates are also off so only players get a name; everything is put
+    back when private mode is turned off. /aimbot diag shows the real values of these settings.
+  - Side menu a little wider again so "Double Press (Wannabe AHK)" fits without "...".
 
 NEW IN 2.8.16
   - Renamed "Button Sparkle" to "Button Flash". Your settings carry over. /sparkle still works, and

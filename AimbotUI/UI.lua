@@ -21,7 +21,7 @@ local WHITE = "Interface\\Buttons\\WHITE8X8"
 
 local ROUND = "Interface\\AddOns\\" .. ADDON_NAME .. "\\media\\ui\\circle"
 
-local SIDEBAR_W = 220
+local SIDEBAR_W = 245
 local HEADER_H  = 84
 
 local texts   = setmetatable({}, { __mode = "k" })  -- fontstring -> size offset

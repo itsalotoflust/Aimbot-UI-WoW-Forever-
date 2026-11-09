@@ -331,7 +331,17 @@ end
 local BUBBLE_CVARS = { "chatBubbles", "chatBubblesParty" }
 -- "Friendly names above heads": friendly nameplates in names-only mode (no health bar), friendly
 -- NPC plates off, so only players get a name, and that name is swapped like every other plate.
-local FRIENDLY_CVARS = { nameplateShowFriends = "1", nameplateShowOnlyNames = "1", nameplateShowFriendlyNPCs = "0" }
+-- Both the older names and the newer (Midnight-style) names are listed; a setting the client
+-- doesn't have reads back as nil and is skipped, so whichever set exists is used.
+local FRIENDLY_CVARS = {
+    -- older clients
+    nameplateShowFriends = "1", nameplateShowOnlyNames = "1",
+    -- newer clients: friendly players on, names only, no friendly NPC / pet / totem plates
+    nameplateShowFriendlyPlayers = "1", nameplateShowOnlyNameForFriendlyPlayerUnits = "1",
+    nameplateShowFriendlyNpcs = "0",
+    nameplateShowFriendlyPlayerPets = "0", nameplateShowFriendlyPlayerGuardians = "0",
+    nameplateShowFriendlyPlayerMinions = "0", nameplateShowFriendlyPlayerTotems = "0",
+}
 
 -- Friendly nameplates inside dungeons and raids are locked by the game: an addon can't change
 -- their text, so the real names would show. There we leave friendly plates off.
@@ -807,8 +817,9 @@ function M:Diagnose()
     local fp = {}
     for c in pairs(FRIENDLY_CVARS) do
         local okc, v = pcall(GetCVar, c)
-        fp[#fp + 1] = c .. "=" .. tostring(okc and v or "n/a")
+        if okc and v ~= nil then fp[#fp + 1] = c .. "=" .. tostring(v) end
     end
+    if #fp == 0 then fp[1] = "(this client has none of the friendly nameplate settings)" end
     NS.Print(string.format("  friendly names: %s%s   %s", S().friendlyNames and "on" or "off",
         M.friendlyBlocked and " (off in this dungeon/raid)" or "", table.concat(fp, " ")))
     local loaded = (C_AddOns and C_AddOns.IsAddOnLoaded) or IsAddOnLoaded

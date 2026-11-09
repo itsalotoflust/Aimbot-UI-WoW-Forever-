@@ -2,6 +2,11 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.8.17
+
+- Privacy "Show friendly players' names above heads" now actually turns on. This client uses the newer names for the friendly nameplate settings (`nameplateShowFriendlyPlayers`, `nameplateShowOnlyNameForFriendlyPlayerUnits`...), and 2.8.14 only set the older names, which the game ignored. Both sets are now listed and whichever exists is used. While it is on, friendly pet, guardian, minion and totem plates are also off so only players get a name; everything is put back when private mode is turned off. `/aimbot diag` shows the real values of these settings.
+- Side menu a little wider again so "Double Press (Wannabe AHK)" fits without "...".
+
 ## 2.8.16
 
 - Renamed "Button Sparkle" to "Button Flash". Your settings carry over. `/sparkle` still works, and `/aimbot flash` now opens its tab too.

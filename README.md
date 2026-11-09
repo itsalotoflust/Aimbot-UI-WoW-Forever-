@@ -2,14 +2,14 @@
 
 An all-in-one interface addon suite for **World of Warcraft Forever** (interface 16001).
 
-**Current version: 2.8.16**
+**Current version: 2.8.17**
 
 Open it in game with `/aimbot` (or `/aui`). Every module has its own tab and its own on/off switch, and if one module hits a problem it reports in chat and the rest keep running.
 
-## What's new in 2.8.16
+## What's new in 2.8.17
 
-- Renamed "Button Sparkle" to "Button Flash". Your settings carry over. `/sparkle` still works, and `/aimbot flash` now opens its tab too.
-- Renamed "Double Press" to "Double Press (Wannabe AHK)". The side menu is a little wider, and a "(...)" note at the end of a name is drawn smaller and grey so the full name fits.
+- Privacy "Show friendly players' names above heads" now actually turns on. This client uses the newer names for the friendly nameplate settings (`nameplateShowFriendlyPlayers`, `nameplateShowOnlyNameForFriendlyPlayerUnits`...), and 2.8.14 only set the older names, which the game ignored. Both sets are now listed and whichever exists is used. While it is on, friendly pet, guardian, minion and totem plates are also off so only players get a name; everything is put back when private mode is turned off. `/aimbot diag` shows the real values of these settings.
+- Side menu a little wider again so "Double Press (Wannabe AHK)" fits without "...".
 
 See [CHANGELOG.md](CHANGELOG.md) for every version.
 
