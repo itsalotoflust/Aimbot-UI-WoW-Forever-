@@ -1,4 +1,4 @@
-AIMBOT UI  v2.8.13  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.8.14  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,15 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.8.14
+  - Privacy: new option "Show friendly players' names above heads (as their Privacy name)". While
+    private mode is on it turns on the game's friendly nameplates in names-only mode (no health bar)
+    and swaps each friendly player's name for your Privacy name (class, "Player" or nothing), so you
+    can still see who is on your side. Friendly NPC plates stay off and your own name is not shown.
+    Your nameplate settings are put back when private mode is turned off. In dungeons and raids the
+    game locks friendly nameplates (an addon can't change their text), so they stay off there and come
+    back when you leave. Nameplate settings can't change in combat, so a change waits until combat ends.
 
 NEW IN 2.8.13
   - New CLASSIC style for the Aimbot UI window, made to look like the game's own option panels: a stone

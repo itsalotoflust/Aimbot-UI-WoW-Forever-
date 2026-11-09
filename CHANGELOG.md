@@ -2,6 +2,11 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.8.14
+
+- Privacy: new option "Show friendly players' names above heads (as their Privacy name)". While private mode is on it turns on the game's friendly nameplates in names-only mode (no health bar) and swaps each friendly player's name for your Privacy name (class, "Player" or nothing), so you can still see who is on your side. Friendly NPC plates stay off and your own name is not shown. Your nameplate settings are put back when private mode is turned off.
+- In dungeons and raids the game locks friendly nameplates (an addon can't change their text), so they stay off there and come back when you leave. Nameplate settings can't change in combat, so a change waits until combat ends.
+
 ## 2.8.13
 
 - New **Classic** style for the window, made to look like the game's own option panels: a stone (or gold) dialog border, a dark textured background, gold labels with white section titles and a divider under each, the game's checkboxes on the left of each setting, red game-style buttons, game-style sliders and drop-down boxes. This is now the default look.

@@ -41,6 +41,7 @@ local M = {
         allowWhispers = false,                 -- show every whisper untouched (real sender name)
         bubbles     = true,                    -- hide chat bubbles
         headNames   = true,                    -- hide the names the game draws above heads
+        friendlyNames = false,                 -- show friendly players above heads, with their Privacy name
         hideZone    = true,
         hideClock   = true,
         indicator   = false,                   -- small "PRIVATE" tag on screen
@@ -259,7 +260,7 @@ local function CollectTargets()
         end
     end
 
-    if s.nameplates and C_NamePlate and C_NamePlate.GetNamePlates then
+    if (s.nameplates or s.friendlyNames) and C_NamePlate and C_NamePlate.GetNamePlates then
         local ok, plates = pcall(C_NamePlate.GetNamePlates)
         if ok and type(plates) == "table" then
             for _, plate in ipairs(plates) do
@@ -328,6 +329,18 @@ end
 -- Chat bubbles
 ----------------------------------------------------------------------
 local BUBBLE_CVARS = { "chatBubbles", "chatBubblesParty" }
+-- "Friendly names above heads": friendly nameplates in names-only mode (no health bar), friendly
+-- NPC plates off, so only players get a name, and that name is swapped like every other plate.
+local FRIENDLY_CVARS = { nameplateShowFriends = "1", nameplateShowOnlyNames = "1", nameplateShowFriendlyNPCs = "0" }
+
+-- Friendly nameplates inside dungeons and raids are locked by the game: an addon can't change
+-- their text, so the real names would show. There we leave friendly plates off.
+local function FriendlyPlatesAllowed()
+    local ok, inside, kind = pcall(IsInInstance)
+    if ok and inside and (kind == "party" or kind == "raid") then return false end
+    return true
+end
+M.friendlyBlocked = nil
 local HEAD_CVARS = {
     "UnitNameOwn", "UnitNameFriendlyPlayerName", "UnitNameEnemyPlayerName",
     "UnitNameFriendlyPetName", "UnitNameEnemyPetName", "UnitNamePlayerGuild", "UnitNamePlayerPVPTitle",
@@ -343,18 +356,29 @@ end
 
 local function SweepBubbles()
     local s = S()
-    local want = {}
+    -- Nameplate settings can't be changed in combat: try again when combat ends.
+    if InCombatLockdown and InCombatLockdown() then M.cvarPending = true; return end
+    M.cvarPending = false
+    local want = {}                       -- cvar -> value we want while private
     if active and s.enabled then
-        if s.bubbles then for _, c in ipairs(BUBBLE_CVARS) do want[c] = true end end
-        if s.headNames then for _, c in ipairs(HEAD_CVARS) do want[c] = true end end
+        if s.bubbles then for _, c in ipairs(BUBBLE_CVARS) do want[c] = "0" end end
+        if s.headNames then for _, c in ipairs(HEAD_CVARS) do want[c] = "0" end end
+        if s.friendlyNames then
+            if FriendlyPlatesAllowed() then
+                for c, v in pairs(FRIENDLY_CVARS) do want[c] = v end
+                M.friendlyBlocked = false
+            else
+                M.friendlyBlocked = true
+            end
+        end
     end
     local saved = s.savedBubbles or {}
-    for cvar in pairs(want) do
+    for cvar, value in pairs(want) do
         if saved[cvar] == nil then
             local ok, v = pcall(GetCVar, cvar)
             if ok and v ~= nil then saved[cvar] = v end
         end
-        if saved[cvar] ~= nil then pcall(SetCVar, cvar, "0") end
+        if saved[cvar] ~= nil then pcall(SetCVar, cvar, value) end
     end
     for cvar, value in pairs(saved) do
         if not want[cvar] then pcall(SetCVar, cvar, value); saved[cvar] = nil end
@@ -685,7 +709,7 @@ local function HookNames()
             local unit = frame.displayedUnit or frame.unit
             if type(unit) ~= "string" then return end
             local isPlate = unit:find("^nameplate")
-            if (isPlate and S().nameplates) or (not isPlate and S().frames) then pcall(SetName, fs, unit) end
+            if (isPlate and (S().nameplates or S().friendlyNames)) or (not isPlate and S().frames) then pcall(SetName, fs, unit) end
         end)
     end
     Try(_G, "UnitFrame_Update")
@@ -724,9 +748,16 @@ function M:Init()
     NS.On("PLAYER_ENTERING_WORLD", function()
         if active and S().enabled then pcall(ApplyAll) end
     end)
+    -- Entering or leaving a dungeon changes whether friendly names can be shown.
+    NS.On("ZONE_CHANGED_NEW_AREA", function()
+        if active and S().enabled and S().friendlyNames then pcall(SweepBubbles) end
+    end)
+    NS.On("PLAYER_REGEN_ENABLED", function()
+        if M.cvarPending then pcall(SweepBubbles) end
+    end)
     -- A new nameplate: fix just that plate.
     NS.On("NAME_PLATE_UNIT_ADDED", function(_, unit)
-        if not (active and S().enabled and S().nameplates) or type(unit) ~= "string" then return end
+        if not (active and S().enabled and (S().nameplates or S().friendlyNames)) or type(unit) ~= "string" then return end
         local ok, plate = pcall(C_NamePlate.GetNamePlateForUnit, unit)
         local uf = ok and plate and plate.UnitFrame
         if uf and uf.name and uf.name.SetText then pcall(SetName, uf.name, unit) end
@@ -773,6 +804,13 @@ function M:Diagnose()
         heads[#heads + 1] = c .. "=" .. tostring(okc and v or "n/a")
     end
     NS.Print("  head-name settings: " .. table.concat(heads, " "))
+    local fp = {}
+    for c in pairs(FRIENDLY_CVARS) do
+        local okc, v = pcall(GetCVar, c)
+        fp[#fp + 1] = c .. "=" .. tostring(okc and v or "n/a")
+    end
+    NS.Print(string.format("  friendly names: %s%s   %s", S().friendlyNames and "on" or "off",
+        M.friendlyBlocked and " (off in this dungeon/raid)" or "", table.concat(fp, " ")))
     local loaded = (C_AddOns and C_AddOns.IsAddOnLoaded) or IsAddOnLoaded
     if loaded and loaded("ForeverEnhancedPrivacy") then
         NS.Print("  |cffff9944ForeverEnhancedPrivacy is also loaded|r - turn one of the two off so they don't both swap names.")
@@ -816,6 +854,18 @@ function M.Build(page)
         function(v) S().headNames = v; ApplyAll() end)
     page:Note("This is the game's own \"names above heads\" setting. It is put back when you turn private mode off, "
         .. "log out or reload.")
+    page:Check("Show friendly players' names above heads (as their Privacy name)", function() return S().friendlyNames end,
+        function(v) S().friendlyNames = v; ApplyAll() end,
+        "Turns on the game's friendly nameplates in names-only mode (no health bar) while private mode is on, "
+        .. "and swaps each name for the Privacy name you picked above (class, \"Player\" or nothing). "
+        .. "Your own name is not shown. Friendly NPC plates stay off. Your nameplate settings are put back "
+        .. "when private mode is turned off.")
+    local fnNote = page:Note("")
+    table.insert(page.refreshers, function()
+        fnNote:SetText(S().friendlyNames and M.friendlyBlocked
+            and "|cffff9944You are in a dungeon or raid:|r the game locks friendly nameplates there, so they stay off until you leave."
+            or "In dungeons and raids the game locks friendly nameplates, so they stay off there (names would show).")
+    end)
     page:Note("NPCs, pets and creatures keep their names. Names in tooltips and some game menus can't be changed "
         .. "by an addon: see Good to know.")
 
