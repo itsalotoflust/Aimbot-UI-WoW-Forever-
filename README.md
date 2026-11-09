@@ -2,14 +2,13 @@
 
 An all-in-one interface addon suite for **World of Warcraft Forever** (interface 16001).
 
-**Current version: 2.8.14**
+**Current version: 2.8.15**
 
 Open it in game with `/aimbot` (or `/aui`). Every module has its own tab and its own on/off switch, and if one module hits a problem it reports in chat and the rest keep running.
 
-## What's new in 2.8.14
+## What's new in 2.8.15
 
-- Privacy: new option "Show friendly players' names above heads (as their Privacy name)". While private mode is on it turns on the game's friendly nameplates in names-only mode (no health bar) and swaps each friendly player's name for your Privacy name (class, "Player" or nothing), so you can still see who is on your side. Friendly NPC plates stay off and your own name is not shown. Your nameplate settings are put back when private mode is turned off.
-- In dungeons and raids the game locks friendly nameplates (an addon can't change their text), so they stay off there and come back when you leave. Nameplate settings can't change in combat, so a change waits until combat ends.
+- Fixed the "AddOn 'AimbotUI' tried to call the protected function 'UNKNOWN()'" error from Double Press. The invisible key watcher (used to flash Button Sparkle on your doubled keys) re-set a keyboard setting on every key press, and the game blocks that call in combat. It is now set once, out of combat, and the key presses themselves no longer touch it. The "never double" key picker got the same guard.
 
 See [CHANGELOG.md](CHANGELOG.md) for every version.
 

@@ -333,8 +333,9 @@ local function EnsureKeyWatch()
     f:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", 0, 0)
     f:EnableKeyboard(true)
     pcall(f.SetPropagateKeyboardInput, f, true)
+    -- Propagation is set once here (out of combat) and sticks. It must NOT be set
+    -- again inside the key handlers: the game blocks that call during combat.
     f:SetScript("OnKeyDown", function(self, key)
-        pcall(self.SetPropagateKeyboardInput, self, true)
         if WATCH_IGNORE[key] then return end                      -- ignore modifiers
         local now = GetTime()
         local held = keyHeld[key]
@@ -346,7 +347,6 @@ local function EnsureKeyWatch()
         Hand(name, true)
     end)
     f:SetScript("OnKeyUp", function(self, key)
-        pcall(self.SetPropagateKeyboardInput, self, true)
         local held = keyHeld[key]
         if not held then return end
         local name = held.name
@@ -394,7 +394,11 @@ local function UpdateBindings(force)
     end
     M.plan = plan
     RebuildKeyMap()
-    if cfg.enabled then EnsureKeyWatch():Show() elseif keyWatch then keyWatch:Hide(); keyHeld = {} end
+    if cfg.enabled then
+        local kw = EnsureKeyWatch()
+        pcall(kw.SetPropagateKeyboardInput, kw, true)     -- out of combat only (checked above)
+        kw:Show()
+    elseif keyWatch then keyWatch:Hide(); keyHeld = {} end
 
     if not cfg.enabled then
         if applied then ClearBindings() end
@@ -532,9 +536,10 @@ local function EnsureCapture()
     cancel:SetPoint("TOP", sub, "BOTTOM", 0, -18)
     cancel:SetScript("OnClick", function() f:Hide() end)
 
-    f:SetScript("OnShow", function(self) pcall(self.SetPropagateKeyboardInput, self, false) end)
+    f:SetScript("OnShow", function(self)
+        if not InCombatLockdown() then pcall(self.SetPropagateKeyboardInput, self, false) end
+    end)
     f:SetScript("OnKeyDown", function(self, key)
-        pcall(self.SetPropagateKeyboardInput, self, false)
         if key == "ESCAPE" then self:Hide(); return end
         if IGNORE[key] then return end
         Captured(ModPrefix() .. key)

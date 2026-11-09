@@ -1,4 +1,4 @@
-AIMBOT UI  v2.8.14  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.8.15  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,13 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.8.15
+  - Fixed the "AddOn 'AimbotUI' tried to call the protected function 'UNKNOWN()'" error from Double
+    Press. The invisible key watcher (used to flash Button Sparkle on your doubled keys) re-set a
+    keyboard setting on every key press, and the game blocks that call in combat. It is now set once,
+    out of combat, and the key presses themselves no longer touch it. The "never double" key picker
+    got the same guard.
 
 NEW IN 2.8.14
   - Privacy: new option "Show friendly players' names above heads (as their Privacy name)". While
