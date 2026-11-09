@@ -203,12 +203,43 @@ local function Shown(obj)
     return ok and not IsSecret(v) and v and true or false
 end
 
+-- An aura icon: a frame with an aura id, or with a Cooldown plus an icon texture.
+local function IsAuraIcon(obj)
+    if type(obj) ~= "table" or IsCooldown(obj) then return false end
+    local id = rawget(obj, "auraInstanceID")
+    if type(id) == "number" and not IsSecret(id) then return true end
+    local cd = rawget(obj, "Cooldown") or rawget(obj, "cooldown")
+    local art = rawget(obj, "Icon") or rawget(obj, "icon")
+    return cd ~= nil and IsCooldown(cd) and art ~= nil
+end
+
+-- Walks the children of root and calls fn on every aura icon found (not inside an icon).
+local function WalkIcons(root, depth, fn, seen)
+    if not root or not root.GetChildren or depth < 0 then return end
+    local okK, kids = pcall(function() return { root:GetChildren() } end)
+    if not okK then return end
+    for _, kid in ipairs(kids) do
+        if not seen[kid] then
+            seen[kid] = true
+            if IsAuraIcon(kid) then fn(kid) else WalkIcons(kid, depth - 1, fn, seen) end
+        end
+    end
+end
+
+M.stats.layout = "none"
 local function EachAuraIcon(frame, fn)
     local pools = frame and frame.auraPools
-    if not (pools and pools.EnumerateActive) then return false end
-    return pcall(function()
-        for obj in pools:EnumerateActive() do fn(obj) end
-    end)
+    if pools and pools.EnumerateActive then
+        local ok = pcall(function()
+            for obj in pools:EnumerateActive() do fn(obj) end
+        end)
+        if ok then M.stats.layout = "aura pools"; return true end
+    end
+    if not frame then return false end
+    -- this client keeps the icons elsewhere: look for them among the frame's children
+    WalkIcons(frame, 6, function(icon) if Shown(icon) then fn(icon) end end, {})
+    M.stats.layout = "searched children"
+    return true
 end
 
 local function DoUnitFrame(key, frame)
@@ -262,9 +293,23 @@ local function DoPlate(unit)
     local okP, plate = pcall(C_NamePlate.GetNamePlateForUnit, unit)
     if not okP or not plate then return 0 end
     local uf = plate.UnitFrame or plate
-    return EachCooldown(uf, 5, function(cd)
+    local n = EachCooldown(uf, 5, function(cd)
         if on then Show(cd, s.plateSize) else Restore(cd) end
     end)
+    -- icons with no running cooldown from the game get our own timer, as on the target frame
+    WalkIcons(uf, 6, function(icon)
+        local mine = overlays[icon]
+        local bcd = icon.Cooldown or icon.cooldown
+        local id = icon.auraInstanceID
+        if not on or (bcd and IsCooldown(bcd) and Shown(bcd)) or not Shown(icon)
+            or type(id) ~= "number" or IsSecret(id) then
+            if mine then mine:Hide() end
+            return
+        end
+        local cd = Overlay(icon)
+        if Feed(cd, unit, id) then cd:Show(); Show(cd, s.plateSize); n = n + 1 else cd:Hide() end
+    end, {})
+    return n
 end
 
 local function DoAllPlates()
@@ -332,6 +377,52 @@ function M:Init()
     NS.On("PLAYER_ENTERING_WORLD", function() ApplyCVar(S().enabled) end)
 end
 
+-- Lists small square frames under the target frame (where aura icons would be) and their
+-- fields, so the layout of this client's aura icons can be seen in the saved report.
+local function Probe(frame, label)
+    if not frame then NS.Print("  probe " .. label .. ": frame missing"); return end
+    local lines, cds = 0, 0
+    local function Keys(obj)
+        local out = {}
+        for k, v in pairs(obj) do
+            if type(k) == "string" and type(v) ~= "function" and k ~= "0" then
+                local t = type(v)
+                if t == "table" and v.GetObjectType then
+                    local okT, ot = pcall(v.GetObjectType, v); t = okT and ot or "widget"
+                elseif t == "number" or t == "boolean" then
+                    t = IsSecret(v) and "secret" or tostring(v)
+                end
+                out[#out + 1] = k .. "=" .. t
+                if #out >= 14 then break end
+            end
+        end
+        table.sort(out)
+        return table.concat(out, " ")
+    end
+    local function Walk(obj, depth, path)
+        if depth > 7 or lines >= 14 then return end
+        local okK, kids = pcall(function() return { obj:GetChildren() } end)
+        if not okK then return end
+        for i, kid in ipairs(kids) do
+            local okT, ot = pcall(kid.GetObjectType, kid)
+            ot = okT and ot or "?"
+            if ot == "Cooldown" then cds = cds + 1 end
+            local okW, w = pcall(kid.GetWidth, kid)
+            local okH, h = pcall(kid.GetHeight, kid)
+            w = okW and not IsSecret(w) and w or 0
+            h = okH and not IsSecret(h) and h or 0
+            local p = path .. "." .. ((kid.GetName and kid:GetName()) or ("#" .. i))
+            if ot ~= "Cooldown" and w >= 10 and w <= 48 and math.abs(w - h) <= 6 and Shown(kid) and lines < 14 then
+                lines = lines + 1
+                NS.Print(string.format("  probe %s %s %s %dx%d: %s", label, p, ot, w, h, Keys(kid)))
+            end
+            Walk(kid, depth + 1, p)
+        end
+    end
+    Walk(frame, 1, label)
+    NS.Print(string.format("  probe %s: %d small square frames listed, %d cooldown widgets inside", label, lines, cds))
+end
+
 function M:Diagnose()
     local st = M.stats
     local n = 0
@@ -340,7 +431,9 @@ function M:Diagnose()
         st.cvar, st.target, st.targetOwn, st.focus, st.focusOwn, st.plates, n))
     NS.Print("  own timers filled by: " .. tostring(st.how) .. "   C_UnitAuras.GetAuraDuration: "
         .. tostring(C_UnitAuras and C_UnitAuras.GetAuraDuration ~= nil))
-    NS.Print("  TargetFrame.auraPools: " .. tostring(TargetFrame and TargetFrame.auraPools ~= nil))
+    NS.Print("  TargetFrame.auraPools: " .. tostring(TargetFrame and TargetFrame.auraPools ~= nil)
+        .. "   icons found by: " .. tostring(st.layout))
+    Probe(TargetFrame, "TargetFrame")
 end
 
 function M.Build(page)

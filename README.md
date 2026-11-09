@@ -2,13 +2,13 @@
 
 An all-in-one interface addon suite for **World of Warcraft Forever** (interface 16001).
 
-**Current version: 2.12.1**
+**Current version: 2.12.2**
 
 Open it in game with `/aimbot` (or `/aui`). Every module has its own tab and its own on/off switch, and if one module hits a problem it reports in chat and the rest keep running.
 
-## What's new in 2.12.1
+## What's new in 2.12.2
 
-- **Aura Timers:** buffs on enemy players (and any other target / focus aura icon the game draws no timer on) now get time-left numbers too. Aura Timers puts its own numbers-only timer on those icons, filled from the aura's own time. `/aimbot diag` shows how many icons got one.
+- **Aura Timers:** now finds the buff and debuff icons on this client's target and focus frames (they are not kept where the retail client keeps them, so 2.11 / 2.12.1 found none). Nameplate icons without a game timer also get the numbers-only timer. `/aimbot diag` now also lists how the target frame's icons are built (the "probe" lines) to help if a layout is still missed.
 
 See [CHANGELOG.md](CHANGELOG.md) for every version.
 
