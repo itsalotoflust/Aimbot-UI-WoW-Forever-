@@ -2,14 +2,14 @@
 
 An all-in-one interface addon suite for **World of Warcraft Forever** (interface 16001).
 
-**Current version: 2.14.3**
+**Current version: 2.14.4**
 
 Open it in game with `/aimbot` (or `/aui`). Every module has its own tab and its own on/off switch, and if one module hits a problem it reports in chat and the rest keep running.
 
-## What's new in 2.14.3
+## What's new in 2.14.4
 
-- **Aura Timers:** your debuffs on enemies show on the target / focus frame again. DoTs you cast are picked up from the game's aura events with their countdown, and on an enemy where nothing can be read the game's own icons are shown instead.
-- `/aimbot diag` shows the aura events seen and when the game's icons are used.
+- **Aura Timers:** your debuffs on enemies get their time-left numbers. An empty time from the game no longer counts as a timer; the next way of reading it is tried instead.
+- `/aimbot diag` shows which way each timer came from.
 
 See [CHANGELOG.md](CHANGELOG.md) for every version.
 

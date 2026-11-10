@@ -189,13 +189,28 @@ local function Overlay(icon)
     return cd
 end
 
+-- After a cooldown was given a time: false only when it can be seen that nothing is running
+-- (a zero duration). If the client hides the values, it is assumed to be running.
+local function Running(cd)
+    if cd.GetCooldownDuration then
+        local ok, d = pcall(cd.GetCooldownDuration, cd)
+        if ok and not IsSecret(d) and type(d) == "number" then return d > 0 end
+    end
+    if cd.GetCooldownTimes then
+        local ok, _, d = pcall(cd.GetCooldownTimes, cd)
+        if ok and not IsSecret(d) and type(d) == "number" then return d > 0 end
+    end
+    return true
+end
+M._t_Running = Running
+
 -- Returns true when the cooldown was given the aura's time.
 local function Feed(cd, unit, auraID)
     local CU = C_UnitAuras
     if not CU then return false end
     if CU.GetAuraDuration and cd.SetCooldownFromDurationObject then
         local ok, dur = pcall(CU.GetAuraDuration, unit, auraID)
-        if ok and dur ~= nil and pcall(cd.SetCooldownFromDurationObject, cd, dur) then
+        if ok and dur ~= nil and pcall(cd.SetCooldownFromDurationObject, cd, dur) and Running(cd) then
             M.stats.how = "duration object"
             return true
         end
@@ -205,7 +220,7 @@ local function Feed(cd, unit, auraID)
     if not ok or type(a) ~= "table" then return false end
     local exp, dur = a.expirationTime, a.duration
     if exp == nil or dur == nil then return false end
-    if cd.SetCooldownFromExpirationTime and pcall(cd.SetCooldownFromExpirationTime, cd, exp, dur) then
+    if cd.SetCooldownFromExpirationTime and pcall(cd.SetCooldownFromExpirationTime, cd, exp, dur) and Running(cd) then
         M.stats.how = "expiration time"
         return true
     end
@@ -558,6 +573,9 @@ local function SeenUpdate(unit, info)
             elseif id then
                 list[id] = a
                 M.stats.seen.added = M.stats.seen.added + 1
+                local d = a.duration
+                local key = IsSecret(d) and "durHidden" or ((type(d) == "number" and d > 0) and "durRead" or "durZero")
+                M.stats.seen[key] = (M.stats.seen[key] or 0) + 1
             end
         end
     end
@@ -690,14 +708,32 @@ local function Gather(unit, filter, max)
 end
 
 -- Gives an icon's cooldown the aura's time (from its id, or its own times for the old API).
+-- Each try is checked: a time that turns out to be zero (seen on enemy auras on this client) counts
+-- as failed and the next way is tried, instead of leaving the icon without numbers.
+M.stats.timer = { data = 0, id = 0, secret = 0, none = 0 }
 local function FeedData(cd, unit, a)
-    if a.auraInstanceID ~= nil and Feed(cd, unit, a.auraInstanceID) then return true end
+    local T = M.stats.timer
     local exp, dur = a.expirationTime, a.duration
-    if exp == nil or dur == nil then return false end
-    if cd.SetCooldownFromExpirationTime and pcall(cd.SetCooldownFromExpirationTime, cd, exp, dur) then return true end
-    if not IsSecret(exp) and not IsSecret(dur) and type(dur) == "number" and dur > 0 and type(exp) == "number" then
-        cd:SetCooldown(exp - dur, dur); return true
+    local plain = not IsSecret(exp) and not IsSecret(dur) and type(dur) == "number" and type(exp) == "number"
+    -- 1. the aura's own times, when they can be read and are real
+    if plain and dur > 0 and exp > 0 then
+        cd:SetCooldown(exp - dur, dur)
+        T.data = T.data + 1
+        return true
     end
+    -- 2. by the aura's id (duration object, or the times looked up again)
+    local id = a.auraInstanceID
+    if (IsSecret(id) or id ~= nil) and Feed(cd, unit, id) then
+        T.id = T.id + 1
+        return true
+    end
+    -- 3. hidden times handed straight to the cooldown
+    if not plain and exp ~= nil and dur ~= nil and cd.SetCooldownFromExpirationTime
+        and pcall(cd.SetCooldownFromExpirationTime, cd, exp, dur) and Running(cd) then
+        T.secret = T.secret + 1
+        return true
+    end
+    T.none = T.none + 1
     return false
 end
 
@@ -1100,6 +1136,9 @@ function M:Diagnose()
     for _ in pairs(seen.target) do sc = sc + 1 end
     NS.Print(string.format("  aura events: added %d  removed %d  full updates %d  hidden ids %d   held for target now: %d",
         st.seen.added, st.seen.removed, st.seen.full, st.seen.secretIDs, sc))
+    NS.Print(string.format("  event durations: readable %d  hidden %d  zero/missing %d   timers given from: aura times %d, aura id %d, hidden times %d, none %d",
+        st.seen.durRead or 0, st.seen.durHidden or 0, st.seen.durZero or 0,
+        st.timer.data, st.timer.id, st.timer.secret, st.timer.none))
     Probe(TargetFrame, "TargetFrame")
     local ok, err = pcall(DeepProbe)
     if not ok then NS.Print("  deep probe failed: " .. tostring(err)) end

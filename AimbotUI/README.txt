@@ -1,4 +1,4 @@
-AIMBOT UI  v2.14.3  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.14.4  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,13 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.14.4
+  - Aura Timers: your debuffs on enemies showed without their time left. The game can hand
+    back an empty (zero) time for an enemy aura, and that was taken as "timer set". Every way
+    of giving an icon its time is now checked, and a zero time moves on to the next way: the
+    aura's own times first, then its id, then hidden times passed straight to the countdown.
+    /aimbot diag shows which way each timer came from and what the aura events carried.
 
 NEW IN 2.14.3
   - Aura Timers: your debuffs on an enemy could be missing from the target / focus frame. On
