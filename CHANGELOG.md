@@ -2,6 +2,12 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.16.1
+
+- **Lorti Style:** fixed the error `Backdrop.lua:226: attempt to perform arithmetic on local 'width' (a secret number value, while execution tainted by 'AimbotUI')`.
+  - The outer shadow used Blizzard's backdrop template, whose code does maths on the frame's size. Since 2.15.1 the aura shadow sits on the icon, and this client keeps the icon's size secret.
+  - The shadow is now made of eight plain textures (corners and edges) that just follow the icon, so no size is ever read. Same look, for action buttons too. Empty slots still get no box.
+
 ## 2.16.0
 
 - **New tab: Auto Shot Timer** (`/aimbot autoshot`), for Hunters. A bar that fills up to your next Auto Shot, with a white marker where the shot's wind-up starts (0.5 s before haste).

@@ -142,21 +142,58 @@ local function ButtonList()
     return list
 end
 
+-- The outer shadow, built from eight plain textures (four corners, four edges) cut from the
+-- Lorti shadow file. No backdrop template: Blizzard's backdrop code does maths on the frame's
+-- size whenever it changes, and on this client an aura icon's size is secret, which made that
+-- code error (Backdrop.lua:226 "arithmetic on a secret number", 2.15.1 / 2.16.0). Plain textures
+-- just follow their anchors; nothing ever reads the size.
+local SHADOW_EDGE = 4.85
+-- the shadow file holds 8 strips side by side: left, right, top, bottom, then the 4 corners
+local function Strip(i) return (i - 1) / 8, i / 8 end
+M._t_shadowParts = {}
+
 local function MakeShadow(btn, anchor)
-    if not (CreateFrame and BackdropTemplateMixin) then return end
-    local ok, bg = pcall(CreateFrame, "Frame", nil, btn, "BackdropTemplate")
-    if not ok or not bg then return end
+    if not CreateFrame then return end
+    local ok, sh = pcall(CreateFrame, "Frame", nil, btn)
+    if not ok or not sh then return end
     anchor = anchor or btn
-    bg:EnableMouse(false)
-    bg:SetPoint("TOPLEFT", anchor, "TOPLEFT", -4, 4)
-    bg:SetPoint("BOTTOMRIGHT", anchor, "BOTTOMRIGHT", 4, -4)
-    bg:SetFrameLevel(math.max(0, btn:GetFrameLevel() - 1))
-    bg:SetBackdrop({
-        edgeFile = TEX.shadow, edgeSize = 4.85, tile = false,
-        insets = { left = 4.85, right = 4.85, top = 4.85, bottom = 4.85 },
-    })
-    bg:SetBackdropBorderColor(0.05, 0.05, 0.05, 1)
-    return bg
+    local e = SHADOW_EDGE
+    sh:EnableMouse(false)
+    sh:SetPoint("TOPLEFT", anchor, "TOPLEFT", -4, 4)
+    sh:SetPoint("BOTTOMRIGHT", anchor, "BOTTOMRIGHT", 4, -4)
+    sh:SetFrameLevel(math.max(0, btn:GetFrameLevel() - 1))
+    local parts = {}
+    local function Part(strip)
+        local t = sh:CreateTexture(nil, "BACKGROUND")
+        t:SetTexture(TEX.shadow)
+        t:SetVertexColor(0.05, 0.05, 0.05, 1)
+        parts[#parts + 1] = t
+        return t, Strip(strip)
+    end
+    -- corners
+    local function Corner(strip, point)
+        local t, x0, x1 = Part(strip)
+        t:SetSize(e, e)
+        t:SetPoint(point, sh, point, 0, 0)
+        t:SetTexCoord(x0, x1, 0, 1)
+    end
+    Corner(5, "TOPLEFT"); Corner(6, "TOPRIGHT"); Corner(7, "BOTTOMLEFT"); Corner(8, "BOTTOMRIGHT")
+    -- left / right edges: the strips stand upright as stored
+    local l, lx0, lx1 = Part(1)
+    l:SetWidth(e); l:SetPoint("TOPLEFT", sh, "TOPLEFT", 0, -e); l:SetPoint("BOTTOMLEFT", sh, "BOTTOMLEFT", 0, e)
+    l:SetTexCoord(lx0, lx1, 0, 1)
+    local r, rx0, rx1 = Part(2)
+    r:SetWidth(e); r:SetPoint("TOPRIGHT", sh, "TOPRIGHT", 0, -e); r:SetPoint("BOTTOMRIGHT", sh, "BOTTOMRIGHT", 0, e)
+    r:SetTexCoord(rx0, rx1, 0, 1)
+    -- top / bottom edges: the strips are stored upright, so they are turned on their side
+    local t, tx0, tx1 = Part(3)
+    t:SetHeight(e); t:SetPoint("TOPLEFT", sh, "TOPLEFT", e, 0); t:SetPoint("TOPRIGHT", sh, "TOPRIGHT", -e, 0)
+    t:SetTexCoord(tx0, 1, tx1, 1, tx0, 0, tx1, 0)
+    local bt, bx0, bx1 = Part(4)
+    bt:SetHeight(e); bt:SetPoint("BOTTOMLEFT", sh, "BOTTOMLEFT", e, 0); bt:SetPoint("BOTTOMRIGHT", sh, "BOTTOMRIGHT", -e, 0)
+    bt:SetTexCoord(bx0, 1, bx1, 1, bx0, 0, bx1, 0)
+    M._t_shadowParts[sh] = parts
+    return sh
 end
 
 local function StyleButton(btn)
@@ -592,6 +629,7 @@ local function SkinAura(btn, isDebuff)
     if s.enabled and s.auras then icon:SetTexCoord(0.1, 0.9, 0.1, 0.9) else icon:SetTexCoord(0, 1, 0, 1) end
 end
 M._t_SkinAura = SkinAura
+M._t_MakeShadow = MakeShadow
 M._t_auraStyled = auraStyled
 
 local function SkinFrameAuras(frame, isDebuff)

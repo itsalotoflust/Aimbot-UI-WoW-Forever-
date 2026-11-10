@@ -1,4 +1,4 @@
-AIMBOT UI  v2.16.0  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.16.1  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,14 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.16.1
+  - Lorti Style: fixed the error "Backdrop.lua:226: attempt to perform arithmetic on local
+    'width' (a secret number value, while execution tainted by 'AimbotUI')". The outer shadow
+    used Blizzard's backdrop template, whose code does maths on the frame's size; since 2.15.1
+    the aura shadow sits on the icon, and this client keeps the icon's size secret. The shadow
+    is now made of eight plain textures (corners and edges) that just follow the icon, so no
+    size is ever read. Same look, for action buttons too. Empty slots still get no box.
 
 NEW IN 2.16.0
   - New tab: Auto Shot Timer (/aimbot autoshot), for Hunters. A bar that fills up to your next
