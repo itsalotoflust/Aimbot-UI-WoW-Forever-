@@ -534,6 +534,83 @@ local function StackText(unit, a)
     return ""
 end
 
+-- 5th way: the auras the game announces. Every UNIT_AURA event says which auras were added,
+-- changed or removed (with their data). On this client the lookups can come back empty for an
+-- enemy even while it has your DoTs on it, so what the events said is kept per unit and used
+-- when every lookup finds nothing. A full update (new target) clears it.
+local seen = { target = {}, focus = {} }    -- unit -> { [auraInstanceID] = aura data }
+M.stats.seen = { added = 0, removed = 0, full = 0, secretIDs = 0 }
+
+local function SeenUpdate(unit, info)
+    local list = seen[unit]
+    if not list then return end
+    if type(info) ~= "table" or IsSecret(info.isFullUpdate) or info.isFullUpdate == true then
+        seen[unit] = {}
+        M.stats.seen.full = M.stats.seen.full + 1
+        return
+    end
+    local CU = C_UnitAuras
+    if type(info.addedAuras) == "table" then
+        for _, a in ipairs(info.addedAuras) do
+            local id = type(a) == "table" and a.auraInstanceID
+            if IsSecret(id) then
+                M.stats.seen.secretIDs = M.stats.seen.secretIDs + 1
+            elseif id then
+                list[id] = a
+                M.stats.seen.added = M.stats.seen.added + 1
+            end
+        end
+    end
+    if type(info.updatedAuraInstanceIDs) == "table" and CU and CU.GetAuraDataByAuraInstanceID then
+        for _, id in ipairs(info.updatedAuraInstanceIDs) do
+            if not IsSecret(id) and id ~= nil and list[id] then
+                local ok, a = pcall(CU.GetAuraDataByAuraInstanceID, unit, id)
+                if ok and type(a) == "table" then list[id] = a end
+            end
+        end
+    end
+    if type(info.removedAuraInstanceIDs) == "table" then
+        for _, id in ipairs(info.removedAuraInstanceIDs) do
+            if not IsSecret(id) and id ~= nil and list[id] then
+                list[id] = nil
+                M.stats.seen.removed = M.stats.seen.removed + 1
+            end
+        end
+    end
+end
+M._t_SeenUpdate = SeenUpdate
+M._t_seen = seen
+
+-- Does this aura pass the filter ("HARMFUL", "HELPFUL", "HARMFUL|PLAYER")? Asks the game first,
+-- then the aura's own fields; when neither can tell, a harmful aura is assumed (DoTs are the case
+-- this way exists for).
+local function PassesFilter(unit, a, filter)
+    local CU = C_UnitAuras
+    local id = a.auraInstanceID
+    if CU and CU.IsAuraFilteredOutByInstanceID and (IsSecret(id) or id ~= nil) then
+        local ok, out = pcall(CU.IsAuraFilteredOutByInstanceID, unit, id, filter)
+        if ok and type(out) == "boolean" and not IsSecret(out) then return not out end
+    end
+    local harmful = a.isHarmful
+    if IsSecret(harmful) or type(harmful) ~= "boolean" then
+        local helpful = a.isHelpful
+        if not IsSecret(helpful) and type(helpful) == "boolean" then harmful = not helpful else harmful = nil end
+    end
+    local wantHarm = filter:find("HARMFUL", 1, true) ~= nil
+    if harmful == nil then
+        if not wantHarm then return false end
+    elseif harmful ~= wantHarm then
+        return false
+    end
+    if filter:find("PLAYER", 1, true) then
+        local mine = a.isFromPlayerOrPlayerPet
+        if not IsSecret(mine) and type(mine) == "boolean" then return mine end
+        local src = a.sourceUnit
+        if not IsSecret(src) and type(src) == "string" then return src == "player" or src == "pet" end
+    end
+    return true
+end
+
 -- Reads a unit's auras for one filter. The usual lookup returns nothing for enemy debuffs on this
 -- client, so every way the game offers is tried in turn; the first that returns any aura is used.
 -- Returns a list of aura tables and the name of the way that worked.
@@ -590,6 +667,24 @@ local function Gather(unit, filter, max)
         end
         M.stats.ways[filter .. " UnitAura"] = #list
         if #list > 0 then return list, "UnitAura" end
+    end
+    -- 5. what the game's aura events said
+    if seen[unit] then
+        list = {}
+        local now = GetTime and GetTime() or 0
+        for id, a in pairs(seen[unit]) do
+            local exp = a.expirationTime
+            local expired = not IsSecret(exp) and type(exp) == "number" and exp > 0 and exp < now
+            if expired then
+                seen[unit][id] = nil
+            elseif #list < max and PassesFilter(unit, a, filter) then
+                list[#list + 1] = { data = a, index = #list + 1 }
+            end
+        end
+        table.sort(list, function(x, y) return x.data.auraInstanceID < y.data.auraInstanceID end)
+        for i, e in ipairs(list) do e.index = i end
+        M.stats.ways[filter .. " events"] = #list
+        if #list > 0 then return list, "events" end
     end
     return {}, "none"
 end
@@ -676,6 +771,18 @@ local function DoOwn(unit)
     local nb, rb = FillKind(unit, set, "buffs", 0)
     local nd = FillKind(unit, set, "debuffs", rb)
     M.stats.ownShown[unit] = nb + nd
+    -- On an enemy where nothing at all could be read (no buffs, no debuffs, by any way), the game's
+    -- own icons are shown instead: no timers, but your debuffs stay visible. If the enemy really
+    -- has no auras the game shows nothing either, and an enemy with readable buffs keeps ours.
+    local okC, enemy = pcall(UnitCanAttack, "player", unit)
+    enemy = okC and not IsSecret(enemy) and enemy == true
+    M.stats.fallback = M.stats.fallback or {}
+    if enemy and o.hideGame and nb + nd == 0 then
+        M.stats.fallback[unit] = true
+        HideGame(unit, false)
+    else
+        M.stats.fallback[unit] = false
+    end
 end
 M._t_DoOwn = DoOwn
 M._t_own = own
@@ -734,14 +841,15 @@ function M:Init()
         local ok, err = pcall(Flush)
         if not ok then NS.ReportError("Aura Timers", err) end
     end)
-    NS.On("UNIT_AURA", function(_, unit)
+    NS.On("UNIT_AURA", function(_, unit, info)
         if type(unit) ~= "string" then return end
+        if unit == "target" or unit == "focus" then pcall(SeenUpdate, unit, info) end
         if unit == "target" then dirty.target = true
         elseif unit == "focus" then dirty.focus = true end
         if unit:find("^nameplate") then dirty.plates[unit] = true end
     end)
-    NS.On("PLAYER_TARGET_CHANGED", function() dirty.target = true end)
-    NS.On("PLAYER_FOCUS_CHANGED", function() dirty.focus = true end)
+    NS.On("PLAYER_TARGET_CHANGED", function() seen.target = {}; dirty.target = true end)
+    NS.On("PLAYER_FOCUS_CHANGED", function() seen.focus = {}; dirty.focus = true end)
     NS.On("NAME_PLATE_UNIT_ADDED", function(_, unit) if type(unit) == "string" then dirty.plates[unit] = true end end)
     NS.On("PLAYER_ENTERING_WORLD", function() ApplyCVar(S().enabled) end)
 end
@@ -985,7 +1093,13 @@ function M:Diagnose()
     for k, v in pairs(st.ways) do ways[#ways + 1] = k .. "=" .. v end
     table.sort(ways)
     NS.Print("  aura reads (last target/focus update): " .. (#ways > 0 and table.concat(ways, "  ") or "none yet"))
-    NS.Print(string.format("  read with: buffs %s, debuffs %s", tostring(st.way_buffs or "-"), tostring(st.way_debuffs or "-")))
+    NS.Print(string.format("  read with: buffs %s, debuffs %s   game icons used instead on enemy: target %s, focus %s",
+        tostring(st.way_buffs or "-"), tostring(st.way_debuffs or "-"),
+        tostring(st.fallback and st.fallback.target), tostring(st.fallback and st.fallback.focus)))
+    local sc = 0
+    for _ in pairs(seen.target) do sc = sc + 1 end
+    NS.Print(string.format("  aura events: added %d  removed %d  full updates %d  hidden ids %d   held for target now: %d",
+        st.seen.added, st.seen.removed, st.seen.full, st.seen.secretIDs, sc))
     Probe(TargetFrame, "TargetFrame")
     local ok, err = pcall(DeepProbe)
     if not ok then NS.Print("  deep probe failed: " .. tostring(err)) end

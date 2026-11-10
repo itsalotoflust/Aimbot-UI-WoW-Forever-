@@ -2,14 +2,14 @@
 
 An all-in-one interface addon suite for **World of Warcraft Forever** (interface 16001).
 
-**Current version: 2.14.2**
+**Current version: 2.14.3**
 
 Open it in game with `/aimbot` (or `/aui`). Every module has its own tab and its own on/off switch, and if one module hits a problem it reports in chat and the rest keep running.
 
-## What's new in 2.14.2
+## What's new in 2.14.3
 
-- **Privacy:** your real BattleTag is now swapped in the social window, where this client actually shows it (2.14.1 only covered the old friends window). It stays swapped while the window is open.
-- `/aimbot diag` lists where each swapped BattleTag text lives.
+- **Aura Timers:** your debuffs on enemies show on the target / focus frame again. DoTs you cast are picked up from the game's aura events with their countdown, and on an enemy where nothing can be read the game's own icons are shown instead.
+- `/aimbot diag` shows the aura events seen and when the game's icons are used.
 
 See [CHANGELOG.md](CHANGELOG.md) for every version.
 

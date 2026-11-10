@@ -2,6 +2,13 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.14.3
+
+- **Aura Timers:** your debuffs on an enemy could be missing from the target / focus frame. On this client the aura lookups can come back empty for an enemy even while your DoTs are on it, and the game's own icons were hidden.
+  - The auras the game announces as they're applied (with their icon and time) are now remembered and shown, so a DoT you cast on your target shows with its countdown.
+  - On an enemy where nothing at all can be read, the game's own icons are shown again (no timers, but your debuffs stay visible). An enemy with readable buffs keeps our icons, so the 2.13.3 enemy buff timers stay.
+  - `/aimbot diag` shows the aura events seen and when the game's icons are used instead.
+
 ## 2.14.2
 
 - **Privacy:** the BattleTag swap now covers the social window, which is where this client shows your tag (`SocialUIFrame` … `PersonalBattleTagDisplay`, found with `/fstack`).
