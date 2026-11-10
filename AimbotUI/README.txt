@@ -1,4 +1,4 @@
-AIMBOT UI  v2.15.0  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.15.1  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,15 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.15.1
+  - Lorti Style: the borders on your own buffs and debuffs sat a little off, and empty slots
+    showed dark boxes with nothing in them.
+    * The border and shadow now sit on the icon itself, not the whole aura button (which also
+      holds the time text, so the border came out too big and shifted).
+    * A border only shows while the slot really has an aura. Empty slots and the game's
+      placeholder frames get nothing, and when a buff runs out its box goes with it.
+    /aimbot diag shows how many aura icons have borders and how many empty slots were skipped.
 
 NEW IN 2.15.0
   - Window: the version number in the title bar is plain small text now, with no coloured box

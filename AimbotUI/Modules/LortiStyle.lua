@@ -142,13 +142,14 @@ local function ButtonList()
     return list
 end
 
-local function MakeShadow(btn)
+local function MakeShadow(btn, anchor)
     if not (CreateFrame and BackdropTemplateMixin) then return end
     local ok, bg = pcall(CreateFrame, "Frame", nil, btn, "BackdropTemplate")
     if not ok or not bg then return end
+    anchor = anchor or btn
     bg:EnableMouse(false)
-    bg:SetPoint("TOPLEFT", btn, "TOPLEFT", -4, 4)
-    bg:SetPoint("BOTTOMRIGHT", btn, "BOTTOMRIGHT", 4, -4)
+    bg:SetPoint("TOPLEFT", anchor, "TOPLEFT", -4, 4)
+    bg:SetPoint("BOTTOMRIGHT", anchor, "BOTTOMRIGHT", 4, -4)
     bg:SetFrameLevel(math.max(0, btn:GetFrameLevel() - 1))
     bg:SetBackdrop({
         edgeFile = TEX.shadow, edgeSize = 4.85, tile = false,
@@ -538,33 +539,60 @@ end
 ----------------------------------------------------------------------
 -- Buffs / debuffs
 ----------------------------------------------------------------------
+local function IsSecret(v) return NS.IsSecret(v) end
 local auraStyled = {}
+M.auraStats = { skinned = 0, skipped = 0, shown = 0 }
+
+-- The icon texture of an aura button, or nil (the empty slots and private-aura anchors in the
+-- game's aura rows have no icon; they never get a border).
+local function AuraIcon(btn)
+    local icon = btn.Icon or btn.icon
+    if type(icon) == "table" and icon.GetTexture and icon.SetTexCoord then return icon end
+end
+
+-- True when the slot really shows an aura right now.
+local function AuraPresent(btn, icon)
+    local okB, shownB = pcall(btn.IsShown, btn)
+    if not okB or IsSecret(shownB) or not shownB then return false end
+    local okI, shownI = pcall(icon.IsShown, icon)
+    if okI and not IsSecret(shownI) and not shownI then return false end
+    local okT, tex = pcall(icon.GetTexture, icon)
+    if not okT then return false end
+    if IsSecret(tex) then return true end
+    return tex ~= nil and tex ~= "" and tex ~= 0
+end
 
 local function SkinAura(btn, isDebuff)
     if not btn or not btn.CreateTexture then return end
+    local icon = AuraIcon(btn)
     local s = S()
     local st = auraStyled[btn]
     if not st then
+        if not icon then M.auraStats.skipped = M.auraStats.skipped + 1; return end
         if not (s.enabled and s.auras) then return end
         if InCombatLockdown() then needsCombatPass = true; return end
         st = {}
         auraStyled[btn] = st
+        M.auraStats.skinned = M.auraStats.skinned + 1
+        -- Borders sit on the icon itself, not the whole button (the button also holds the
+        -- duration text, so a border on it ended up too big and off to one side).
         if not isDebuff then
             st.border = btn:CreateTexture(nil, "ARTWORK", nil, 3)
-            st.border:SetAllPoints(btn)
+            st.border:SetPoint("TOPLEFT", icon, "TOPLEFT", 0, 0)
+            st.border:SetPoint("BOTTOMRIGHT", icon, "BOTTOMRIGHT", 0, 0)
             st.border:SetTexture(TEX.gloss)
             st.border:SetVertexColor(0.4, 0.35, 0.35)
         end
-        st.shadow = MakeShadow(btn)
+        st.shadow = MakeShadow(btn, icon)
     end
-    local on = s.enabled and s.auras
+    local on = (s.enabled and s.auras) and AuraPresent(btn, icon) or false
+    if on then M.auraStats.shown = M.auraStats.shown + 1 end
     if st.border then st.border:SetShown(on and true or false) end
     if st.shadow then st.shadow:SetShown(on and s.shadow and true or false) end
-    local icon = btn.Icon or btn.icon
-    if icon and icon.SetTexCoord then
-        if on then icon:SetTexCoord(0.1, 0.9, 0.1, 0.9) else icon:SetTexCoord(0, 1, 0, 1) end
-    end
+    if s.enabled and s.auras then icon:SetTexCoord(0.1, 0.9, 0.1, 0.9) else icon:SetTexCoord(0, 1, 0, 1) end
 end
+M._t_SkinAura = SkinAura
+M._t_auraStyled = auraStyled
 
 local function SkinFrameAuras(frame, isDebuff)
     local list = frame and frame.auraFrames
@@ -586,6 +614,7 @@ local function SkinUnitAuras(unitFrame)
 end
 
 local function ApplyAuras()
+    M.auraStats.shown = 0
     SkinFrameAuras(BuffFrame, false)
     SkinFrameAuras(DebuffFrame, true)
     SkinUnitAuras(TargetFrame)
@@ -757,6 +786,19 @@ function M:Init()
         "UPDATE_SHAPESHIFT_FORMS", "PET_BAR_UPDATE", "ACTIONBAR_PAGE_CHANGED", "GROUP_ROSTER_UPDATE" }) do
         NS.On(ev, ApplySoon)
     end
+    -- The game redraws its buff / debuff rows by itself (also when the last buff runs out): put
+    -- the borders right straight after it, so an emptied slot never keeps a box.
+    for _, name in ipairs({ "BuffFrame", "DebuffFrame" }) do
+        local f = _G[name]
+        if type(f) == "table" then
+            for _, method in ipairs({ "UpdateAuraButtons", "Update" }) do
+                if type(f[method]) == "function" then
+                    pcall(hooksecurefunc, f, method, function() pcall(ApplyAuras) end)
+                    break
+                end
+            end
+        end
+    end
     NS.On("UNIT_AURA", function(_, unit)
         if unit == "player" or unit == "target" or unit == "focus" then ApplySoon() end
     end)
@@ -795,6 +837,8 @@ function M:Diagnose()
         NS.Print("  ActionButton1: |cffff4444not found|r")
     end
     NS.Print("  BuffFrame.auraFrames: " .. tostring(BuffFrame and type(BuffFrame.auraFrames) == "table"))
+    NS.Print(string.format("  aura icons with borders: %d   showing now: %d   empty slots left alone: %d",
+        M.auraStats.skinned, M.auraStats.shown, M.auraStats.skipped))
     NS.Print("  TargetFrame.auraPools: " .. tostring(TargetFrame and TargetFrame.auraPools ~= nil))
 end
 
