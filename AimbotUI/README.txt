@@ -1,4 +1,4 @@
-AIMBOT UI  v2.16.3  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.16.4  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,21 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.16.4
+  - Aura Timers: your debuffs on enemies get their countdown from your own casts. Your diag
+    showed that most debuffs you apply reach addons only as a "full update" with no details
+    (3 announced vs 94 full updates), and every lookup finds nothing, so there was nothing to
+    time. Now, when your harmful spell lands on your target, Aura Timers shows its icon with
+    a countdown:
+    * the length comes from what the game announced for that spell before (remembered between
+      sessions), or else from the spell's description ("over 15 sec", "for 2 min")
+    * a recast restarts it, it goes when its time is up, and a new target or a dead one clears it
+    * spells without a debuff (Arcane Shot, Auto Shot, self buffs like Rapid Fire) are skipped
+    Times from the description can be a little off if a talent changes the length; once the game
+    announces that spell once, the real length is used. While your own icons show, the game's
+    icons stay hidden, so other players' debuffs on that target aren't shown.
+    /aimbot diag shows the casts tracked and how many spell lengths are known.
 
 NEW IN 2.16.3
   - Aura Timers: your debuffs on enemies lost their countdown. Your diag showed the game does

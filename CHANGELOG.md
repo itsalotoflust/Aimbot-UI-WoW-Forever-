@@ -2,6 +2,15 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.16.4
+
+- **Aura Timers:** your debuffs on enemies get their countdown from your own casts.
+  - Your diag showed that most debuffs you apply reach addons only as a "full update" with no details (3 announced vs 94 full updates), and every lookup finds nothing, so there was nothing to time.
+  - Now, when your harmful spell lands on your target, its icon shows with a countdown. The length comes from what the game announced for that spell before (remembered between sessions), or else from the spell's description ("over 15 sec", "for 2 min").
+  - A recast restarts it, it goes when its time is up, and a new target or a dead one clears it. Spells without a debuff (Arcane Shot, Auto Shot, self buffs like Rapid Fire) are skipped.
+  - Times from the description can be a little off if a talent changes the length; once the game announces that spell, the real length is used. While your own icons show, the game's icons stay hidden, so other players' debuffs on that target aren't shown.
+  - `/aimbot diag` shows the casts tracked and how many spell lengths are known.
+
 ## 2.16.3
 
 - **Aura Timers:** your debuffs on enemies lost their countdown.

@@ -558,6 +558,7 @@ local seenAt = setmetatable({}, { __mode = "k" })  -- aura data -> when it was a
 local SEEN_MAX = 300   -- an aura whose end time can't be read is dropped after this many seconds
 M.stats.seen = { added = 0, removed = 0, full = 0, secretIDs = 0 }
 
+local Learn   -- defined with your-cast tracking below
 local function SeenUpdate(unit, info)
     local list = seen[unit]
     if not list then return end
@@ -578,6 +579,7 @@ local function SeenUpdate(unit, info)
             elseif id then
                 list[id] = a
                 seenAt[a] = GetTime and GetTime() or 0
+                pcall(Learn, a)
                 M.stats.seen.added = M.stats.seen.added + 1
                 local d = a.duration
                 local key = IsSecret(d) and "durHidden" or ((type(d) == "number" and d > 0) and "durRead" or "durZero")
@@ -634,6 +636,106 @@ local function PassesFilter(unit, a, filter)
     end
     return true
 end
+
+-- 6th way: your own casts. On this client most debuffs you put on an enemy arrive only as a "full
+-- update" with no data, and every lookup finds nothing, so neither the events nor the lookups know
+-- them. What is known: the moment your harmful spell lands (UNIT_SPELLCAST_SUCCEEDED) and how
+-- long it lasts, learned from the times the game did announce for that spell (saved), or else
+-- read from the spell's description ("over 15 sec", "for 2 min"). Shown for your target only;
+-- cleared on a new target or when it dies. A recast restarts the timer.
+local casts = {}                  -- spellID -> { start, duration, icon }
+M.stats.casts = { seen = 0, used = 0, learned = 0, fromText = 0, unknown = 0 }
+
+local function Learned()
+    local s = S()
+    if type(s.learned) ~= "table" then s.learned = {} end
+    return s.learned
+end
+
+function Learn(a)   -- the local declared above SeenUpdate
+    local id, dur = a.spellId, a.duration
+    if IsSecret(id) or IsSecret(dur) or type(id) ~= "number" or type(dur) ~= "number" or dur <= 0 then return end
+    local mine = a.isFromPlayerOrPlayerPet
+    if IsSecret(mine) or mine ~= true then
+        local src = a.sourceUnit
+        if IsSecret(src) or (src ~= "player" and src ~= "pet") then return end
+    end
+    if Learned()[id] ~= dur then
+        Learned()[id] = dur
+        M.stats.casts.learned = M.stats.casts.learned + 1
+    end
+end
+
+-- "over 15 sec", "for 2 min", "lasts 30 sec", "for 1.5 sec" (English client)
+local function DurationFromText(text)
+    if IsSecret(text) or type(text) ~= "string" then return nil end
+    local best
+    for num, unit in text:gmatch("(%d+%.?%d*)%s*(%a+)") do
+        local n = tonumber(num)
+        local u = unit:lower()
+        local secs
+        if u == "sec" or u == "secs" or u == "second" or u == "seconds" then secs = n
+        elseif u == "min" or u == "mins" or u == "minute" or u == "minutes" then secs = n and n * 60 end
+        if secs and secs > 0 and secs <= 600 then best = best or secs end
+    end
+    return best
+end
+M._t_DurationFromText = DurationFromText
+
+local function SpellCall(fnTable, fnName, oldName, id)
+    local fn = fnTable and fnTable[fnName]
+    if type(fn) == "function" then
+        local ok, v = pcall(fn, id)
+        if ok and not IsSecret(v) then return v end
+    elseif oldName and type(_G[oldName]) == "function" then
+        local ok, v = pcall(_G[oldName], id)
+        if ok and not IsSecret(v) then return v end
+    end
+end
+
+local function SpellDuration(id)
+    local d = Learned()[id]
+    if type(d) == "number" and d > 0 then return d, "learned" end
+    local text = SpellCall(C_Spell, "GetSpellDescription", "GetSpellDescription", id)
+    d = DurationFromText(text)
+    if d then return d, "text" end
+end
+
+local function IsHarmful(id)
+    local v = SpellCall(C_Spell, "IsSpellHarmful", "IsHarmfulSpell", id)
+    if type(v) == "boolean" then return v end
+    return nil
+end
+
+local function CastLanded(spellID)
+    if IsSecret(spellID) or type(spellID) ~= "number" or spellID == 75 then return end
+    local okE, enemy = pcall(UnitCanAttack, "player", "target")
+    if not okE or IsSecret(enemy) or enemy ~= true then return end
+    -- only spells known to leave a debuff: learned from an announced aura, or harmful with a
+    -- duration in their description
+    local learned = Learned()[spellID]
+    if not learned then
+        local harmful = IsHarmful(spellID)
+        if harmful == false then return end
+        if harmful == nil then
+            -- the client can't say: a helpful spell is skipped, otherwise the description must
+            -- speak of the target / enemy (keeps self buffs like Rapid Fire out)
+            local helpful = SpellCall(C_Spell, "IsSpellHelpful", "IsHelpfulSpell", spellID)
+            if helpful == true then return end
+            local text = SpellCall(C_Spell, "GetSpellDescription", "GetSpellDescription", spellID)
+            if type(text) ~= "string" then return end
+            local lower = text:lower()
+            if not (lower:find("target", 1, true) or lower:find("enemy", 1, true)) then return end
+        end
+    end
+    local dur, from = SpellDuration(spellID)
+    if not dur then M.stats.casts.unknown = M.stats.casts.unknown + 1; return end
+    if from == "text" then M.stats.casts.fromText = M.stats.casts.fromText + 1 end
+    local icon = SpellCall(C_Spell, "GetSpellTexture", "GetSpellTexture", spellID)
+    casts[spellID] = { start = GetTime(), duration = dur, icon = icon }
+    M.stats.casts.seen = M.stats.casts.seen + 1
+end
+M._t_casts = casts
 
 -- Reads a unit's auras for one filter. The usual lookup returns nothing for enemy debuffs on this
 -- client, so every way the game offers is tried in turn; the first that returns any aura is used.
@@ -712,8 +814,35 @@ local function Gather(unit, filter, max)
         table.sort(list, function(x, y) return x.data.auraInstanceID < y.data.auraInstanceID end)
         for i, e in ipairs(list) do e.index = i end
         M.stats.ways[filter .. " events"] = #list
-        if #list > 0 then return list, "events" end
     end
+    -- 6. your own casts on your target (spells the events above didn't already cover)
+    list = list or {}
+    local fromEvents = #list
+    if unit == "target" and filter:find("HARMFUL", 1, true) then
+        local have = {}
+        for _, e in ipairs(list) do
+            local sid = e.data.spellId
+            if not IsSecret(sid) and type(sid) == "number" then have[sid] = true end
+        end
+        local now = GetTime and GetTime() or 0
+        local ids = {}
+        for sid in pairs(casts) do ids[#ids + 1] = sid end
+        table.sort(ids)
+        for _, sid in ipairs(ids) do
+            local c = casts[sid]
+            if now >= c.start + c.duration then
+                casts[sid] = nil
+            elseif not have[sid] and #list < max then
+                list[#list + 1] = { data = { spellId = sid, icon = c.icon, duration = c.duration,
+                    expirationTime = c.start + c.duration, isHarmful = true, isFromPlayerOrPlayerPet = true },
+                    index = #list + 1 }
+                M.stats.casts.used = M.stats.casts.used + 1
+            end
+        end
+        M.stats.ways[filter .. " casts"] = #list - fromEvents
+    end
+    if #list > 0 then return list, (#list > fromEvents and fromEvents > 0) and "events+casts"
+        or (fromEvents > 0 and "events" or "casts") end
     return {}, "none"
 end
 
@@ -889,6 +1018,18 @@ function M:Init()
         acc = acc + e
         if acc < 0.05 then return end
         acc = 0
+        if next(casts) then
+            local now = GetTime()
+            local okD, dead = pcall(UnitIsDead, "target")
+            if okD and not IsSecret(dead) and dead == true then
+                for k in pairs(casts) do casts[k] = nil end
+                dirty.target = true
+            else
+                for _, c in pairs(casts) do
+                    if now >= c.start + c.duration then dirty.target = true; break end
+                end
+            end
+        end
         local ok, err = pcall(Flush)
         if not ok then NS.ReportError("Aura Timers", err) end
     end)
@@ -899,7 +1040,16 @@ function M:Init()
         elseif unit == "focus" then dirty.focus = true end
         if unit:find("^nameplate") then dirty.plates[unit] = true end
     end)
-    NS.On("PLAYER_TARGET_CHANGED", function() seen.target = {}; dirty.target = true end)
+    NS.On("PLAYER_TARGET_CHANGED", function()
+        seen.target = {}
+        for k in pairs(casts) do casts[k] = nil end
+        dirty.target = true
+    end)
+    NS.On("UNIT_SPELLCAST_SUCCEEDED", function(_, unit, _, spellID)
+        if IsSecret(unit) or unit ~= "player" then return end
+        local ok = pcall(CastLanded, spellID)
+        if ok then dirty.target = true end
+    end)
     NS.On("PLAYER_FOCUS_CHANGED", function() seen.focus = {}; dirty.focus = true end)
     NS.On("NAME_PLATE_UNIT_ADDED", function(_, unit) if type(unit) == "string" then dirty.plates[unit] = true end end)
     NS.On("PLAYER_ENTERING_WORLD", function() ApplyCVar(S().enabled) end)
@@ -1151,6 +1301,11 @@ function M:Diagnose()
     for _ in pairs(seen.target) do sc = sc + 1 end
     NS.Print(string.format("  aura events: added %d  removed %d  full updates %d  hidden ids %d   held for target now: %d",
         st.seen.added, st.seen.removed, st.seen.full, st.seen.secretIDs, sc))
+    local nl = 0
+    for _ in pairs(Learned()) do nl = nl + 1 end
+    local cs = st.casts
+    NS.Print(string.format("  your casts: tracked %d  shown %d   durations known: %d spells (learned %d this session, from description %d, unknown %d)",
+        cs.seen, cs.used, nl, cs.learned, cs.fromText, cs.unknown))
     NS.Print(string.format("  event durations: readable %d  hidden %d  zero/missing %d   timers given from: aura times %d, aura id %d, hidden times %d, none %d",
         st.seen.durRead or 0, st.seen.durHidden or 0, st.seen.durZero or 0,
         st.timer.data, st.timer.id, st.timer.secret, st.timer.none))
