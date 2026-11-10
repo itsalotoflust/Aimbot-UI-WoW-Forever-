@@ -2,6 +2,17 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.16.0
+
+- **New tab: Auto Shot Timer** (`/aimbot autoshot`), for Hunters. A bar that fills up to your next Auto Shot, with a white marker where the shot's wind-up starts (0.5 s before haste).
+  - From the marker on, moving, jumping, casting something that stops Auto Shot, or the target going out of range holds the wind-up, and the bar turns red. Zero means the shot can go; the bar waits there until the game reports the shot.
+  - Timing comes from the game's own shot reports (`PLAYER_SWING`), with a successful Auto Shot cast as the backup, and follows your ranged haste.
+  - **Hybrid mode** (off by default) shows your main-hand swing while the target is in melee range.
+  - Colours by range, Hunter class colour or one colour. Width, height, texture, background, border, text size, marker, spark and seconds text can all be changed. Unlock to drag it.
+  - **Test** button shows a 10 second preview on any class.
+  - Based on the idea of AutoShotTimer Forever by Antigravity and Gornax_; written new for Aimbot UI. If AutoShotTimer_Forever is also installed you'll see two bars, so turn one off.
+  - New file: needs a full game restart (not just `/reload`) the first time.
+
 ## 2.15.1
 
 - **Lorti Style:** the borders on your own buffs and debuffs sat a little off, and empty slots showed dark boxes with nothing in them.

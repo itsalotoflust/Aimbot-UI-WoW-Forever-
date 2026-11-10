@@ -17,3 +17,8 @@ Diminish by Wardz (MIT license) - the idea and look of the Diminish tab (DR icon
 yellow / red borders and a reset timer). The Aimbot UI version is new code written for Forever's
 DR event and debuffs; no code from Diminish was copied. The spell list in Data\DRSpells.lua was
 written for Aimbot UI.
+
+AutoShotTimer Forever by Antigravity and Gornax_ (GPL-3.0) - the idea of the Auto Shot Timer tab
+(a bar to the next Auto Shot with a wind-up marker, held while moving or casting, and a hybrid
+melee mode) and how Forever reports shots, swings and swing range. The Aimbot UI version is new
+code; no code, textures or files from AutoShotTimer Forever were copied.

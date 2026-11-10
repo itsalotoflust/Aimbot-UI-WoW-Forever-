@@ -1,4 +1,4 @@
-AIMBOT UI  v2.15.1  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.16.0  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,22 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.16.0
+  - New tab: Auto Shot Timer (/aimbot autoshot), for Hunters. A bar that fills up to your next
+    Auto Shot, with a white marker where the shot's wind-up starts (0.5 s before haste). From
+    the marker on, moving, jumping, casting something that stops Auto Shot, or the target going
+    out of range holds the wind-up, and the bar turns red. Zero means the shot can go; the bar
+    waits there until the game reports the shot.
+    * Timing comes from the game's own shot reports (PLAYER_SWING), with a successful Auto Shot
+      cast as the backup, and follows your ranged haste.
+    * Hybrid mode (off by default): shows your main-hand swing while the target is in melee range.
+    * Colours by range, Hunter class colour or one colour; width, height, texture, background,
+      border, text size, marker, spark and seconds text can all be changed. Unlock to drag it.
+    * Test button shows a 10 second preview (works on any class).
+    Based on the idea of AutoShotTimer Forever by Antigravity and Gornax_; written new for Aimbot UI.
+    If AutoShotTimer_Forever is also installed you'll see two bars: turn one off.
+    NEW FILE: needs a full game restart (not just /reload) the first time.
 
 NEW IN 2.15.1
   - Lorti Style: the borders on your own buffs and debuffs sat a little off, and empty slots

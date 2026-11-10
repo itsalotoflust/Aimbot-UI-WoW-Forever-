@@ -2,13 +2,14 @@
 
 An all-in-one interface addon suite for **World of Warcraft Forever** (interface 16001).
 
-**Current version: 2.15.1**
+**Current version: 2.16.0**
 
 Open it in game with `/aimbot` (or `/aui`). Every module has its own tab and its own on/off switch, and if one module hits a problem it reports in chat and the rest keep running.
 
-## What's new in 2.15.1
+## What's new in 2.16.0
 
-- **Lorti Style:** borders on your buffs and debuffs now sit on the icon, and empty slots no longer show dark boxes.
+- **New: Auto Shot Timer** (`/aimbot autoshot`) for Hunters. A bar to your next Auto Shot with a wind-up marker, held (and red) while you move, cast or are out of range, plus an optional hybrid mode for your melee swing. Fully customizable colours and look.
+- First time: restart the game fully (new file).
 
 See [CHANGELOG.md](CHANGELOG.md) for every version.
 
