@@ -554,15 +554,20 @@ end
 -- enemy even while it has your DoTs on it, so what the events said is kept per unit and used
 -- when every lookup finds nothing. A full update (new target) clears it.
 local seen = { target = {}, focus = {} }    -- unit -> { [auraInstanceID] = aura data }
+local seenAt = setmetatable({}, { __mode = "k" })  -- aura data -> when it was announced
+local SEEN_MAX = 300   -- an aura whose end time can't be read is dropped after this many seconds
 M.stats.seen = { added = 0, removed = 0, full = 0, secretIDs = 0 }
 
 local function SeenUpdate(unit, info)
     local list = seen[unit]
     if not list then return end
+    -- A full update only tells addons to look everything up again. On this client the lookups find
+    -- nothing for an enemy, so what the events said is kept (it used to be thrown away here, and
+    -- full updates come many times a fight, which left only the game's icons, with no numbers).
+    -- A new target / focus clears it; auras whose time ran out are dropped as they're read.
     if type(info) ~= "table" or IsSecret(info.isFullUpdate) or info.isFullUpdate == true then
-        seen[unit] = {}
         M.stats.seen.full = M.stats.seen.full + 1
-        return
+        if type(info) ~= "table" then return end
     end
     local CU = C_UnitAuras
     if type(info.addedAuras) == "table" then
@@ -572,6 +577,7 @@ local function SeenUpdate(unit, info)
                 M.stats.seen.secretIDs = M.stats.seen.secretIDs + 1
             elseif id then
                 list[id] = a
+                seenAt[a] = GetTime and GetTime() or 0
                 M.stats.seen.added = M.stats.seen.added + 1
                 local d = a.duration
                 local key = IsSecret(d) and "durHidden" or ((type(d) == "number" and d > 0) and "durRead" or "durZero")
@@ -693,6 +699,10 @@ local function Gather(unit, filter, max)
         for id, a in pairs(seen[unit]) do
             local exp = a.expirationTime
             local expired = not IsSecret(exp) and type(exp) == "number" and exp > 0 and exp < now
+            if not expired and (IsSecret(exp) or type(exp) ~= "number" or exp <= 0) then
+                local at = seenAt[a]
+                expired = at ~= nil and now - at > SEEN_MAX and (IsSecret(exp) or type(exp) ~= "number")
+            end
             if expired then
                 seen[unit][id] = nil
             elseif #list < max and PassesFilter(unit, a, filter) then

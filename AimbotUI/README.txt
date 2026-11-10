@@ -1,4 +1,4 @@
-AIMBOT UI  v2.16.2  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.16.3  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,13 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.16.3
+  - Aura Timers: your debuffs on enemies lost their countdown. Your diag showed the game does
+    send the times (11 of 11 readable), but it also sends a "full update" many times a fight
+    (112), and each one threw away the remembered debuffs. With nothing left, the game's own
+    icons were shown instead, and those have no numbers. Full updates now keep them; a new
+    target or focus still clears them, and debuffs whose time ran out are dropped.
 
 NEW IN 2.16.2
   - Aura Timers: buffs and debuffs on the target / focus frame now wrap after 5 icons per row

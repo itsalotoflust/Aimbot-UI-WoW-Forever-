@@ -2,13 +2,13 @@
 
 An all-in-one interface addon suite for **World of Warcraft Forever** (interface 16001).
 
-**Current version: 2.16.2**
+**Current version: 2.16.3**
 
 Open it in game with `/aimbot` (or `/aui`). Every module has its own tab and its own on/off switch, and if one module hits a problem it reports in chat and the rest keep running.
 
-## What's new in 2.16.2
+## What's new in 2.16.3
 
-- **Aura Timers:** target / focus buffs and debuffs wrap after 5 icons per row instead of 8, so they stay under the frame.
+- **Aura Timers:** your debuffs on enemies keep their countdown numbers again. The game's frequent "full update" no longer wipes them.
 
 See [CHANGELOG.md](CHANGELOG.md) for every version.
 

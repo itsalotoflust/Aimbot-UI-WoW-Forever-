@@ -2,6 +2,12 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.16.3
+
+- **Aura Timers:** your debuffs on enemies lost their countdown.
+  - The game does send the times (11 of 11 readable in your diag), but it also sends a "full update" many times a fight (112), and each one threw away the remembered debuffs. With nothing left, the game's own icons were shown instead, and those have no numbers.
+  - Full updates now keep them. A new target or focus still clears them, and debuffs whose time ran out are dropped.
+
 ## 2.16.2
 
 - **Aura Timers:** buffs and debuffs on the target / focus frame now wrap after 5 icons per row (it was 8, which ran far past the frame). Saved settings still on the old 8 are moved to 5; if you picked another number it is kept. Change it with "Icons per row" in `/aimbot timers`.
