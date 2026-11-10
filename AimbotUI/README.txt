@@ -1,4 +1,4 @@
-AIMBOT UI  v2.16.5  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.16.6  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,19 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.16.6
+  - Aura Timers: crowd control shows again, with its time. Since 2.16.5 a cast had to change
+    the target's auras within a second, but Intimidation stuns on your pet's next hit, seconds
+    later, so it was thrown away as a miss.
+    * Intimidation waits up to 6 seconds for the stun to land, and traps up to 30 seconds for an
+      enemy to step in; their timer starts when it lands, not at the cast.
+    * Known crowd control and stings count even when the client says the spell isn't harmful
+      (Intimidation is cast on your pet): Intimidation, Scatter Shot, Concussive Shot, Scare
+      Beast, Wyvern Sting, Viper / Scorpid Sting, Counterattack, Wing Clip, traps.
+    * Known lengths are used before the description: Intimidation 3 s, Scatter Shot 4 s,
+      Concussive Shot 4 s, Wyvern Sting 12 s (the game's own length wins once it's announced).
+    * Your pet's casts count too (known debuffs only); its stun and your Intimidation show as one.
 
 NEW IN 2.16.5
   - Aura Timers: a spell that missed still showed up as a debuff. A cast can "succeed" and

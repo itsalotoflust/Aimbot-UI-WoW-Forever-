@@ -697,9 +697,14 @@ local function SpellCall(fnTable, fnName, oldName, id)
     end
 end
 
+-- Lengths of common crowd control, used before the description is read.
+local KNOWN_DURATION = { [19577] = 3, [24394] = 3, [19503] = 4, [5116] = 4, [19410] = 3,
+    [19386] = 12, [24132] = 12, [24133] = 12 }
+
 local function SpellDuration(id)
     local d = Learned()[id]
     if type(d) == "number" and d > 0 then return d, "learned" end
+    if KNOWN_DURATION[id] then return KNOWN_DURATION[id], "known" end
     local text = SpellCall(C_Spell, "GetSpellDescription", "GetSpellDescription", id)
     d = DurationFromText(text)
     if d then return d, "text" end
@@ -711,14 +716,45 @@ local function IsHarmful(id)
     return nil
 end
 
-local function CastLanded(spellID)
+-- Spells whose debuff lands a while after the cast: Intimidation stuns on the pet's next hit,
+-- traps work when the enemy steps in. They wait this many seconds for the target's auras to
+-- change, and their timer starts when that happens, not at the cast.
+local DELAYED = {
+    [19577] = 6,                                  -- Intimidation (cast), stun on the pet's next hit
+    [1499] = 30, [14310] = 30, [14311] = 30,      -- Freezing Trap
+    [13795] = 30, [14302] = 30, [14303] = 30, [14304] = 30, [14305] = 30,  -- Immolation Trap
+    [13813] = 30, [14316] = 30, [14317] = 30,     -- Explosive Trap
+    [13809] = 30,                                 -- Frost Trap
+}
+-- Known crowd control / debuffs that count even when the client calls them "not harmful"
+-- (Intimidation is cast on your pet, for example).
+local FORCE = {
+    [19577] = true, [24394] = true,               -- Intimidation, its stun
+    [19503] = true,                               -- Scatter Shot
+    [5116] = true,                                -- Concussive Shot
+    [1513] = true, [14326] = true, [14327] = true, -- Scare Beast
+    [19386] = true, [24132] = true, [24133] = true, -- Wyvern Sting
+    [3034] = true, [14279] = true, [14280] = true, -- Viper Sting
+    [3043] = true, [14275] = true, [14276] = true, [14277] = true, -- Scorpid Sting
+    [19306] = true, [20909] = true, [20910] = true, -- Counterattack
+    [2974] = true, [14267] = true, [14268] = true, -- Wing Clip
+    [19410] = true,                               -- Improved Concussive Shot stun
+}
+for id in pairs(DELAYED) do FORCE[id] = true end
+M._t_DELAYED, M._t_FORCE = DELAYED, FORCE
+
+local SAME_AS = { [24394] = 19577 }   -- the pet's stun is the Intimidation you cast: one icon
+
+local function CastLanded(spellID, byPet)
     if IsSecret(spellID) or type(spellID) ~= "number" or spellID == 75 then return end
+    if SAME_AS[spellID] then casts[SAME_AS[spellID]] = nil; pending[SAME_AS[spellID]] = nil end
     local okE, enemy = pcall(UnitCanAttack, "player", "target")
     if not okE or IsSecret(enemy) or enemy ~= true then return end
     -- only spells known to leave a debuff: learned from an announced aura, or harmful with a
     -- duration in their description
     local learned = Learned()[spellID]
-    if not learned then
+    if byPet and not learned and not FORCE[spellID] then return end   -- pet: known debuffs only
+    if not learned and not FORCE[spellID] then
         local harmful = IsHarmful(spellID)
         if harmful == false then return end
         if harmful == nil then
@@ -736,12 +772,13 @@ local function CastLanded(spellID)
     if not dur then M.stats.casts.unknown = M.stats.casts.unknown + 1; return end
     if from == "text" then M.stats.casts.fromText = M.stats.casts.fromText + 1 end
     local icon = SpellCall(C_Spell, "GetSpellTexture", "GetSpellTexture", spellID)
-    local entry = { start = GetTime(), duration = dur, icon = icon }
+    local entry = { start = GetTime(), duration = dur, icon = icon,
+        window = DELAYED[spellID] or CONFIRM_AFTER, delayed = DELAYED[spellID] ~= nil }
     M.stats.casts.seen = M.stats.casts.seen + 1
     -- A cast that "succeeded" can still miss (or be resisted, dodged, parried). Addons aren't told,
     -- but a debuff that lands makes the game update the target's auras. So the cast only counts
     -- once the target's auras change right around it; otherwise it is dropped as a miss.
-    if lastTargetAura and entry.start - lastTargetAura <= CONFIRM_BEFORE then
+    if not entry.delayed and lastTargetAura and entry.start - lastTargetAura <= CONFIRM_BEFORE then
         casts[spellID] = entry
         M.stats.casts.confirmed = M.stats.casts.confirmed + 1
     else
@@ -754,18 +791,19 @@ local function TargetAuraChanged()
     local now = GetTime()
     lastTargetAura = now
     for sid, entry in pairs(pending) do
-        if now - entry.start <= CONFIRM_AFTER then
+        if now - entry.start <= (entry.window or CONFIRM_AFTER) then
+            if entry.delayed then entry.start = now end   -- the debuff starts now, not at the cast
             casts[sid] = entry
             M.stats.casts.confirmed = M.stats.casts.confirmed + 1
+            pending[sid] = nil
         end
-        pending[sid] = nil
     end
 end
 
 local function DropUnconfirmed()
     local now = GetTime()
     for sid, entry in pairs(pending) do
-        if now - entry.start > CONFIRM_AFTER then
+        if now - entry.start > (entry.window or CONFIRM_AFTER) then
             pending[sid] = nil
             M.stats.casts.missed = M.stats.casts.missed + 1
         end
@@ -1134,8 +1172,8 @@ function M:Init()
         dirty.target = true
     end)
     NS.On("UNIT_SPELLCAST_SUCCEEDED", function(_, unit, _, spellID)
-        if IsSecret(unit) or unit ~= "player" then return end
-        local ok = pcall(CastLanded, spellID)
+        if IsSecret(unit) or (unit ~= "player" and unit ~= "pet") then return end
+        local ok = pcall(CastLanded, spellID, unit == "pet")
         if ok then dirty.target = true end
     end)
     NS.On("PLAYER_FOCUS_CHANGED", function() seen.focus = {}; dirty.focus = true end)
