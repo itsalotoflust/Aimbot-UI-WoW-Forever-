@@ -1,4 +1,4 @@
-AIMBOT UI  v2.14.4  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.15.0  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,17 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.15.0
+  - Window: the version number in the title bar is plain small text now, with no coloured box
+    behind it. It follows the notes colour, and can be hidden.
+  - More ways to style the window (General tab):
+    * Look: font (game default, Friz Quadrata, Arial Narrow, Skurri, Morpheus, and two Aimbot
+      UI fonts), text outline (none / thin / thick), text shadow, border thickness (modern
+      style), and switches for the version number, the coloured mark before the title, the
+      line under the title bar and the underline under each tab title.
+    * Colors: highlight strength, and your own colour for the "AIMBOT UI" title.
+    * Five new themes: Midnight, Ocean, Sand, Blood and Mono.
 
 NEW IN 2.14.4
   - Aura Timers: your debuffs on enemies showed without their time left. The game can hand

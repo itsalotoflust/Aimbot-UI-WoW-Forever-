@@ -2,6 +2,14 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.15.0
+
+- **Window:** the version number in the title bar is plain small text now, with no coloured box behind it. It follows the notes colour and can be hidden.
+- **More ways to style the window** (General tab):
+  - **Look:** font (game default, Friz Quadrata, Arial Narrow, Skurri, Morpheus, and two Aimbot UI fonts), text outline (none / thin / thick), text shadow, border thickness (modern style), and switches for the version number, the coloured mark before the title, the line under the title bar and the underline under each tab title.
+  - **Colors:** highlight strength, and your own colour for the "AIMBOT UI" title.
+  - **Five new themes:** Midnight, Ocean, Sand, Blood and Mono.
+
 ## 2.14.4
 
 - **Aura Timers:** your debuffs on enemies showed without their time left. The game can hand back an empty (zero) time for an enemy aura, and that was taken as "timer set".

@@ -33,9 +33,47 @@ local tabs    = {}
 local tabList = {}
 local win, content, sidebar, titleBar, titleBG, bgTex, sideBG, grip
 local borderEdges = {}
+local edgeVertical = {}     -- border edge texture -> true for the left / right edges
+local underlines = {}       -- the short accent lines under each tab title
 local currentTab
 
 local function W() return NS.db.window end
+
+-- Window fonts. "default" is the game's own font; the rest are game fonts that every client has,
+-- plus the fonts that ship with Aimbot UI.
+local MEDIA = "Interface\\AddOns\\" .. ADDON_NAME .. "\\media\\fonts\\"
+UI.FONTS = {
+    { "default",  "Game default" },
+    { "friz",     "Friz Quadrata", "Fonts\\FRIZQT__.TTF" },
+    { "arial",    "Arial Narrow",  "Fonts\\ARIALN.TTF" },
+    { "skurri",   "Skurri",        "Fonts\\skurri.ttf" },
+    { "morpheus", "Morpheus",      "Fonts\\MORPHEUS.TTF" },
+    { "damage1",  "Pepsi (Aimbot UI)",  MEDIA .. "damage1.ttf" },
+    { "damage4",  "Bold (Aimbot UI)",   MEDIA .. "damage4.ttf" },
+}
+local function Font()
+    local id = NS.db and W().font
+    for _, f in ipairs(UI.FONTS) do
+        if f[1] == id and f[3] then return f[3] end
+    end
+    return FONT
+end
+local function Flags()
+    local o = NS.db and W().fontOutline
+    if o == "OUTLINE" or o == "THICKOUTLINE" then return o end
+    return ""
+end
+-- Sets a font, falling back to the game font if the chosen file can't be used.
+local function SetFontSafe(fs, size)
+    local ok, done = pcall(fs.SetFont, fs, Font(), size, Flags())
+    if not ok or done == false then pcall(fs.SetFont, fs, FONT, size, Flags()) end
+    if fs.SetShadowOffset then
+        local sh = NS.db and W().textShadow
+        pcall(fs.SetShadowOffset, fs, sh and 1 or 0, sh and -1 or 0)
+        if fs.SetShadowColor then pcall(fs.SetShadowColor, fs, 0, 0, 0, sh and 1 or 0) end
+    end
+end
+UI.SetFontSafe = SetFontSafe
 
 ----------------------------------------------------------------------
 -- Primitives
@@ -43,7 +81,7 @@ local function W() return NS.db.window end
 function UI.Text(parent, text, offset, r, g, b)
     local fs = parent:CreateFontString(nil, "OVERLAY")
     local size = (NS.db and W().fontSize or 12) + (offset or 0)
-    fs:SetFont(FONT, size, "")
+    SetFontSafe(fs, size)
     fs:SetJustifyH("LEFT")
     if r == nil then
         roles[fs] = "body"
@@ -130,7 +168,7 @@ local function RestyleTexts()
     local base = W().fontSize
     local body, muted = W().text, W().muted
     for fs, offset in pairs(texts) do
-        fs:SetFont(FONT, base + offset, "")
+        SetFontSafe(fs, base + offset)
         local role = roles[fs]
         if role == "body" then fs:SetTextColor(body[1], body[2], body[3])
         elseif role == "muted" then fs:SetTextColor(muted[1], muted[2], muted[3]) end
@@ -632,7 +670,7 @@ function Page:Slider(label, min, max, step, get, set, fmt)
     val:SetAutoFocus(false)
     val:SetMaxLetters(12)
     val:SetJustifyH("CENTER")
-    val:SetFont(FONT, (NS.db and W().fontSize or 12), "")
+    SetFontSafe(val, (NS.db and W().fontSize or 12))
     texts[val] = 0
     roles[val] = "body"
     local tc = (NS.db and W().text) or { 0.90, 0.90, 0.92 }
@@ -957,7 +995,7 @@ function Page:Input(placeholder, onSubmit, buttonText)
     box:SetPoint("BOTTOMRIGHT", holder, "BOTTOMRIGHT", -7, 2)
     box:SetAutoFocus(false)
     box:SetMaxLetters(80)
-    box:SetFont(FONT, (NS.db and W().fontSize or 12), "")
+    SetFontSafe(box, (NS.db and W().fontSize or 12))
     texts[box] = 0
     roles[box] = "body"
     local c = (NS.db and W().text) or { 0.90, 0.90, 0.92 }
@@ -1085,11 +1123,27 @@ function UI.ApplyStyle()
     end
     titleBG:SetColorTexture(w.titleBar[1], w.titleBar[2], w.titleBar[3], w.bg[4])
     sideBG:SetColorTexture(w.sidebar[1], w.sidebar[2], w.sidebar[3], w.sidebar[4])
+    local bs = math.max(1, math.min(4, math.floor((w.borderSize or 1) + 0.5)))
     for _, e in ipairs(borderEdges) do
         e:SetColorTexture(w.border[1], w.border[2], w.border[3], UI.classic and 0 or w.border[4])
+        if edgeVertical[e] then e:SetWidth(bs) else e:SetHeight(bs) end
     end
     RestyleAccents()
     RestyleTexts()
+    -- title bar: title colour, version text, accent mark and line
+    if UI._title then
+        local tc = w.titleColorOn and w.titleColor or (UI.classic and GOLD) or { 1, 1, 1 }
+        UI._title:SetTextColor(tc[1], tc[2], tc[3])
+    end
+    if UI._ver then UI._ver:SetShown(w.showVersion ~= false) end
+    if UI._mark then
+        UI._mark:SetShown(w.titleMark ~= false)
+        UI._title:ClearAllPoints()
+        if w.titleMark ~= false then UI._title:SetPoint("LEFT", UI._mark, "RIGHT", 8, 0)
+        else UI._title:SetPoint("LEFT", titleBar, "LEFT", 12, 0) end
+    end
+    if UI._tline then UI._tline:SetShown(w.titleLine ~= false) end
+    for _, u in ipairs(underlines) do u:SetShown(w.underlines ~= false) end
     grip:SetShown(not w.locked)
     for _, p in ipairs(pages) do p:Reflow() end
     UI.RefreshAll()
@@ -1167,6 +1221,7 @@ local function BuildHeader(parent, title, desc, key)
     under:SetPoint("BOTTOMLEFT", h, "BOTTOMLEFT", 18, 0)
     under:SetSize(36, 2)
     UI.Accent(under, 1)
+    underlines[#underlines + 1] = under
     return h, sw
 end
 
@@ -1189,6 +1244,11 @@ local THEMES = {
     { "rose",     "Modern: Rose",         { 0.09, 0.06, 0.08 }, { 1.00, 0.45, 0.70 } },
     { "graphite", "Modern: Graphite",     { 0.12, 0.12, 0.13 }, { 0.78, 0.78, 0.84 } },
     { "black",    "Modern: Pure black",   { 0.00, 0.00, 0.00 }, { 0.30, 0.70, 1.00 } },
+    { "midnight", "Modern: Midnight",     { 0.04, 0.05, 0.09 }, { 0.52, 0.56, 1.00 } },
+    { "ocean",    "Modern: Ocean",        { 0.04, 0.08, 0.09 }, { 0.20, 0.82, 0.78 } },
+    { "sand",     "Modern: Sand",         { 0.10, 0.09, 0.07 }, { 0.90, 0.72, 0.50 } },
+    { "blood",    "Modern: Blood",        { 0.05, 0.02, 0.02 }, { 0.75, 0.08, 0.10 } },
+    { "mono",     "Modern: Mono",         { 0.06, 0.06, 0.06 }, { 1.00, 1.00, 1.00 } },
     { "c_stone",  "Classic: Stone",       { 0, 0, 0 }, { 1.00, 0.82, 0.00 }, classic = true, border = "stone",   back = "dark" },
     { "c_gold",   "Classic: Gold trim",   { 0, 0, 0 }, { 1.00, 0.82, 0.00 }, classic = true, border = "gold",    back = "dark" },
     { "c_rock",   "Classic: Rock",        { 0, 0, 0 }, { 1.00, 0.82, 0.00 }, classic = true, border = "stone",   back = "rock" },
@@ -1261,6 +1321,29 @@ local function BuildGeneral(page)
         function(v) W().classicBack = v; UI.ApplyStyle() end)
     page:Button("Reload now", function() if ReloadUI then ReloadUI() end end, 160)
 
+    page:Section("Look", "Font, outline, border and title bar details")
+    local fontOpts = {}
+    for _, f in ipairs(UI.FONTS) do fontOpts[#fontOpts + 1] = { f[1], f[2] } end
+    page:Cycle("Font", fontOpts,
+        function() return W().font or "default" end,
+        function(v) W().font = v; UI.ApplyStyle() end)
+    page:Cycle("Text outline", { { "none", "None" }, { "OUTLINE", "Thin" }, { "THICKOUTLINE", "Thick" } },
+        function() return W().fontOutline or "none" end,
+        function(v) W().fontOutline = v; UI.ApplyStyle() end)
+    page:Check("Text shadow", function() return W().textShadow end,
+        function(v) W().textShadow = v; UI.ApplyStyle() end)
+    page:Slider("Border thickness (modern style)", 1, 4, 1,
+        function() return W().borderSize or 1 end,
+        function(v) W().borderSize = v; UI.ApplyStyle() end)
+    page:Check("Show the version number in the title bar", function() return W().showVersion ~= false end,
+        function(v) W().showVersion = v; UI.ApplyStyle() end)
+    page:Check("Show the coloured mark before the title", function() return W().titleMark ~= false end,
+        function(v) W().titleMark = v; UI.ApplyStyle() end)
+    page:Check("Show the coloured line under the title bar", function() return W().titleLine ~= false end,
+        function(v) W().titleLine = v; UI.ApplyStyle() end)
+    page:Check("Show the coloured underline under each tab title", function() return W().underlines ~= false end,
+        function(v) W().underlines = v; UI.ApplyStyle() end)
+
     page:Section("Window", "Size, opacity, text size and locking")
     page:Slider("Window scale", 0.6, 1.6, 0.05,
         function() return W().scale end,
@@ -1300,6 +1383,15 @@ local function BuildGeneral(page)
         function(r, g, b) W().accent[1], W().accent[2], W().accent[3] = r, g, b; Custom() end)
     ColorRow("Text", "text")
     ColorRow("Small grey text (descriptions, notes)", "muted")
+    page:Slider("Highlight strength", 0.2, 1, 0.05,
+        function() return W().accent[4] or 1 end,
+        function(v) W().accent[4] = v; UI.ApplyStyle() end,
+        function(v) return string.format("%d%%", math.floor(v * 100 + 0.5)) end)
+    page:Check("Use my own title colour", function() return W().titleColorOn end,
+        function(v) W().titleColorOn = v; UI.ApplyStyle() end)
+    page:Color("Title colour (\"AIMBOT UI\")",
+        function() return W().titleColor end,
+        function(r, g, b) local c = W().titleColor; c[1], c[2], c[3] = r, g, b; W().titleColorOn = true; UI.ApplyStyle() end)
     page:Button("Reset all window colors", function()
         local cur = W().theme
         if cur == "custom" or not cur then cur = UI.classic and "c_stone" or "blue" end
@@ -1381,7 +1473,7 @@ local function Create()
     local function Edge(p1, p2, width, height)
         local t = win:CreateTexture(nil, "BORDER")
         t:SetPoint(p1); t:SetPoint(p2)
-        if width then t:SetWidth(width) end
+        if width then t:SetWidth(width); edgeVertical[t] = true end
         if height then t:SetHeight(height) end
         table.insert(borderEdges, t)
     end
@@ -1425,15 +1517,10 @@ local function Create()
     local title = UI.Text(tb, "AIMBOT UI", 3, 1, 1, 1)
     if UI.classic then title:SetTextColor(GOLD[1], GOLD[2], GOLD[3]) end
     title:SetPoint("LEFT", mark, "RIGHT", 8, 0)
-    local chip = CreateFrame("Frame", nil, tb)
-    chip:SetPoint("LEFT", title, "RIGHT", 10, 0)
-    chip:SetHeight(16)
-    local chipBG = chip:CreateTexture(nil, "BACKGROUND")
-    chipBG:SetAllPoints()
-    UI.Accent(chipBG, 0.18)
-    local ver = UI.Text(chip, "v" .. NS.version, -3, 0.85, 0.85, 0.90)
-    ver:SetPoint("CENTER", chip, "CENTER", 0, 0)
-    chip:SetWidth(math.max(34, (ver:GetStringWidth() or 30) + 12))
+    -- the version: plain small text in the notes colour, no box behind it
+    local ver = UI.Text(tb, "v" .. NS.version, -3, 0.62, 0.62, 0.67)
+    ver:SetPoint("BOTTOMLEFT", title, "BOTTOMRIGHT", 8, 1)
+    UI._title, UI._ver, UI._mark = title, ver, mark
 
     local close = CreateFrame("Button", nil, tb)
     close:SetSize(28, 24)
@@ -1452,6 +1539,7 @@ local function Create()
     tline:SetPoint("BOTTOMRIGHT", tb, "BOTTOMRIGHT", 0, 0)
     tline:SetHeight(1)
     UI.Accent(tline, 0.55)
+    UI._tline = tline
 
     -- Sidebar
     sidebar = CreateFrame("Frame", nil, win)
@@ -1505,7 +1593,7 @@ local function Create()
     searchBox:SetPoint("BOTTOMRIGHT", sHolder, "BOTTOMRIGHT", -24, 2)
     searchBox:SetAutoFocus(false)
     searchBox:SetMaxLetters(40)
-    searchBox:SetFont(FONT, W().fontSize, "")
+    SetFontSafe(searchBox, W().fontSize)
     texts[searchBox] = 0
     roles[searchBox] = "body"
     searchBox:SetTextColor(W().text[1], W().text[2], W().text[3])
