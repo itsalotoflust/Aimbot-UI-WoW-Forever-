@@ -1,4 +1,4 @@
-AIMBOT UI  v2.16.1  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.16.2  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,11 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.16.2
+  - Aura Timers: buffs and debuffs on the target / focus frame now wrap after 5 icons per row
+    (it was 8, which ran far past the frame). Saved settings still on the old 8 are moved to 5;
+    if you picked another number it is kept. Change it with "Icons per row" in /aimbot timers.
 
 NEW IN 2.16.1
   - Lorti Style: fixed the error "Backdrop.lua:226: attempt to perform arithmetic on local

@@ -2,13 +2,13 @@
 
 An all-in-one interface addon suite for **World of Warcraft Forever** (interface 16001).
 
-**Current version: 2.16.1**
+**Current version: 2.16.2**
 
 Open it in game with `/aimbot` (or `/aui`). Every module has its own tab and its own on/off switch, and if one module hits a problem it reports in chat and the rest keep running.
 
-## What's new in 2.16.1
+## What's new in 2.16.2
 
-- **Lorti Style:** fixed the `Backdrop.lua:226` secret-number error from the buff/debuff shadows. The shadow is now drawn without Blizzard's backdrop code; same look, and empty slots still get no box.
+- **Aura Timers:** target / focus buffs and debuffs wrap after 5 icons per row instead of 8, so they stay under the frame.
 
 See [CHANGELOG.md](CHANGELOG.md) for every version.
 

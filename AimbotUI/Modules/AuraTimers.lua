@@ -36,12 +36,12 @@ local M = {
             debuffs  = true,
             onlyMine = false,       -- debuffs: only the ones you cast
             iconSize = 22,
-            perRow   = 8,
+            perRow   = 5,
             max      = 16,          -- per kind
             x = 0, y = -4,          -- from the bottom left of the frame's mana bar
             timerSize = 0,          -- countdown text size, 0 = fit the icon
             spacing = 3,
-            layout = 2,             -- settings version (2: placed under the mana bar)
+            layout = 3,             -- settings version (2: placed under the mana bar, 3: 5 per row)
             tooltip = false,        -- our own tooltip (the game's hidden icons already show one)
         },
     },
@@ -866,6 +866,11 @@ function M:Init()
         -- 2.13.0 placed the row from the frame corner (5, 32): move it under the mana bar
         if o.x == 5 and o.y == 32 then o.x, o.y = 0, -4 end
         o.layout = 2
+    end
+    if o.layout < 3 then
+        -- 2.16.2: 5 icons per row (the old 8 ran far past the frame); a changed value is kept
+        if o.perRow == nil or o.perRow == 8 then o.perRow = 5 end
+        o.layout = 3
     end
     for k, v in pairs(M.defaults.own) do if o[k] == nil then o[k] = v end end
     local runner = CreateFrame("Frame")

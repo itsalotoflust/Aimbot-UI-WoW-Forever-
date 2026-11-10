@@ -2,6 +2,10 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.16.2
+
+- **Aura Timers:** buffs and debuffs on the target / focus frame now wrap after 5 icons per row (it was 8, which ran far past the frame). Saved settings still on the old 8 are moved to 5; if you picked another number it is kept. Change it with "Icons per row" in `/aimbot timers`.
+
 ## 2.16.1
 
 - **Lorti Style:** fixed the error `Backdrop.lua:226: attempt to perform arithmetic on local 'width' (a secret number value, while execution tainted by 'AimbotUI')`.
