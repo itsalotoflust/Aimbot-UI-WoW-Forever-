@@ -1,4 +1,4 @@
-AIMBOT UI  v2.16.4  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.16.5  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,16 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.16.5
+  - Aura Timers: a spell that missed still showed up as a debuff. A cast can "succeed" and
+    still miss, and the game doesn't tell addons. Now a cast only counts once the target's
+    auras change right around it (within a second); if they don't, it's treated as a miss and
+    never shown.
+  - Aura Timers: more ways to get real debuff times. The target's nameplate is now read too
+    (the game may share more there), and aura announcements made for the target's nameplate
+    count for the target. When either works, the times are the game's own, not estimates.
+    /aimbot diag shows casts landed / missed and what the target's nameplate gives.
 
 NEW IN 2.16.4
   - Aura Timers: your debuffs on enemies get their countdown from your own casts. Your diag

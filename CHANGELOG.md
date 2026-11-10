@@ -2,6 +2,12 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.16.5
+
+- **Aura Timers:** a spell that missed still showed up as a debuff. A cast can "succeed" and still miss, and the game doesn't tell addons. Now a cast only counts once the target's auras change right around it (within a second); if they don't, it's treated as a miss and never shown.
+- **Aura Timers:** more ways to get real debuff times. The target's nameplate is now read too, and aura announcements made for the target's nameplate count for the target. When either works, the times are the game's own, not estimates.
+- `/aimbot diag` shows casts landed / missed and what the target's nameplate gives.
+
 ## 2.16.4
 
 - **Aura Timers:** your debuffs on enemies get their countdown from your own casts.

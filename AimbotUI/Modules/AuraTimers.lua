@@ -644,7 +644,11 @@ end
 -- read from the spell's description ("over 15 sec", "for 2 min"). Shown for your target only;
 -- cleared on a new target or when it dies. A recast restarts the timer.
 local casts = {}                  -- spellID -> { start, duration, icon }
-M.stats.casts = { seen = 0, used = 0, learned = 0, fromText = 0, unknown = 0 }
+local pending = {}                -- casts waiting to be confirmed by an aura change on the target
+local lastTargetAura              -- when the target's auras last changed
+local CONFIRM_AFTER = 1.0         -- seconds a cast may wait for the target's auras to change
+local CONFIRM_BEFORE = 0.25       -- an aura change this shortly before the cast also counts
+M.stats.casts = { seen = 0, used = 0, learned = 0, fromText = 0, unknown = 0, confirmed = 0, missed = 0 }
 
 local function Learned()
     local s = S()
@@ -732,16 +736,50 @@ local function CastLanded(spellID)
     if not dur then M.stats.casts.unknown = M.stats.casts.unknown + 1; return end
     if from == "text" then M.stats.casts.fromText = M.stats.casts.fromText + 1 end
     local icon = SpellCall(C_Spell, "GetSpellTexture", "GetSpellTexture", spellID)
-    casts[spellID] = { start = GetTime(), duration = dur, icon = icon }
+    local entry = { start = GetTime(), duration = dur, icon = icon }
     M.stats.casts.seen = M.stats.casts.seen + 1
+    -- A cast that "succeeded" can still miss (or be resisted, dodged, parried). Addons aren't told,
+    -- but a debuff that lands makes the game update the target's auras. So the cast only counts
+    -- once the target's auras change right around it; otherwise it is dropped as a miss.
+    if lastTargetAura and entry.start - lastTargetAura <= CONFIRM_BEFORE then
+        casts[spellID] = entry
+        M.stats.casts.confirmed = M.stats.casts.confirmed + 1
+    else
+        pending[spellID] = entry
+    end
+end
+
+-- The target's auras changed: casts waiting for that are confirmed.
+local function TargetAuraChanged()
+    local now = GetTime()
+    lastTargetAura = now
+    for sid, entry in pairs(pending) do
+        if now - entry.start <= CONFIRM_AFTER then
+            casts[sid] = entry
+            M.stats.casts.confirmed = M.stats.casts.confirmed + 1
+        end
+        pending[sid] = nil
+    end
+end
+
+local function DropUnconfirmed()
+    local now = GetTime()
+    for sid, entry in pairs(pending) do
+        if now - entry.start > CONFIRM_AFTER then
+            pending[sid] = nil
+            M.stats.casts.missed = M.stats.casts.missed + 1
+        end
+    end
 end
 M._t_casts = casts
+M._t_pending = pending
+M._t_DropUnconfirmed = DropUnconfirmed
 
 -- Reads a unit's auras for one filter. The usual lookup returns nothing for enemy debuffs on this
 -- client, so every way the game offers is tried in turn; the first that returns any aura is used.
 -- Returns a list of aura tables and the name of the way that worked.
 M.stats.ways = {}
-local function Gather(unit, filter, max)
+local function Reads(unit, filter, max)
     local CU = C_UnitAuras
     local list
     -- 1. by index
@@ -794,6 +832,40 @@ local function Gather(unit, filter, max)
         M.stats.ways[filter .. " UnitAura"] = #list
         if #list > 0 then return list, "UnitAura" end
     end
+    return {}, "none"
+end
+
+-- The nameplate token showing the same unit (the game may share more about a nameplate's auras).
+local function PlateFor(unit)
+    if not (C_NamePlate and C_NamePlate.GetNamePlates) then return end
+    local ok, plates = pcall(C_NamePlate.GetNamePlates)
+    if not ok or type(plates) ~= "table" then return end
+    for _, plate in ipairs(plates) do
+        local token = plate.namePlateUnitToken
+        if not IsSecret(token) and type(token) == "string" then
+            local okU, same = pcall(UnitIsUnit, token, unit)
+            if okU and not IsSecret(same) and same == true then return token end
+        end
+    end
+end
+M._t_PlateFor = PlateFor
+
+local function Gather(unit, filter, max)
+    local list, way = Reads(unit, filter, max)
+    if #list > 0 then return list, way end
+    -- the same unit through its nameplate
+    if unit == "target" or unit == "focus" then
+        local plate = PlateFor(unit)
+        if plate then
+            list, way = Reads(plate, filter, max)
+            M.stats.ways[filter .. " plate"] = #list
+            if #list > 0 then
+                for _, e in ipairs(list) do e.unit = plate end
+                return list, "nameplate " .. way
+            end
+        end
+    end
+    list = nil
     -- 5. what the game's aura events said
     if seen[unit] then
         list = {}
@@ -892,7 +964,8 @@ local function FillKind(unit, set, kind, startRow, skip)
             n = n + 1
             local b = list[n]
             if not b then b = NewIcon(set.holder); list[n] = b end
-            b.unit, b.index, b.filter, b.auraID = unit, e.index, filter, a.auraInstanceID
+            local ru = e.unit or unit
+            b.unit, b.index, b.filter, b.auraID = ru, e.index, filter, a.auraInstanceID
             b:EnableMouse(o.tooltip and true or false)
             b:SetSize(size, size)
             b:ClearAllPoints()
@@ -901,13 +974,13 @@ local function FillKind(unit, set, kind, startRow, skip)
             b:SetPoint("TOPLEFT", set.holder, "TOPLEFT", col * (size + gap), -row * (size + gap))
             pcall(b.tex.SetTexture, b.tex, a.icon)
             if kind == "debuffs" then b.bg:SetColorTexture(0.8, 0.1, 0.1, 1) else b.bg:SetColorTexture(0, 0, 0, 1) end
-            pcall(b.count.SetText, b.count, StackText(unit, a))
+            pcall(b.count.SetText, b.count, StackText(ru, a))
             local fs = b.cd.GetCountdownFontString and b.cd:GetCountdownFontString()
             if fs then
                 local okF, font = pcall(fs.GetFont, fs)
                 pcall(fs.SetFont, fs, (okF and font) or STANDARD_TEXT_FONT, TimerSize(), "OUTLINE")
             end
-            if not FeedData(b.cd, unit, a) then pcall(b.cd.Clear, b.cd) end
+            if not FeedData(b.cd, ru, a) then pcall(b.cd.Clear, b.cd) end
             b:Show()
         end
     end
@@ -1018,6 +1091,7 @@ function M:Init()
         acc = acc + e
         if acc < 0.05 then return end
         acc = 0
+        if next(pending) then pcall(DropUnconfirmed) end
         if next(casts) then
             local now = GetTime()
             local okD, dead = pcall(UnitIsDead, "target")
@@ -1036,6 +1110,19 @@ function M:Init()
     NS.On("UNIT_AURA", function(_, unit, info)
         if type(unit) ~= "string" then return end
         if unit == "target" or unit == "focus" then pcall(SeenUpdate, unit, info) end
+        if unit == "target" then pcall(TargetAuraChanged) end
+        if unit:find("^nameplate") then
+            -- the target's / focus's nameplate: its announcements count for them too
+            for _, u in ipairs({ "target", "focus" }) do
+                local okU, same = pcall(UnitIsUnit, unit, u)
+                if okU and not IsSecret(same) and same == true then
+                    M.stats.plateEvents = (M.stats.plateEvents or 0) + 1
+                    pcall(SeenUpdate, u, info)
+                    if u == "target" then pcall(TargetAuraChanged) end
+                    dirty[u] = true
+                end
+            end
+        end
         if unit == "target" then dirty.target = true
         elseif unit == "focus" then dirty.focus = true end
         if unit:find("^nameplate") then dirty.plates[unit] = true end
@@ -1043,6 +1130,7 @@ function M:Init()
     NS.On("PLAYER_TARGET_CHANGED", function()
         seen.target = {}
         for k in pairs(casts) do casts[k] = nil end
+        for k in pairs(pending) do pending[k] = nil end
         dirty.target = true
     end)
     NS.On("UNIT_SPELLCAST_SUCCEEDED", function(_, unit, _, spellID)
@@ -1304,8 +1392,16 @@ function M:Diagnose()
     local nl = 0
     for _ in pairs(Learned()) do nl = nl + 1 end
     local cs = st.casts
-    NS.Print(string.format("  your casts: tracked %d  shown %d   durations known: %d spells (learned %d this session, from description %d, unknown %d)",
-        cs.seen, cs.used, nl, cs.learned, cs.fromText, cs.unknown))
+    NS.Print(string.format("  your casts: tracked %d  landed %d  missed %d  shown %d   durations known: %d spells (learned %d this session, from description %d, unknown %d)",
+        cs.seen, cs.confirmed, cs.missed, cs.used, nl, cs.learned, cs.fromText, cs.unknown))
+    local plate = PlateFor("target")
+    local pr = "no nameplate"
+    if plate then
+        local hb = Reads(plate, "HARMFUL", 16)
+        local hp = Reads(plate, "HELPFUL", 16)
+        pr = string.format("%s: debuffs read %d, buffs read %d", plate, #hb, #hp)
+    end
+    NS.Print(string.format("  target's nameplate: %s   nameplate aura events used: %d", pr, st.plateEvents or 0))
     NS.Print(string.format("  event durations: readable %d  hidden %d  zero/missing %d   timers given from: aura times %d, aura id %d, hidden times %d, none %d",
         st.seen.durRead or 0, st.seen.durHidden or 0, st.seen.durZero or 0,
         st.timer.data, st.timer.id, st.timer.secret, st.timer.none))
