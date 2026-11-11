@@ -2074,11 +2074,61 @@ local ALIASES = {
 
 ----------------------------------------------------------------------
 -- Escape menu button
--- Our own button, shown just above the game's Escape menu while it is open. Nothing is added to the
--- game's own menu or its button list (that list also holds Log Out / Exit Game, and changing it
--- from an addon can get those blocked). Clicking closes the menu and opens the settings window.
+-- Our own button, placed in the game's Escape menu list: in the first gap between its groups of
+-- buttons (after Options / Shop), sized to sit between them. Nothing is added to the game's own
+-- button list and none of its buttons is moved (that list also holds Log Out / Exit Game, and
+-- an addon changing it can get those blocked); ours only lines up with them. If no gap can be
+-- found it sits above the menu. Clicking closes the menu and opens the settings window.
 ----------------------------------------------------------------------
 local menuButton
+
+-- The game's menu buttons, top to bottom, with their edges (when they can be read).
+local function MenuButtons(gm)
+    local out = {}
+    local ok, kids = pcall(function() return { gm:GetChildren() } end)
+    if not ok then return out end
+    for _, k in ipairs(kids) do
+        local okT, kind = pcall(k.GetObjectType, k)
+        if okT and kind == "Button" and k ~= menuButton then
+            local okS, shown = pcall(k.IsShown, k)
+            local okX, txt = pcall(k.GetText, k)
+            local okTop, top = pcall(k.GetTop, k)
+            local okBot, bot = pcall(k.GetBottom, k)
+            if okS and shown == true and okX and not NS.IsSecret(txt) and type(txt) == "string" and txt ~= ""
+                and okTop and okBot and not NS.IsSecret(top) and not NS.IsSecret(bot)
+                and type(top) == "number" and type(bot) == "number" then
+                out[#out + 1] = { b = k, top = top, bottom = bot }
+            end
+        end
+    end
+    table.sort(out, function(x, y) return x.top > y.top end)
+    return out
+end
+
+local function PlaceMenuButton()
+    local gm = _G.GameMenuFrame
+    if not (menuButton and gm) then return end
+    local list = MenuButtons(gm)
+    menuButton:ClearAllPoints()
+    for i = 1, #list - 1 do
+        local a, b = list[i], list[i + 1]
+        local gap = a.bottom - b.top
+        local h = a.top - a.bottom
+        if h > 0 and gap >= h * 0.6 then
+            -- the first gap between groups: ours fills it, lined up with the buttons around it
+            local pad = math.max(1, math.floor((gap - math.min(gap - 2, h)) / 2))
+            menuButton:SetPoint("TOPLEFT", a.b, "BOTTOMLEFT", 0, -pad)
+            menuButton:SetPoint("BOTTOMRIGHT", b.b, "TOPRIGHT", 0, pad)
+            UI._menuPlace = "between " .. tostring(a.b:GetText()) .. " and " .. tostring(b.b:GetText())
+            return
+        end
+    end
+    menuButton:SetSize(160, 28)
+    menuButton:SetPoint("BOTTOM", gm, "TOP", 0, 24)
+    UI._menuPlace = "above the menu"
+end
+UI._PlaceMenuButton = PlaceMenuButton
+
 function UI.UpdateMenuButton()
     if not menuButton then return end
     local gm = _G.GameMenuFrame
@@ -2089,6 +2139,14 @@ function UI.UpdateMenuButton()
         shown = ok and not NS.IsSecret(v) and v == true
     end
     menuButton:SetShown(want and shown and true or false)
+    if want and shown then
+        pcall(PlaceMenuButton)
+        -- the game lays its buttons out a moment after opening: place again then
+        if C_Timer and C_Timer.After then
+            C_Timer.After(0, function() pcall(PlaceMenuButton) end)
+            C_Timer.After(0.1, function() pcall(PlaceMenuButton) end)
+        end
+    end
 end
 
 function UI.SetupMenuButton()
@@ -2099,9 +2157,8 @@ function UI.SetupMenuButton()
     if not ok or not b then return end
     menuButton = b
     b:SetSize(160, 28)
-    b:SetFrameStrata("DIALOG")
-    -- above the menu, clear of its "Game Menu" title, which sticks out over the top edge
-    b:SetPoint("BOTTOM", gm, "TOP", 0, 24)
+    b:SetFrameStrata("FULLSCREEN_DIALOG")   -- above the menu itself
+    b:SetPoint("BOTTOM", gm, "TOP", 0, 24)   -- until PlaceMenuButton lines it up in the list
     b:SetText("Aimbot UI")
     local fs = b.GetFontString and b:GetFontString()
     if fs then pcall(fs.SetTextColor, fs, 0.30, 0.72, 1.00) end

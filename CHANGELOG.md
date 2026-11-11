@@ -2,6 +2,10 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.18.2
+
+- **Escape menu:** the Aimbot UI button now sits in the menu's list with the other buttons, in the space after Options / Shop. It only lines up with the game's buttons; none of them is moved or changed, so Log Out / Exit Game stay safe. If that space can't be found, it goes back above the menu.
+
 ## 2.18.1
 
 - **Escape menu:** the Aimbot UI button moved from under the menu to the top, just above the "Game Menu" title.

@@ -1,4 +1,4 @@
-AIMBOT UI  v2.18.1  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.18.2  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,12 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.18.2
+  - Escape menu: the Aimbot UI button now sits in the menu's list with the other buttons, in the
+    space after Options / Shop. It only lines up with the game's buttons; none of them is moved
+    or changed, so Log Out / Exit Game stay safe. If that space can't be found, it goes back
+    above the menu.
 
 NEW IN 2.18.1
   - Escape menu: the Aimbot UI button moved from under the menu to the top, just above the

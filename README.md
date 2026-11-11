@@ -2,13 +2,13 @@
 
 An all-in-one interface addon suite for **World of Warcraft Forever** (interface 16001).
 
-**Current version: 2.18.1**
+**Current version: 2.18.2**
 
 Open it in game with `/aimbot` (or `/aui`). Every module has its own tab and its own on/off switch, and if one module hits a problem it reports in chat and the rest keep running.
 
-## What's new in 2.18.1
+## What's new in 2.18.2
 
-- **Escape menu button:** now at the top of the game's Escape menu, above the "Game Menu" title.
+- **Escape menu button:** now in the menu's list with the other buttons, after Options / Shop.
 
 See [CHANGELOG.md](CHANGELOG.md) for every version.
 
