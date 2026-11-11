@@ -2,6 +2,10 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.19.1
+
+- **Escape menu:** the Aimbot UI button now goes into the menu list, between Shop and AddOns. The earlier tries measured where the game's buttons are, but on this client their sizes and positions are hidden from addons, so nothing was found and the button stayed above the menu. It now finds the buttons by their names and menu order, and is anchored to Shop and AddOns so the game itself works out the fit (nothing is measured).
+
 ## 2.19.0
 
 - **Settings window:** a bar along the bottom with

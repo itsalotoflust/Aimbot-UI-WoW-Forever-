@@ -2248,9 +2248,11 @@ local ALIASES = {
 local menuButton
 
 -- The game's menu buttons, top to bottom, with their edges (when they can be read).
+-- The game's menu buttons in menu order, with their text. Their positions can't be used: on this
+-- client the menu's sizes and positions are hidden from addons (2.18.2 / 2.19.0 measured them and
+-- found nothing). Order comes from the layout index the game gives each button.
 local function MenuButtons(gm)
     local out = {}
-    -- the menu's buttons can sit inside a container frame, so look a few levels down
     local all = {}
     local function Walk(f, depth)
         if depth > 4 or #all > 200 then return end
@@ -2263,7 +2265,8 @@ local function MenuButtons(gm)
     end
     Walk(gm, 0)
     UI._menuSeen = #all
-    for _, k in ipairs(all) do
+    local dbg = {}
+    for i, k in ipairs(all) do
         local okT, kind = pcall(k.GetObjectType, k)
         if okT and kind == "Button" and k ~= menuButton then
             local okS, shown = pcall(k.IsShown, k)
@@ -2272,18 +2275,27 @@ local function MenuButtons(gm)
                 local okF, fs = pcall(k.GetFontString, k)
                 if okF and fs then okX, txt = pcall(fs.GetText, fs) end
             end
-            local okTop, top = pcall(k.GetTop, k)
-            local okBot, bot = pcall(k.GetBottom, k)
-            if okS and shown == true and okX and not NS.IsSecret(txt) and type(txt) == "string" and txt ~= ""
-                and okTop and okBot and not NS.IsSecret(top) and not NS.IsSecret(bot)
-                and type(top) == "number" and type(bot) == "number" then
-                out[#out + 1] = { b = k, top = top, bottom = bot }
+            local li = rawget(k, "layoutIndex")
+            local isShown = okS and not NS.IsSecret(shown) and shown == true
+            local hasText = okX and not NS.IsSecret(txt) and type(txt) == "string" and txt ~= ""
+            if #dbg < 30 then
+                dbg[#dbg + 1] = string.format("%s shown=%s text=%s layout=%s", kind, tostring(isShown),
+                    hasText and txt or (NS.IsSecret(txt) and "secret" or tostring(txt)),
+                    NS.IsSecret(li) and "secret" or tostring(li))
+            end
+            if isShown and hasText then
+                out[#out + 1] = { b = k, text = txt, order = (not NS.IsSecret(li) and type(li) == "number") and li or (1000 + i) }
             end
         end
     end
-    table.sort(out, function(x, y) return x.top > y.top end)
+    table.sort(out, function(x, y) return x.order < y.order end)
     UI._menuFound = #out
+    if NS.db then NS.db.menuDebug = dbg end
     return out
+end
+
+local function Same(a, b)
+    return type(a) == "string" and type(b) == "string" and a:lower() == b:lower()
 end
 
 local function PlaceMenuButton()
@@ -2291,22 +2303,21 @@ local function PlaceMenuButton()
     if not (menuButton and gm) then return end
     local list = MenuButtons(gm)
     menuButton:ClearAllPoints()
+    -- after the Shop button (the end of the first group), filling the gap before the next one;
+    -- anchored to both buttons, so the game works out the size (nothing is measured)
+    local shopText = _G.BLIZZARD_STORE or "Shop"
     for i = 1, #list - 1 do
-        local a, b = list[i], list[i + 1]
-        local gap = a.bottom - b.top
-        local h = a.top - a.bottom
-        if h > 0 and gap >= h * 0.6 then
-            -- the first gap between groups: ours fills it, lined up with the buttons around it
-            local pad = math.max(1, math.floor((gap - math.min(gap - 2, h)) / 2))
-            menuButton:SetPoint("TOPLEFT", a.b, "BOTTOMLEFT", 0, -pad)
-            menuButton:SetPoint("BOTTOMRIGHT", b.b, "TOPRIGHT", 0, pad)
-            UI._menuPlace = "between " .. tostring(a.b:GetText()) .. " and " .. tostring(b.b:GetText())
+        if Same(list[i].text, shopText) or Same(list[i].text, "Shop") then
+            local a, b = list[i], list[i + 1]
+            menuButton:SetPoint("TOPLEFT", a.b, "BOTTOMLEFT", 0, -2)
+            menuButton:SetPoint("BOTTOMRIGHT", b.b, "TOPRIGHT", 0, 2)
+            UI._menuPlace = "between " .. a.text .. " and " .. b.text
             return
         end
     end
     menuButton:SetSize(160, 28)
     menuButton:SetPoint("BOTTOM", gm, "TOP", 0, 24)
-    UI._menuPlace = "above the menu"
+    UI._menuPlace = "above the menu (Shop button not found among " .. #list .. ")"
 end
 UI._PlaceMenuButton = PlaceMenuButton
 

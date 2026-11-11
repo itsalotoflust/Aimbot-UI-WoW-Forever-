@@ -2,14 +2,14 @@
 
 An all-in-one interface addon suite for **World of Warcraft Forever** (interface 16001).
 
-**Current version: 2.19.0**
+**Current version: 2.19.1**
 
 Open it in game with `/aimbot` (or `/aui`). Every module has its own tab and its own on/off switch, and if one module hits a problem it reports in chat and the rest keep running.
 
-## What's new in 2.19.0
+## What's new in 2.19.1
 
-- **Settings window:** new bottom bar with a **Test...** menu (try any feature from any tab), **Undo** for your last changes, and **Close**.
-- **Escape menu button:** another fix to place it in the menu list.
+- **Escape menu button:** now sits in the menu list between Shop and AddOns.
+- (2.19.0) Settings window bottom bar: **Test...** menu, **Undo**, **Close**.
 
 See [CHANGELOG.md](CHANGELOG.md) for every version.
 
