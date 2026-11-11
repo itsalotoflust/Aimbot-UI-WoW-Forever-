@@ -32,6 +32,7 @@ local pages   = {}
 local tabs    = {}
 local tabList = {}
 local win, content, sidebar, titleBar, titleBG, bgTex, sideBG, grip
+local FOOTER_H = 36
 local borderEdges = {}
 local edgeVertical = {}     -- border edge texture -> true for the left / right edges
 local underlines = {}       -- the short accent lines under each tab title
@@ -593,6 +594,70 @@ function Page:Section(title, desc, opts)
 end
 Page.Header = Page.Section   -- older modules call Header()
 
+----------------------------------------------------------------------
+-- Undo: every change made with a switch, slider, dropdown or colour is remembered (with the
+-- value it had before), newest first. Dragging a slider counts as one change. The Undo button
+-- at the bottom of the window puts the last one back.
+----------------------------------------------------------------------
+local undoStack = {}
+local UNDO_MAX = 100
+local UNDO_MERGE = 1.5          -- changes to the same control this close together count as one
+UI._undoStack = undoStack
+
+local function CopyColor(c)
+    if type(c) ~= "table" then return c end
+    return { c[1], c[2], c[3], c[4] }
+end
+
+-- Wraps a setter: remembers what get() returned before the change.
+local function Undoable(label, get, set, isColor)
+    local token = {}
+    return function(...)
+        local now = GetTime and GetTime() or 0
+        local top = undoStack[#undoStack]
+        if not (top and top.token == token and now - top.at <= UNDO_MERGE) then
+            local okG, old = pcall(get)
+            if okG then
+                if isColor then old = CopyColor(old) end
+                undoStack[#undoStack + 1] = { token = token, label = label, old = old, set = set, color = isColor, at = now }
+                if #undoStack > UNDO_MAX then table.remove(undoStack, 1) end
+            end
+        elseif top then
+            top.at = now
+        end
+        local r = set(...)
+        if UI.UpdateUndo then UI.UpdateUndo() end
+        return r
+    end
+end
+
+UI._Undoable = function(...) return Undoable(...) end
+
+function UI.Undo()
+    local e = table.remove(undoStack)
+    if not e then return false end
+    local ok, err
+    if e.color and type(e.old) == "table" then
+        ok, err = pcall(e.set, e.old[1], e.old[2], e.old[3], e.old[4])
+    else
+        ok, err = pcall(e.set, e.old)
+    end
+    if not ok then NS.ReportError("undo " .. tostring(e.label), err) end
+    if UI.RefreshAll then UI.RefreshAll() end
+    if UI.UpdateUndo then UI.UpdateUndo() end
+    return true, e.label
+end
+
+----------------------------------------------------------------------
+-- Test buttons: a module's "Test" button doesn't sit in its tab any more. It is listed in the
+-- Test menu at the bottom left of the window, so any feature can be tried from any tab.
+----------------------------------------------------------------------
+UI.tests = {}
+local function IsTestLabel(label)
+    local l = tostring(label or ""):lower()
+    return l:find("^test") ~= nil or l:find("^show test") ~= nil
+end
+
 local function AddRow(self, height, label)
     local card = self.current or self:Section(nil)
     local f = CreateFrame("Frame", nil, card.frame)
@@ -623,6 +688,7 @@ function Page:Note(text)
 end
 
 function Page:Check(label, get, set, desc)
+    set = Undoable(label, get, set)
     local f = AddRow(self, 24, label)
     local sw = Toggle(f, get, set)
     local fs = UI.Text(f, label)
@@ -652,6 +718,7 @@ local function ParseNumber(text)
 end
 
 function Page:Slider(label, min, max, step, get, set, fmt)
+    set = Undoable(label, get, set)
     local f = AddRow(self, 24, label)
     local holder = CreateFrame("Frame", nil, f)
     holder:SetPoint("RIGHT", f, "RIGHT", 0, 0)
@@ -778,6 +845,7 @@ function Page:Slider(label, min, max, step, get, set, fmt)
 end
 
 function Page:Color(label, get, set)
+    set = Undoable(label, get, set, true)
     local f = AddRow(self, 24, label)
     local btn = CreateFrame("Button", nil, f)
     btn:SetSize(40, 18)
@@ -929,6 +997,7 @@ end
 
 -- options = { { "key", "Label" }, ... }
 function Page:Cycle(label, options, get, set)
+    set = Undoable(label, get, set)
     local f = AddRow(self, 26, label)
     local btn = MakeDropBox(f, 190, 22)
     btn:SetPoint("RIGHT", f, "RIGHT", 0, 0)
@@ -957,6 +1026,14 @@ function Page:Cycle(label, options, get, set)
 end
 
 function Page:Button(label, onClick, width)
+    if IsTestLabel(label) and self.moduleName then
+        -- listed in the Test menu at the bottom of the window instead of in the tab
+        local what = tostring(label):gsub("^[Ss]how test icons", "test icons"):gsub("^[Tt]est%s*", "")
+        UI.tests[#UI.tests + 1] = { key = self.moduleKey, name = self.moduleName, label = what, run = onClick }
+        local dummy = CreateFrame("Button")
+        dummy:Hide()
+        return dummy
+    end
     local f = AddRow(self, 28, label)
     local b = UI.MakeButton(f, label, width or 220, 24)
     b:SetPoint("LEFT", f, "LEFT", 0, 0)
@@ -1806,7 +1883,7 @@ local function Create()
 
     content = CreateFrame("Frame", nil, win)
     content:SetPoint("TOPLEFT", sidebar, "TOPRIGHT", 0, 0)
-    content:SetPoint("BOTTOMRIGHT", win, "BOTTOMRIGHT", -1, 20)
+    content:SetPoint("BOTTOMRIGHT", win, "BOTTOMRIGHT", -1, FOOTER_H + 1)
 
     -- Resize grip + footer
     grip = CreateFrame("Button", nil, win)
@@ -1821,8 +1898,94 @@ local function Create()
     grip:SetScript("OnMouseDown", function() if not W().locked then win:StartSizing("BOTTOMRIGHT") end end)
     grip:SetScript("OnMouseUp", function() win:StopMovingOrSizing(); SaveSize(); SavePosition() end)
 
-    local foot = UI.Text(win, "Type /aimbot to open or close", -2, 0.40, 0.40, 0.45)
-    foot:SetPoint("BOTTOMLEFT", sidebar, "BOTTOMRIGHT", 14, 5)
+    -- Footer: Test menu on the left, Undo and Close on the right
+    local footer = CreateFrame("Frame", nil, win)
+    footer:SetPoint("BOTTOMLEFT", sidebar, "BOTTOMRIGHT", 0, 0)
+    footer:SetPoint("BOTTOMRIGHT", win, "BOTTOMRIGHT", -1, 1)
+    footer:SetHeight(FOOTER_H)
+    local fline = footer:CreateTexture(nil, "ARTWORK")
+    fline:SetPoint("TOPLEFT", footer, "TOPLEFT", 0, 0)
+    fline:SetPoint("TOPRIGHT", footer, "TOPRIGHT", 0, 0)
+    fline:SetHeight(1)
+    fline:SetColorTexture(1, 1, 1, 0.06)
+    UI._footer = footer
+
+    local closeBtn = UI.MakeButton(footer, "Close", 84, 24)
+    closeBtn:SetPoint("RIGHT", footer, "RIGHT", -22, 0)
+    closeBtn:SetScript("OnClick", function() win:Hide() end)
+    local undoBtn = UI.MakeButton(footer, "Undo", 84, 24)
+    undoBtn:SetPoint("RIGHT", closeBtn, "LEFT", -8, 0)
+    undoBtn:SetScript("OnClick", function()
+        local ok, label = UI.Undo()
+        if ok then NS.Print("undid: " .. tostring(label)) else NS.Print("nothing to undo") end
+    end)
+    Tip(undoBtn, "Undo", "Puts back your last change (switches, sliders, dropdowns and colours), one at a time.")
+    UI._undoBtn, UI._closeBtn = undoBtn, closeBtn
+    function UI.UpdateUndo()
+        local n = #undoStack
+        pcall(undoBtn.SetAlpha, undoBtn, n > 0 and 1 or 0.45)
+        if undoBtn.label then pcall(undoBtn.label.SetText, undoBtn.label, n > 0 and ("Undo (" .. n .. ")") or "Undo") end
+    end
+
+    local testBtn = UI.MakeButton(footer, "Test...", 96, 24)
+    testBtn:SetPoint("LEFT", footer, "LEFT", 12, 0)
+    Tip(testBtn, "Test", "Try any feature that has a test: pick it from the list.")
+    UI._testBtn = testBtn
+    local testMenu
+    function UI.ToggleTestMenu()
+        if testMenu and testMenu:IsShown() then testMenu:Hide(); return end
+        if not testMenu then
+            testMenu = CreateFrame("Frame", nil, win, BackdropTemplateMixin and "BackdropTemplate" or nil)
+            testMenu:SetFrameStrata("DIALOG")
+            local bg = testMenu:CreateTexture(nil, "BACKGROUND")
+            bg:SetAllPoints()
+            bg:SetColorTexture(0.06, 0.06, 0.07, 0.97)
+            local edge = testMenu:CreateTexture(nil, "BORDER")
+            edge:SetPoint("TOPLEFT", -1, 1); edge:SetPoint("BOTTOMRIGHT", 1, -1)
+            edge:SetColorTexture(1, 1, 1, 0.15)
+            testMenu.rows = {}
+            testMenu:EnableMouse(true)
+        end
+        local list = {}
+        for _, t in ipairs(UI.tests) do list[#list + 1] = t end
+        table.sort(list, function(a, b) return a.name < b.name end)
+        local ROW = 22
+        for i, t in ipairs(list) do
+            local r = testMenu.rows[i]
+            if not r then
+                r = CreateFrame("Button", nil, testMenu)
+                r:SetHeight(ROW)
+                local hl = r:CreateTexture(nil, "HIGHLIGHT")
+                hl:SetAllPoints()
+                hl:SetColorTexture(1, 1, 1, 0.08)
+                r.fs = UI.Text(r, "", -1)
+                r.fs:SetPoint("LEFT", r, "LEFT", 10, 0)
+                r.fs:SetPoint("RIGHT", r, "RIGHT", -10, 0)
+                r.fs:SetJustifyH("LEFT")
+                testMenu.rows[i] = r
+            end
+            r:ClearAllPoints()
+            r:SetPoint("TOPLEFT", testMenu, "TOPLEFT", 0, -4 - (i - 1) * ROW)
+            r:SetPoint("TOPRIGHT", testMenu, "TOPRIGHT", 0, -4 - (i - 1) * ROW)
+            local extra = (t.label ~= "" and ("  |cff9a9aa0" .. t.label .. "|r") or "")
+            r.fs:SetText(t.name .. extra)
+            r.test = t
+            r:SetScript("OnClick", function(self)
+                testMenu:Hide()
+                local ok, err = pcall(self.test.run)
+                if not ok then NS.ReportError("test " .. self.test.name, err) end
+            end)
+            r:Show()
+        end
+        for i = #list + 1, #testMenu.rows do testMenu.rows[i]:Hide() end
+        testMenu:SetSize(260, math.max(1, #list) * ROW + 8)
+        testMenu:ClearAllPoints()
+        testMenu:SetPoint("BOTTOMLEFT", testBtn, "TOPLEFT", 0, 4)
+        testMenu:Show()
+        UI._testMenu = testMenu
+    end
+    testBtn:SetScript("OnClick", UI.ToggleTestMenu)
+    win:HookScript("OnHide", function() if testMenu then testMenu:Hide() end end)
 
     -- Tabs ----------------------------------------------------------
     local lastGroup2
@@ -1941,6 +2104,7 @@ local function Create()
         holder:SetPoint("TOPLEFT", content, "TOPLEFT", 6, -HEADER_H - 6)
         holder:SetPoint("BOTTOMRIGHT", content, "BOTTOMRIGHT", -2, 4)
         local page = UI.NewPage(holder)
+        if mod then page.moduleKey, page.moduleName = key, label end
         local ok, err = pcall(buildFn, page)
         if not ok then NS.ReportError("tab " .. label, err) end
         local ok2, err2 = pcall(page.Finish, page)
@@ -2012,6 +2176,7 @@ local function Create()
 
     UI.ApplyStyle()
     SelectTab("general")
+    if UI.UpdateUndo then UI.UpdateUndo() end
     win:Hide()
 end
 
@@ -2085,13 +2250,28 @@ local menuButton
 -- The game's menu buttons, top to bottom, with their edges (when they can be read).
 local function MenuButtons(gm)
     local out = {}
-    local ok, kids = pcall(function() return { gm:GetChildren() } end)
-    if not ok then return out end
-    for _, k in ipairs(kids) do
+    -- the menu's buttons can sit inside a container frame, so look a few levels down
+    local all = {}
+    local function Walk(f, depth)
+        if depth > 4 or #all > 200 then return end
+        local ok, kids = pcall(function() return { f:GetChildren() } end)
+        if not ok then return end
+        for _, k in ipairs(kids) do
+            all[#all + 1] = k
+            Walk(k, depth + 1)
+        end
+    end
+    Walk(gm, 0)
+    UI._menuSeen = #all
+    for _, k in ipairs(all) do
         local okT, kind = pcall(k.GetObjectType, k)
         if okT and kind == "Button" and k ~= menuButton then
             local okS, shown = pcall(k.IsShown, k)
             local okX, txt = pcall(k.GetText, k)
+            if okX and (txt == nil or txt == "") and k.GetFontString then
+                local okF, fs = pcall(k.GetFontString, k)
+                if okF and fs then okX, txt = pcall(fs.GetText, fs) end
+            end
             local okTop, top = pcall(k.GetTop, k)
             local okBot, bot = pcall(k.GetBottom, k)
             if okS and shown == true and okX and not NS.IsSecret(txt) and type(txt) == "string" and txt ~= ""
@@ -2102,6 +2282,7 @@ local function MenuButtons(gm)
         end
     end
     table.sort(out, function(x, y) return x.top > y.top end)
+    UI._menuFound = #out
     return out
 end
 
@@ -2143,8 +2324,9 @@ function UI.UpdateMenuButton()
         pcall(PlaceMenuButton)
         -- the game lays its buttons out a moment after opening: place again then
         if C_Timer and C_Timer.After then
-            C_Timer.After(0, function() pcall(PlaceMenuButton) end)
-            C_Timer.After(0.1, function() pcall(PlaceMenuButton) end)
+            for _, d in ipairs({ 0, 0.05, 0.15, 0.4, 1 }) do
+                C_Timer.After(d, function() pcall(PlaceMenuButton) end)
+            end
         end
     end
 end
@@ -2281,6 +2463,9 @@ function NS.Diagnose(quiet)
     NS.capture = lines
     local function Run()
         NS.Print("diagnostics (version " .. NS.version .. ", " .. tostring((select(4, GetBuildInfo()))) .. ")")
+        NS.Print(string.format("Escape menu button: %s   (frames looked at %s, game buttons found %s)",
+            tostring(UI._menuPlace or "not placed yet (open the Escape menu, then run this again)"),
+            tostring(UI._menuSeen or "-"), tostring(UI._menuFound or "-")))
         for _, key in ipairs(NS.moduleOrder) do
             local m = NS.modules[key]
             NS.Print("|cff4db8ff" .. (m.name or key) .. "|r  " ..

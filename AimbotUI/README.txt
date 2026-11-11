@@ -1,4 +1,4 @@
-AIMBOT UI  v2.18.2  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.19.0  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,19 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.19.0
+  - Settings window: a bar along the bottom with
+    * Test... (bottom left): one list of every feature that has a test (Auto Shot Timer, Combat
+      Indicator, Party Death Alert, Diminish, Durability Alert, Loss of Control, Queue Timer,
+      Talent Point Alert). Pick one to try it from any tab. The Test buttons are gone from the tabs.
+    * Undo: puts back your last change (switches, sliders, dropdowns, colours), one at a time;
+      a slider drag counts as one change. It shows how many changes can be undone.
+    * Close.
+    The old "Type /aimbot to open or close" line made room for it.
+  - Escape menu: the Aimbot UI button didn't move into the list in 2.18.2, because it didn't
+    find the game's menu buttons where it looked. It now looks a few levels down for them and
+    tries again as the menu finishes laying out. /aimbot diag has a line saying where it ended up.
 
 NEW IN 2.18.2
   - Escape menu: the Aimbot UI button now sits in the menu's list with the other buttons, in the
