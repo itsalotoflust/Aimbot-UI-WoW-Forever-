@@ -495,6 +495,7 @@ local function TimerSize()
 end
 
 local ShowTip   -- defined below OwnSet
+local Shield    -- defined above DoOwn
 local function NewIcon(holder)
     local b = CreateFrame("Frame", nil, holder)
     b.bg = b:CreateTexture(nil, "BACKGROUND")
@@ -1023,7 +1024,11 @@ local function FillKind(unit, set, kind, startRow, skip)
             local a = e.data
             n = n + 1
             local b = list[n]
-            if not b then b = NewIcon(set.holder); list[n] = b end
+            if not b then
+                b = NewIcon(set.holder); list[n] = b
+                local okL, lvl = pcall(set.holder.GetFrameLevel, set.holder)
+                if okL and not IsSecret(lvl) and type(lvl) == "number" then pcall(b.SetFrameLevel, b, lvl + 2) end
+            end
             local ru = e.unit or unit
             b.unit, b.index, b.filter, b.auraID = ru, e.index, filter, a.auraInstanceID
             b.way, b.spellId = way, a.spellId
@@ -1055,6 +1060,42 @@ local function HideGame(unit, hide)
     if box then pcall(box.SetAlpha, box, hide and 0 or 1) end
 end
 
+-- A mouse cover over the whole icon area, under our icons and above the game's hidden icons.
+-- Without it the gaps between our icons (and the space past them) let the mouse reach a hidden
+-- game icon, whose tooltip is some other aura. It only takes mouse movement (clicks pass
+-- through) and shows no tooltip. It reaches as wide as the unit frame and one row lower than ours,
+-- since the game lays out its own icons in a different size and row length.
+local SHIELD_MIN_WIDTH = 190
+function Shield(unit, set, count, rows)   -- the local declared above NewIcon
+    local o = O()
+    local sh = set.shield
+    if not sh then
+        sh = CreateFrame("Frame", nil, set.holder)
+        pcall(sh.SetMouseClickEnabled, sh, false)
+        pcall(sh.SetMouseMotionEnabled, sh, true)
+        sh:SetScript("OnEnter", function() if GameTooltip then GameTooltip:Hide() end end)
+        set.shield = sh
+        -- our icons go above it
+        local okL, lvl = pcall(set.holder.GetFrameLevel, set.holder)
+        if okL and not IsSecret(lvl) and type(lvl) == "number" then
+            pcall(sh.SetFrameLevel, sh, lvl)
+            for _, k in ipairs({ "buffs", "debuffs" }) do
+                for _, b in ipairs(set[k]) do pcall(b.SetFrameLevel, b, lvl + 2) end
+            end
+        end
+    end
+    if not (o.tooltip and o.hideGame) or count == 0 then sh:Hide(); M.stats.shield = nil; return end
+    local size, gap = o.iconSize, o.spacing or 3
+    local perRow = math.max(1, o.perRow)
+    local w = math.max(SHIELD_MIN_WIDTH, perRow * (size + gap))
+    local h = (math.max(1, rows) + 1) * (size + gap)
+    sh:ClearAllPoints()
+    sh:SetPoint("TOPLEFT", set.holder, "TOPLEFT", -gap, gap)
+    sh:SetSize(w + gap, h + gap)
+    sh:Show()
+    M.stats.shield = string.format("%dx%d", w + gap, h + gap)
+end
+
 local function DoOwn(unit)
     local s, o = S(), O()
     local active = s.enabled and s[unit] and o.enabled
@@ -1078,8 +1119,9 @@ local function DoOwn(unit)
     end
     set.holder:Show()
     local nb, rb = FillKind(unit, set, "buffs", 0)
-    local nd = FillKind(unit, set, "debuffs", rb)
+    local nd, rd = FillKind(unit, set, "debuffs", rb)
     M.stats.ownShown[unit] = nb + nd
+    Shield(unit, set, nb + nd, (rb or 0) + (rd or 0))
     -- On an enemy where nothing at all could be read (no buffs, no debuffs, by any way), the game's
     -- own icons are shown instead: no timers, but your debuffs stay visible. If the enemy really
     -- has no auras the game shows nothing either, and an enemy with readable buffs keeps ours.
