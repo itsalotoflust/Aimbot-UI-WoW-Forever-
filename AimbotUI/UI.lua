@@ -2323,8 +2323,9 @@ local function PlaceMenuButton()
     for i = 1, #list - 1 do
         if Same(list[i].text, shopText) or Same(list[i].text, "Shop") then
             local a, b = list[i], list[i + 1]
-            menuButton:SetPoint("TOPLEFT", a.b, "BOTTOMLEFT", 0, -2)
-            menuButton:SetPoint("BOTTOMRIGHT", b.b, "TOPRIGHT", 0, 2)
+            -- as wide as the game's buttons (same left and right edges), filling the space between
+            menuButton:SetPoint("TOPLEFT", a.b, "BOTTOMLEFT", 0, 0)
+            menuButton:SetPoint("BOTTOMRIGHT", b.b, "TOPRIGHT", 0, 0)
             UI._menuPlace = "between " .. a.text .. " and " .. b.text
             return
         end
@@ -2369,7 +2370,12 @@ end
 function UI.SetupMenuButton()
     local gm = _G.GameMenuFrame
     if menuButton or not gm then return end
-    local ok, b = pcall(CreateFrame, "Button", "AimbotUIGameMenuButton", UIParent, "UIPanelButtonTemplate")
+    -- the same button style the game's menu uses, so ours looks like one of its entries
+    local ok, b
+    for _, tpl in ipairs({ "MainMenuFrameButtonTemplate", "GameMenuButtonTemplate", "UIPanelButtonTemplate" }) do
+        ok, b = pcall(CreateFrame, "Button", nil, UIParent, tpl)
+        if ok and b then UI._menuTemplate = tpl; break end
+    end
     if not ok or not b then ok, b = pcall(CreateFrame, "Button", "AimbotUIGameMenuButton", UIParent) end
     if not ok or not b then return end
     menuButton = b
@@ -2377,8 +2383,6 @@ function UI.SetupMenuButton()
     b:SetFrameStrata("FULLSCREEN_DIALOG")   -- above the menu itself
     b:SetPoint("BOTTOM", gm, "TOP", 0, 24)   -- until PlaceMenuButton lines it up in the list
     b:SetText("Aimbot UI")
-    local fs = b.GetFontString and b:GetFontString()
-    if fs then pcall(fs.SetTextColor, fs, 0.30, 0.72, 1.00) end
     b:SetScript("OnClick", function()
         if InCombatLockdown and InCombatLockdown() then
             -- the Escape menu can't be closed for you in combat; open the window on top of it

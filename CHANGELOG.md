@@ -2,6 +2,10 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.19.3
+
+- **Escape menu:** the Aimbot UI button now uses the same button style as the game's own menu entries (same look and text), is exactly as wide as them, and fills the whole space between Shop and AddOns. It can't be taller than that space without moving the game's buttons.
+
 ## 2.19.2
 
 - **Aura Timers:** switching target no longer wipes your timers. They stay with the enemy you put them on (by its GUID), and come back with the right time left when you target it again. A timer that ran out while you were away isn't brought back; an enemy you don't return to is forgotten after 10 minutes. If the client hides an enemy's GUID, switching still clears.

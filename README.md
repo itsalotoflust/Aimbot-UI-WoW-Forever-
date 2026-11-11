@@ -2,14 +2,14 @@
 
 An all-in-one interface addon suite for **World of Warcraft Forever** (interface 16001).
 
-**Current version: 2.19.2**
+**Current version: 2.19.3**
 
 Open it in game with `/aimbot` (or `/aui`). Every module has its own tab and its own on/off switch, and if one module hits a problem it reports in chat and the rest keep running.
 
-## What's new in 2.19.2
+## What's new in 2.19.3
 
-- **Aura Timers:** your timers stay with each enemy when you switch targets and come back when you return to it.
-- **Escape menu button:** another fix for placing it in the menu list.
+- **Escape menu button:** matches the game's own menu buttons in style and width.
+- (2.19.2) **Aura Timers:** your timers stay with each enemy when you switch targets.
 
 See [CHANGELOG.md](CHANGELOG.md) for every version.
 
