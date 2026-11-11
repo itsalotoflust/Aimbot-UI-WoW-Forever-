@@ -2,6 +2,12 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.19.4
+
+- **Escape menu:** fixed the error `Texture:SetScale(): Scale must be > 0` when opening the menu (the button was squeezed to no height for a moment, which breaks the game's button art).
+- The Aimbot UI button is now the game's own button height, centred in the space after Shop, as wide as the other buttons, so it lines up with them instead of being a thin bar.
+- Its name is Aimbot UI blue again.
+
 ## 2.19.3
 
 - **Escape menu:** the Aimbot UI button now uses the same button style as the game's own menu entries (same look and text), is exactly as wide as them, and fills the whole space between Shop and AddOns. It can't be taller than that space without moving the game's buttons.

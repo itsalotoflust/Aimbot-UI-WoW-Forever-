@@ -2317,20 +2317,35 @@ local function PlaceMenuButton()
     if not (menuButton and gm) then return end
     local list = MenuButtons(gm)
     menuButton:ClearAllPoints()
-    -- after the Shop button (the end of the first group), filling the gap before the next one;
-    -- anchored to both buttons, so the game works out the size (nothing is measured)
+    -- In the space after the Shop button (the end of the first group). A see-through guide frame
+    -- spans that space (anchored to Shop and AddOns, so nothing is measured); our button is the
+    -- game's own button height, centred on the guide and as wide as the game's buttons. The game's
+    -- buttons have empty margin around their art, so the space between their frames is smaller
+    -- than it looks; a full-height button centred there lines its art up with theirs. (2.19.3
+    -- squeezed it into the space, which made it thin and, at zero height, broke the game's button
+    -- art: "SetScale(): Scale must be > 0".)
     local shopText = _G.BLIZZARD_STORE or "Shop"
     for i = 1, #list - 1 do
         if Same(list[i].text, shopText) or Same(list[i].text, "Shop") then
             local a, b = list[i], list[i + 1]
-            -- as wide as the game's buttons (same left and right edges), filling the space between
-            menuButton:SetPoint("TOPLEFT", a.b, "BOTTOMLEFT", 0, 0)
-            menuButton:SetPoint("BOTTOMRIGHT", b.b, "TOPRIGHT", 0, 0)
+            local guide = UI._menuGuide
+            if not guide then
+                guide = CreateFrame("Frame", nil, UIParent)
+                guide:EnableMouse(false)
+                UI._menuGuide = guide
+            end
+            guide:ClearAllPoints()
+            guide:SetPoint("TOPLEFT", a.b, "BOTTOMLEFT", 0, 0)
+            guide:SetPoint("BOTTOMRIGHT", b.b, "TOPRIGHT", 0, 0)
+            menuButton:SetPoint("LEFT", guide, "LEFT", 0, 0)
+            menuButton:SetPoint("RIGHT", guide, "RIGHT", 0, 0)
+            menuButton:SetHeight(UI._menuButtonH or 28)
             UI._menuPlace = "between " .. a.text .. " and " .. b.text
+            if UI._menuColor then UI._menuColor() end
             return
         end
     end
-    menuButton:SetSize(160, 28)
+    menuButton:SetSize(UI._menuButtonW or 200, UI._menuButtonH or 28)
     menuButton:SetPoint("BOTTOM", gm, "TOP", 0, 24)
     local names = {}
     for i = 1, math.min(#list, 6) do names[#names + 1] = list[i].text end
@@ -2379,10 +2394,25 @@ function UI.SetupMenuButton()
     if not ok or not b then ok, b = pcall(CreateFrame, "Button", "AimbotUIGameMenuButton", UIParent) end
     if not ok or not b then return end
     menuButton = b
-    b:SetSize(160, 28)
+    -- the style's own size is the game's button size (our own frame, so it can be read)
+    local okW, w0 = pcall(b.GetWidth, b)
+    local okH, h0 = pcall(b.GetHeight, b)
+    UI._menuButtonW = (okW and not NS.IsSecret(w0) and type(w0) == "number" and w0 > 20) and w0 or 200
+    UI._menuButtonH = (okH and not NS.IsSecret(h0) and type(h0) == "number" and h0 > 10) and h0 or 28
+    b:SetSize(UI._menuButtonW, UI._menuButtonH)   -- never zero, or the button art breaks
     b:SetFrameStrata("FULLSCREEN_DIALOG")   -- above the menu itself
     b:SetPoint("BOTTOM", gm, "TOP", 0, 24)   -- until PlaceMenuButton lines it up in the list
     b:SetText("Aimbot UI")
+    -- our own colour for the name (put back each time the button is shown, as the style resets it)
+    local function Color()
+        local fs = b.GetFontString and b:GetFontString()
+        if fs then pcall(fs.SetTextColor, fs, 0.30, 0.72, 1.00) end
+    end
+    UI._menuColor = Color
+    Color()
+    b:HookScript("OnShow", Color)
+    b:HookScript("OnLeave", Color)
+    b:HookScript("OnMouseUp", Color)
     b:SetScript("OnClick", function()
         if InCombatLockdown and InCombatLockdown() then
             -- the Escape menu can't be closed for you in combat; open the window on top of it

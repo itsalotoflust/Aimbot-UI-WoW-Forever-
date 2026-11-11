@@ -1,4 +1,4 @@
-AIMBOT UI  v2.19.3  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.19.4  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,13 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.19.4
+  - Escape menu: fixed the error "Texture:SetScale(): Scale must be > 0" when opening the menu
+    (the button was squeezed to no height for a moment, which breaks the game's button art).
+  - The Aimbot UI button is now the game's own button height, centred in the space after Shop,
+    as wide as the other buttons, so it lines up with them instead of being a thin bar.
+  - Its name is Aimbot UI blue again.
 
 NEW IN 2.19.3
   - Escape menu: the Aimbot UI button now uses the same button style as the game's own menu
