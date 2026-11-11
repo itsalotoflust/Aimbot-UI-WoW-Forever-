@@ -2,6 +2,12 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.16.7
+
+- **Aura Timers:** hovering an icon showed the tooltip of a different aura. Our icons let the mouse pass through (2.13.4), so you were really hovering the game's hidden icon underneath, which is laid out differently (other size, other row length).
+  - Our icons now sit on top of the game's hidden icons and show their own tooltip: always the aura that icon shows (by the aura's id; a cast-timed icon shows its spell).
+  - Saved settings with our tooltips off are switched on once. "My icons show their own tooltip" in `/aimbot timers` still turns them off.
+
 ## 2.16.6
 
 - **Aura Timers:** crowd control shows again, with its time. Since 2.16.5 a cast had to change the target's auras within a second, but Intimidation stuns on your pet's next hit, seconds later, so it was thrown away as a miss.

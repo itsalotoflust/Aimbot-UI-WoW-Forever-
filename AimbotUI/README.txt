@@ -1,4 +1,4 @@
-AIMBOT UI  v2.16.6  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.16.7  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,15 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.16.7
+  - Aura Timers: hovering an icon showed the tooltip of a different aura. Our icons let the mouse
+    pass through (2.13.4), so you were really hovering the game's hidden icon underneath, which
+    is laid out differently (other size, other row length), so it was a different aura.
+    * Our icons now sit on top of the game's hidden icons and show their own tooltip: always
+      the aura that icon shows (by the aura's id; a cast-timed icon shows its spell).
+    * Saved settings with our tooltips off are switched on once. "My icons show their own
+      tooltip" in /aimbot timers still turns them off.
 
 NEW IN 2.16.6
   - Aura Timers: crowd control shows again, with its time. Since 2.16.5 a cast had to change

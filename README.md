@@ -2,13 +2,13 @@
 
 An all-in-one interface addon suite for **World of Warcraft Forever** (interface 16001).
 
-**Current version: 2.16.6**
+**Current version: 2.16.7**
 
 Open it in game with `/aimbot` (or `/aui`). Every module has its own tab and its own on/off switch, and if one module hits a problem it reports in chat and the rest keep running.
 
-## What's new in 2.16.6
+## What's new in 2.16.7
 
-- **Aura Timers:** crowd control shows with its time again: Intimidation (timed from when the stun lands), traps, Scatter Shot, Concussive Shot, Wyvern Sting and other Hunter CC and stings.
+- **Aura Timers:** hovering a buff or debuff icon now shows that aura's tooltip, not a different one.
 
 See [CHANGELOG.md](CHANGELOG.md) for every version.
 

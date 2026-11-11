@@ -41,8 +41,8 @@ local M = {
             x = 0, y = -4,          -- from the bottom left of the frame's mana bar
             timerSize = 0,          -- countdown text size, 0 = fit the icon
             spacing = 3,
-            layout = 3,             -- settings version (2: placed under the mana bar, 3: 5 per row)
-            tooltip = false,        -- our own tooltip (the game's hidden icons already show one)
+            layout = 4,             -- settings version (2: under the mana bar, 3: 5 per row, 4: own tooltips)
+            tooltip = true,         -- our own tooltip (on top of the game's hidden icons)
         },
     },
 }
@@ -494,6 +494,7 @@ local function TimerSize()
     return math.max(6, math.floor(o.iconSize * 0.42 + 0.5))
 end
 
+local ShowTip   -- defined below OwnSet
 local function NewIcon(holder)
     local b = CreateFrame("Frame", nil, holder)
     b.bg = b:CreateTexture(nil, "BACKGROUND")
@@ -512,19 +513,37 @@ local function NewIcon(holder)
     b.count = b:CreateFontString(nil, "OVERLAY", "NumberFontNormalSmall")
     b.count:SetPoint("BOTTOMRIGHT", 2, -1)
     b:EnableMouse(O().tooltip and true or false)
-    b:SetScript("OnEnter", function(self)
-        if not GameTooltip then return end
-        GameTooltip:SetOwner(self, "ANCHOR_BOTTOMRIGHT")
-        local ok = false
-        if self.auraID ~= nil and GameTooltip.SetUnitAuraByAuraInstanceID then
-            ok = pcall(GameTooltip.SetUnitAuraByAuraInstanceID, GameTooltip, self.unit, self.auraID)
-        end
-        if not ok then ok = pcall(GameTooltip.SetUnitAura, GameTooltip, self.unit, self.index, self.filter) end
-        if ok then GameTooltip:Show() end
-    end)
+    b:SetScript("OnEnter", function(self) pcall(ShowTip, self) end)
     b:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
     return b
 end
+
+-- The tooltip of one of our icons: always the aura that icon shows. By the aura's id first; by
+-- position only when the icon came from the game's own index order (positions in our list don't
+-- match the game's when the aura came from events or your casts); a cast-timed icon shows its spell.
+local function TipLines()
+    local ok, n = pcall(GameTooltip.NumLines, GameTooltip)
+    return ok and not IsSecret(n) and type(n) == "number" and n or 0
+end
+function ShowTip(self)   -- the local declared above NewIcon
+    if not GameTooltip then return end
+    GameTooltip:SetOwner(self, "ANCHOR_BOTTOMRIGHT")
+    local done = false
+    local id = self.auraID
+    if (IsSecret(id) or id ~= nil) and GameTooltip.SetUnitAuraByAuraInstanceID then
+        done = pcall(GameTooltip.SetUnitAuraByAuraInstanceID, GameTooltip, self.unit, id) and TipLines() > 0
+    end
+    if not done and (self.way == "index" or self.way == "nameplate index") and self.index then
+        done = pcall(GameTooltip.SetUnitAura, GameTooltip, self.unit, self.index, self.filter) and TipLines() > 0
+    end
+    local sid = self.spellId
+    if not done and not IsSecret(sid) and type(sid) == "number" and GameTooltip.SetSpellByID then
+        done = pcall(GameTooltip.SetSpellByID, GameTooltip, sid) and TipLines() > 0
+    end
+    M.stats.tips = (M.stats.tips or 0) + 1
+    if done then GameTooltip:Show() else GameTooltip:Hide() end
+end
+M._t_ShowTip = function(b) return ShowTip(b) end
 
 local function OwnSet(unit)
     local set = own[unit]
@@ -533,6 +552,9 @@ local function OwnSet(unit)
     if not frame then return nil end
     local holder = CreateFrame("Frame", nil, frame)
     holder:SetSize(1, 1)
+    -- above the game's (hidden but still hoverable) aura icons, so the mouse finds ours first
+    local okL, lvl = pcall(frame.GetFrameLevel, frame)
+    if okL and not IsSecret(lvl) and type(lvl) == "number" then pcall(holder.SetFrameLevel, holder, lvl + 20) end
     set = { holder = holder, buffs = {}, debuffs = {} }
     own[unit] = set
     return set
@@ -1004,6 +1026,7 @@ local function FillKind(unit, set, kind, startRow, skip)
             if not b then b = NewIcon(set.holder); list[n] = b end
             local ru = e.unit or unit
             b.unit, b.index, b.filter, b.auraID = ru, e.index, filter, a.auraInstanceID
+            b.way, b.spellId = way, a.spellId
             b:EnableMouse(o.tooltip and true or false)
             b:SetSize(size, size)
             b:ClearAllPoints()
@@ -1117,11 +1140,18 @@ function M:Init()
         if o.x == 5 and o.y == 32 then o.x, o.y = 0, -4 end
         o.layout = 2
     end
+    if o.layout < 4 then
+        -- 2.16.7: our icons show their own tooltip again and sit above the game's hidden icons
+        -- (with ours mouse-transparent, hovering hit the hidden game icon underneath, which is
+        -- laid out differently, so the tooltip showed another aura)
+        o.tooltip = true
+    end
     if o.layout < 3 then
         -- 2.16.2: 5 icons per row (the old 8 ran far past the frame); a changed value is kept
         if o.perRow == nil or o.perRow == 8 then o.perRow = 5 end
         o.layout = 3
     end
+    if o.layout < 4 then o.layout = 4 end
     for k, v in pairs(M.defaults.own) do if o[k] == nil then o[k] = v end end
     local runner = CreateFrame("Frame")
     local acc = 0
@@ -1461,8 +1491,9 @@ function M.Build(page)
         function(v) O().onlyMine = v; A() end)
     page:Check("My icons show their own tooltip", function() return O().tooltip end,
         function(v) O().tooltip = v; A() end)
-    page:Note("Leave this off while the game's icons are hidden: they still show their tooltip when hovered, "
-        .. "so with it on you'd see two.")
+    page:Note("Our icons sit on top of the game's hidden icons, so hovering one shows the aura it really "
+        .. "shows. Turned off, the mouse goes through to the game's hidden icon underneath, which can be a "
+        .. "different aura.")
     page:Slider("Icon size", 14, 40, 1, function() return O().iconSize end, function(v) O().iconSize = v; A() end)
     page:Slider("Time text size (0 = fit the icon)", 0, 24, 1, function() return O().timerSize end,
         function(v) O().timerSize = v; A() end)
