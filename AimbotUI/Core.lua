@@ -7,7 +7,7 @@
 local ADDON_NAME, NS = ...
 _G.AimbotUI = NS
 
-NS.version = "2.17.3"
+NS.version = "2.18.0"
 NS.modules = {}
 NS.moduleOrder = {}
 
@@ -311,6 +311,7 @@ NS.WINDOW_DEFAULTS = {
     textShadow  = false,
     borderSize  = 1,
     showVersion = true,
+    menuButton  = true,           -- "Aimbot UI" button under the Escape menu
     titleMark   = true,
     titleLine   = true,
     underlines  = true,

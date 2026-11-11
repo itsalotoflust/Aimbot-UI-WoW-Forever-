@@ -1345,6 +1345,8 @@ local function BuildGeneral(page)
         function(v) W().underlines = v; UI.ApplyStyle() end)
 
     page:Section("Window", "Size, opacity, text size and locking")
+    page:Check("Show an \"Aimbot UI\" button under the Escape menu", function() return W().menuButton ~= false end,
+        function(v) W().menuButton = v; UI.UpdateMenuButton() end)
     page:Slider("Window scale", 0.6, 1.6, 0.05,
         function() return W().scale end,
         function(v) W().scale = v; UI.ApplyStyle() end,
@@ -2069,6 +2071,54 @@ local ALIASES = {
     stuns = "lossofcontrol", ccme = "lossofcontrol", losecontrol = "lossofcontrol",
     general = "general", window = "general",
 }
+
+----------------------------------------------------------------------
+-- Escape menu button
+-- Our own button, shown under the game's Escape menu while it is open. Nothing is added to the
+-- game's own menu or its button list (that list also holds Log Out / Exit Game, and changing it
+-- from an addon can get those blocked). Clicking closes the menu and opens the settings window.
+----------------------------------------------------------------------
+local menuButton
+function UI.UpdateMenuButton()
+    if not menuButton then return end
+    local gm = _G.GameMenuFrame
+    local want = NS.db and W().menuButton ~= false
+    local shown = false
+    if gm then
+        local ok, v = pcall(gm.IsShown, gm)
+        shown = ok and not NS.IsSecret(v) and v == true
+    end
+    menuButton:SetShown(want and shown and true or false)
+end
+
+function UI.SetupMenuButton()
+    local gm = _G.GameMenuFrame
+    if menuButton or not gm then return end
+    local ok, b = pcall(CreateFrame, "Button", "AimbotUIGameMenuButton", UIParent, "UIPanelButtonTemplate")
+    if not ok or not b then ok, b = pcall(CreateFrame, "Button", "AimbotUIGameMenuButton", UIParent) end
+    if not ok or not b then return end
+    menuButton = b
+    b:SetSize(160, 28)
+    b:SetFrameStrata("DIALOG")
+    b:SetPoint("TOP", gm, "BOTTOM", 0, -6)
+    b:SetText("Aimbot UI")
+    local fs = b.GetFontString and b:GetFontString()
+    if fs then pcall(fs.SetTextColor, fs, 0.30, 0.72, 1.00) end
+    b:SetScript("OnClick", function()
+        if InCombatLockdown and InCombatLockdown() then
+            -- the Escape menu can't be closed for you in combat; open the window on top of it
+            UI.Show()
+            return
+        end
+        pcall(HideUIPanel, gm)
+        UI.Show()
+    end)
+    b:Hide()
+    pcall(gm.HookScript, gm, "OnShow", function() pcall(UI.UpdateMenuButton) end)
+    pcall(gm.HookScript, gm, "OnHide", function() if menuButton then menuButton:Hide() end end)
+    UI.UpdateMenuButton()
+end
+UI._menuButton = function() return menuButton end
 
 SLASH_AIMBOTUI1 = "/aimbot"
 SLASH_AIMBOTUI2 = "/aui"

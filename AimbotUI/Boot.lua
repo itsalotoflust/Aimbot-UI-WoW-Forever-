@@ -42,7 +42,11 @@ end)
 NS.On("PLAYER_LOGIN", function()
     if not NS.db then return end
     NS.ApplyAll()
-    NS.Print("loaded. Type |cff4db8ff/aimbot|r to open the settings window.")
+    if NS.UI and NS.UI.SetupMenuButton then
+        local ok, err = pcall(NS.UI.SetupMenuButton)
+        if not ok then NS.ReportError("escape menu button", err) end
+    end
+    NS.Print("loaded. Type |cff4db8ff/aimbot|r or use the Aimbot UI button in the Escape menu.")
 end)
 
 NS.On("PLAYER_ENTERING_WORLD", function()

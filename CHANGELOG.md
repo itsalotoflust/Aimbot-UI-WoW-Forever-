@@ -2,6 +2,12 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.18.0
+
+- **Escape menu:** an "Aimbot UI" button now sits just under the game's Escape menu while it's open. Click it to close the menu and open the settings window, no typing needed.
+  - It's our own button: nothing is added to the game's menu itself, so Log Out / Exit Game are never affected.
+  - Turn it off in the General tab ("Show an Aimbot UI button under the Escape menu").
+
 ## 2.17.3
 
 - **Aura Timers:** countdowns are back on your debuffs. 2.17.0 switched the icons under the target frame to copies of the target's nameplate icons, whose countdowns can't be copied on this client, so they lost their numbers. The icons are your landed casts again, with their timers (as in 2.16.4), and the nameplate is only used to tell what really landed:
