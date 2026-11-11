@@ -1,4 +1,4 @@
-AIMBOT UI  v2.16.8  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.16.9  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,15 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.16.9
+  - Aura Timers: placing a Freezing Trap started its timer right away. A trap was taken as landed
+    as soon as the target's auras changed, and on this client they change all the time. Placing
+    a trap (Freezing, Immolation, Explosive, Frost) now shows nothing; the timer starts only when
+    the game reports the trap's effect (Freezing Trap 10 / 15 / 20 s by rank, Immolation 15 s,
+    Explosive 20 s), or announces its aura. /aimbot diag shows traps placed and gone off.
+    If the trap goes off and still nothing shows, the client isn't reporting the effect to
+    addons; paste /aimbot diag after a trap and I'll look at it.
 
 NEW IN 2.16.8
   - Aura Timers: hovering the space between (or just past) the icons showed some other aura's

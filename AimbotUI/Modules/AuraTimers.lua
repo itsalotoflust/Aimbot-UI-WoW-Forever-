@@ -722,7 +722,10 @@ end
 
 -- Lengths of common crowd control, used before the description is read.
 local KNOWN_DURATION = { [19577] = 3, [24394] = 3, [19503] = 4, [5116] = 4, [19410] = 3,
-    [19386] = 12, [24132] = 12, [24133] = 12 }
+    [19386] = 12, [24132] = 12, [24133] = 12,
+    [3355] = 10, [14308] = 15, [14309] = 20,                                   -- Freezing Trap Effect
+    [13797] = 15, [14298] = 15, [14299] = 15, [14300] = 15, [14301] = 15,      -- Immolation Trap Effect
+    [13812] = 20, [14314] = 20, [14315] = 20 }                                 -- Explosive Trap Effect
 
 local function SpellDuration(id)
     local d = Learned()[id]
@@ -744,11 +747,19 @@ end
 -- change, and their timer starts when that happens, not at the cast.
 local DELAYED = {
     [19577] = 6,                                  -- Intimidation (cast), stun on the pet's next hit
-    [1499] = 30, [14310] = 30, [14311] = 30,      -- Freezing Trap
-    [13795] = 30, [14302] = 30, [14303] = 30, [14304] = 30, [14305] = 30,  -- Immolation Trap
-    [13813] = 30, [14316] = 30, [14317] = 30,     -- Explosive Trap
-    [13809] = 30,                                 -- Frost Trap
 }
+-- Traps: placing one is not hitting anything. The target's auras change all the time (many
+-- "full updates" a fight), so that can't tell when a trap went off; the timer only starts when
+-- the game reports the trap's effect itself (the effect spell succeeding, or its aura announced).
+-- Placing a trap shows nothing.
+local TRAPS = { [1499] = true, [14310] = true, [14311] = true,                 -- Freezing Trap
+    [13795] = true, [14302] = true, [14303] = true, [14304] = true, [14305] = true, -- Immolation Trap
+    [13813] = true, [14316] = true, [14317] = true,                            -- Explosive Trap
+    [13809] = true }                                                           -- Frost Trap
+local TRAP_EFFECT = { [3355] = true, [14308] = true, [14309] = true,           -- Freezing Trap Effect
+    [13797] = true, [14298] = true, [14299] = true, [14300] = true, [14301] = true, -- Immolation Trap Effect
+    [13812] = true, [14314] = true, [14315] = true }                           -- Explosive Trap Effect
+M.stats.traps = { placed = 0, effects = 0 }
 -- Known crowd control / debuffs that count even when the client calls them "not harmful"
 -- (Intimidation is cast on your pet, for example).
 local FORCE = {
@@ -764,6 +775,7 @@ local FORCE = {
     [19410] = true,                               -- Improved Concussive Shot stun
 }
 for id in pairs(DELAYED) do FORCE[id] = true end
+for id in pairs(TRAP_EFFECT) do FORCE[id] = true end
 M._t_DELAYED, M._t_FORCE = DELAYED, FORCE
 
 local SAME_AS = { [24394] = 19577 }   -- the pet's stun is the Intimidation you cast: one icon
@@ -771,6 +783,9 @@ local SAME_AS = { [24394] = 19577 }   -- the pet's stun is the Intimidation you 
 local function CastLanded(spellID, byPet)
     if IsSecret(spellID) or type(spellID) ~= "number" or spellID == 75 then return end
     if SAME_AS[spellID] then casts[SAME_AS[spellID]] = nil; pending[SAME_AS[spellID]] = nil end
+    if TRAPS[spellID] then M.stats.traps.placed = M.stats.traps.placed + 1; return end   -- placing isn't hitting
+    local trapHit = TRAP_EFFECT[spellID]
+    if trapHit then M.stats.traps.effects = M.stats.traps.effects + 1 end
     local okE, enemy = pcall(UnitCanAttack, "player", "target")
     if not okE or IsSecret(enemy) or enemy ~= true then return end
     -- only spells known to leave a debuff: learned from an announced aura, or harmful with a
@@ -801,7 +816,12 @@ local function CastLanded(spellID, byPet)
     -- A cast that "succeeded" can still miss (or be resisted, dodged, parried). Addons aren't told,
     -- but a debuff that lands makes the game update the target's auras. So the cast only counts
     -- once the target's auras change right around it; otherwise it is dropped as a miss.
-    if not entry.delayed and lastTargetAura and entry.start - lastTargetAura <= CONFIRM_BEFORE then
+    if trapHit then
+        -- the game itself says the trap went off: start now (it is caught by the enemy that
+        -- stepped in, which is assumed to be your target)
+        casts[spellID] = entry
+        M.stats.casts.confirmed = M.stats.casts.confirmed + 1
+    elseif not entry.delayed and lastTargetAura and entry.start - lastTargetAura <= CONFIRM_BEFORE then
         casts[spellID] = entry
         M.stats.casts.confirmed = M.stats.casts.confirmed + 1
     else
@@ -1504,6 +1524,8 @@ function M:Diagnose()
     local cs = st.casts
     NS.Print(string.format("  your casts: tracked %d  landed %d  missed %d  shown %d   durations known: %d spells (learned %d this session, from description %d, unknown %d)",
         cs.seen, cs.confirmed, cs.missed, cs.used, nl, cs.learned, cs.fromText, cs.unknown))
+    NS.Print(string.format("  traps: placed %d   went off (effect reported by the game) %d",
+        st.traps.placed, st.traps.effects))
     local plate = PlateFor("target")
     local pr = "no nameplate"
     if plate then

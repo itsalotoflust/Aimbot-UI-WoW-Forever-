@@ -2,6 +2,13 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.16.9
+
+- **Aura Timers:** placing a Freezing Trap started its timer right away. A trap was taken as landed as soon as the target's auras changed, and on this client they change all the time.
+  - Placing a trap (Freezing, Immolation, Explosive, Frost) now shows nothing.
+  - The timer starts only when the game reports the trap's effect (Freezing Trap 10 / 15 / 20 s by rank, Immolation 15 s, Explosive 20 s), or announces its aura.
+  - `/aimbot diag` shows traps placed and gone off.
+
 ## 2.16.8
 
 - **Aura Timers:** hovering the space between (or just past) the icons showed some other aura's tooltip, from the game's hidden icons underneath.
