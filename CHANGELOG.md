@@ -2,6 +2,10 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.16.10
+
+- **Aura Timers diag:** `/aimbot diag` now also looks at the debuff icons your target's nameplate draws, and says whether addons can see them (how many icons, whether their pictures can be read or are hidden, and their countdowns). This tells whether landed / missed spells can be checked against the real debuffs on the nameplate. No change to what you see in game.
+
 ## 2.16.9
 
 - **Aura Timers:** placing a Freezing Trap started its timer right away. A trap was taken as landed as soon as the target's auras changed, and on this client they change all the time.

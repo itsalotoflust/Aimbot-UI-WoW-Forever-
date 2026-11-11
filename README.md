@@ -2,13 +2,13 @@
 
 An all-in-one interface addon suite for **World of Warcraft Forever** (interface 16001).
 
-**Current version: 2.16.9**
+**Current version: 2.16.10**
 
 Open it in game with `/aimbot` (or `/aui`). Every module has its own tab and its own on/off switch, and if one module hits a problem it reports in chat and the rest keep running.
 
-## What's new in 2.16.9
+## What's new in 2.16.10
 
-- **Aura Timers:** trap timers start when the trap actually goes off, not when you place it.
+- **Aura Timers diag:** checks whether the debuff icons on your target's nameplate can be read by addons.
 
 See [CHANGELOG.md](CHANGELOG.md) for every version.
 

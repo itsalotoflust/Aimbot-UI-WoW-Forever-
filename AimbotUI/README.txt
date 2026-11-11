@@ -1,4 +1,4 @@
-AIMBOT UI  v2.16.9  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.16.10  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,12 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.16.10
+  - Aura Timers diag: /aimbot diag now also looks at the debuff icons your target's nameplate
+    draws, and says whether addons can see them (how many icons, whether their pictures can be
+    read or are hidden, and their countdowns). This tells whether landed / missed spells can be
+    checked against the real debuffs on the nameplate. No change to what you see in game.
 
 NEW IN 2.16.9
   - Aura Timers: placing a Freezing Trap started its timer right away. A trap was taken as landed

@@ -1534,6 +1534,55 @@ function M:Diagnose()
         pr = string.format("%s: debuffs read %d, buffs read %d", plate, #hb, #hp)
     end
     NS.Print(string.format("  target's nameplate: %s   nameplate aura events used: %d", pr, st.plateEvents or 0))
+    -- what the target's nameplate draws itself (its own aura icons): can addons see them?
+    local okP, pf = pcall(function() return C_NamePlate and C_NamePlate.GetNamePlateForUnit and C_NamePlate.GetNamePlateForUnit("target") end)
+    if not okP or type(pf) ~= "table" then
+        NS.Print("  target's nameplate icons: no nameplate for your target (turn enemy nameplates on)")
+    else
+        local c = { frames = 0, icons = 0, iconsShown = 0, texRead = 0, texHidden = 0, texEmpty = 0, cds = 0, cdsShown = 0, ex = {} }
+        local function Shown(f) local ok, v = pcall(f.IsShown, f); return ok and not IsSecret(v) and v == true end
+        local function Num(v) return (not IsSecret(v) and type(v) == "number") and string.format("%.0f", v) or "?" end
+        local function Walk(f, depth, path)
+            if c.frames > 400 or depth > 7 then return end
+            c.frames = c.frames + 1
+            local okT, kind = pcall(f.GetObjectType, f)
+            if okT and kind == "Cooldown" then
+                c.cds = c.cds + 1
+                if Shown(f) then c.cdsShown = c.cdsShown + 1 end
+            end
+            local icon = rawget(f, "Icon") or rawget(f, "icon")
+            if type(icon) == "table" and icon.GetTexture then
+                c.icons = c.icons + 1
+                if Shown(f) then
+                    c.iconsShown = c.iconsShown + 1
+                    local okX, tex = pcall(icon.GetTexture, icon)
+                    if okX and IsSecret(tex) then c.texHidden = c.texHidden + 1
+                    elseif okX and tex ~= nil then c.texRead = c.texRead + 1
+                    else c.texEmpty = c.texEmpty + 1 end
+                    if #c.ex < 3 then
+                        local okW, w = pcall(f.GetWidth, f)
+                        c.ex[#c.ex + 1] = string.format("%s %sx%s", path, okW and Num(w) or "?", okW and Num(w) or "?")
+                    end
+                end
+            end
+            local okC, kids = pcall(function() return { f:GetChildren() } end)
+            if okC then
+                for i, k in ipairs(kids) do
+                    local nm = "#" .. i
+                    pcall(function()
+                        for key, v in pairs(f) do
+                            if type(key) == "string" and not IsSecret(v) and rawequal(v, k) then nm = key; break end
+                        end
+                    end)
+                    Walk(k, depth + 1, path .. "." .. nm)
+                end
+            end
+        end
+        pcall(Walk, rawget(pf, "UnitFrame") or pf, 0, "plate")
+        NS.Print(string.format("  target's nameplate icons: frames looked at %d   icon frames %d (shown %d: icon readable %d, hidden %d, empty %d)   cooldowns %d (shown %d)",
+            c.frames, c.icons, c.iconsShown, c.texRead, c.texHidden, c.texEmpty, c.cds, c.cdsShown))
+        if #c.ex > 0 then NS.Print("    e.g. " .. table.concat(c.ex, "   ")) end
+    end
     NS.Print(string.format("  event durations: readable %d  hidden %d  zero/missing %d   timers given from: aura times %d, aura id %d, hidden times %d, none %d",
         st.seen.durRead or 0, st.seen.durHidden or 0, st.seen.durZero or 0,
         st.timer.data, st.timer.id, st.timer.secret, st.timer.none))
