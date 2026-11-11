@@ -1,4 +1,4 @@
-AIMBOT UI  v2.16.10  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.17.0  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,21 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.17.0
+  - Aura Timers: your debuffs and crowd control on your target now come from the icons the
+    target's nameplate shows. Your diag showed those icons are visible to addons (the aura
+    lookups still find nothing), and the game puts exactly your debuffs and crowd control there
+    the moment they land. So while your target has a nameplate:
+    * a spell that misses never shows (no icon appears on the plate)
+    * a trap shows when it actually catches the target (its crowd-control icon appears)
+    * Intimidation shows when the stun lands
+    * countdowns are copied from the game's own icon timers, so they're exact; when one can't
+      be copied yet, the time comes from your landed cast as before
+    * crowd control is listed first
+    Without a nameplate (nameplates off, or out of range), the earlier ways are used.
+    The cast check also uses the plate now: a cast only counts once a new icon appears on it.
+    /aimbot diag shows the nameplate icons used and where each timer came from.
 
 NEW IN 2.16.10
   - Aura Timers diag: /aimbot diag now also looks at the debuff icons your target's nameplate

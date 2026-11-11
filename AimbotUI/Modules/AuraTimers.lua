@@ -667,6 +667,7 @@ end
 -- read from the spell's description ("over 15 sec", "for 2 min"). Shown for your target only;
 -- cleared on a new target or when it dies. A recast restarts the timer.
 local casts = {}                  -- spellID -> { start, duration, icon }
+local PlateIcons, PlateFrameFor   -- defined with the nameplate reading below
 local pending = {}                -- casts waiting to be confirmed by an aura change on the target
 local lastTargetAura              -- when the target's auras last changed
 local CONFIRM_AFTER = 1.0         -- seconds a cast may wait for the target's auras to change
@@ -843,6 +844,20 @@ local function TargetAuraChanged()
     end
 end
 
+-- With a nameplate, a cast is confirmed when the plate gets a new icon (checked every tick).
+local plateCount
+local function PlateCheck()
+    local icons = PlateIcons("target", 40)
+    if not icons then plateCount = nil; return false, false end
+    local n = #icons
+    local grew = plateCount ~= nil and n > plateCount
+    local changed = plateCount ~= n
+    plateCount = n
+    if grew then TargetAuraChanged() end
+    return true, changed
+end
+M._t_PlateCheck = PlateCheck
+
 local function DropUnconfirmed()
     local now = GetTime()
     for sid, entry in pairs(pending) do
@@ -917,23 +932,133 @@ local function Reads(unit, filter, max)
 end
 
 -- The nameplate token showing the same unit (the game may share more about a nameplate's auras).
+local function Same(a, b)
+    local ok, same = pcall(UnitIsUnit, a, b)
+    return ok and not IsSecret(same) and same == true
+end
+
+-- The nameplate frame showing a unit (or nil).
+function PlateFrameFor(unit)   -- the local declared above
+    if not C_NamePlate then return end
+    if C_NamePlate.GetNamePlateForUnit then
+        local ok, pf = pcall(C_NamePlate.GetNamePlateForUnit, unit)
+        if ok and type(pf) == "table" then return pf end
+    end
+end
+
 local function PlateFor(unit)
-    if not (C_NamePlate and C_NamePlate.GetNamePlates) then return end
-    local ok, plates = pcall(C_NamePlate.GetNamePlates)
-    if not ok or type(plates) ~= "table" then return end
-    for _, plate in ipairs(plates) do
-        local token = plate.namePlateUnitToken
-        if not IsSecret(token) and type(token) == "string" then
-            local okU, same = pcall(UnitIsUnit, token, unit)
-            if okU and not IsSecret(same) and same == true then return token end
+    -- 1. the plate frame's own unit token
+    local pf = PlateFrameFor(unit)
+    if pf then
+        for _, t in ipairs({ rawget(pf, "namePlateUnitToken"), rawget(pf, "UnitFrame") and rawget(pf.UnitFrame, "unit") }) do
+            if not IsSecret(t) and type(t) == "string" and Same(t, unit) then return t end
         end
+    end
+    -- 2. any nameplate token that is the same unit
+    for i = 1, 40 do
+        local t = "nameplate" .. i
+        if Same(t, unit) then return t end
     end
 end
 M._t_PlateFor = PlateFor
 
+-- What the unit's nameplate itself draws: its debuff and crowd-control icons. On this client these
+-- frames are visible to addons (2.16.10 diag) even though the aura lookups find nothing, and the
+-- game puts exactly your debuffs and crowd control on them, the moment they land. So when the
+-- target has a nameplate, these icons decide what is shown: a missed spell never gets an icon,
+-- and a trap shows when it catches something. Icons and countdowns are copied as the game sets
+-- them (secret values are passed straight through, never read).
+local PLATE_LISTS = { "CrowdControlListFrame", "DebuffListFrame" }
+local cdSeen = setmetatable({}, { __mode = "k" })   -- game cooldown -> { how, a, b } as last set
+local cdHooked = setmetatable({}, { __mode = "k" })
+M.stats.plate = { found = 0, icons = 0, mirrored = 0, byID = 0, byTimes = 0, byCast = 0, noTimer = 0 }
+
+local function HookCooldown(cd)
+    if cdHooked[cd] or type(cd) ~= "table" then return end
+    cdHooked[cd] = true
+    for _, m in ipairs({ "SetCooldown", "SetCooldownFromDurationObject", "SetCooldownFromExpirationTime", "SetCooldownDuration" }) do
+        if type(cd[m]) == "function" then
+            pcall(hooksecurefunc, cd, m, function(_, a, b) cdSeen[cd] = { m, a, b } end)
+        end
+    end
+    if type(cd.Clear) == "function" then pcall(hooksecurefunc, cd, "Clear", function() cdSeen[cd] = nil end) end
+end
+
+local function CooldownOf(f)
+    local cd = rawget(f, "Cooldown") or rawget(f, "cooldown")
+    if type(cd) == "table" then return cd end
+    local ok, kids = pcall(function() return { f:GetChildren() } end)
+    if ok then
+        for _, k in ipairs(kids) do
+            local okT, kind = pcall(k.GetObjectType, k)
+            if okT and kind == "Cooldown" then return k end
+        end
+    end
+end
+
+local function Shown(f)
+    local ok, v = pcall(f.IsShown, f)
+    return ok and not IsSecret(v) and v == true
+end
+
+-- Returns nil when there is no nameplate, else the list of icons it shows (may be empty).
+function PlateIcons(unit, max)   -- the local declared above
+    local pf = PlateFrameFor(unit)
+    if not pf then return nil end
+    local uf = rawget(pf, "UnitFrame") or pf
+    local af = rawget(uf, "AurasFrame")
+    if type(af) ~= "table" then return nil end
+    local token = PlateFor(unit)
+    M.stats.plate.found = M.stats.plate.found + 1
+    local out = {}
+    for _, listName in ipairs(PLATE_LISTS) do
+        local lf = rawget(af, listName)
+        if type(lf) == "table" then
+            local ok, kids = pcall(function() return { lf:GetChildren() } end)
+            if ok then
+                local shown = {}
+                for _, f in ipairs(kids) do
+                    -- hook every icon's countdown early, so its next timer is caught
+                    local hcd = CooldownOf(f)
+                    if hcd then HookCooldown(hcd) end
+                    local icon = rawget(f, "Icon") or rawget(f, "icon")
+                    if type(icon) == "table" and icon.GetTexture and Shown(f) then
+                        local li = rawget(f, "layoutIndex")
+                        shown[#shown + 1] = { f = f, icon = icon, order = (not IsSecret(li) and type(li) == "number") and li or #shown }
+                    end
+                end
+                table.sort(shown, function(x, y) return x.order < y.order end)
+                for _, sf in ipairs(shown) do
+                    if #out >= max then break end
+                    local okX, tex = pcall(sf.icon.GetTexture, sf.icon)
+                    local cd = CooldownOf(sf.f)
+                    if cd then HookCooldown(cd) end
+                    local id = rawget(sf.f, "auraInstanceID")
+                    local sid = rawget(sf.f, "spellID") or rawget(sf.f, "spellId")
+                    out[#out + 1] = { unit = token, index = #out + 1, data = {
+                        icon = okX and tex or nil, auraInstanceID = id, spellId = sid, isHarmful = true,
+                        plateCD = cd, plateFrame = sf.f, cc = (listName == "CrowdControlListFrame") } }
+                end
+            end
+        end
+    end
+    M.stats.plate.icons = #out
+    return out
+end
+M._t_PlateIcons = PlateIcons
+
 local function Gather(unit, filter, max)
     local list, way = Reads(unit, filter, max)
     if #list > 0 then return list, way end
+    -- the nameplate's own icons: when the unit has a nameplate they are what the game shows for
+    -- your debuffs and crowd control, so they decide (an empty plate means none of yours)
+    if (unit == "target" or unit == "focus") and filter:find("HARMFUL", 1, true) then
+        local icons = PlateIcons(unit, max)
+        if icons then
+            M.stats.ways[filter .. " plate icons"] = #icons
+            return icons, "nameplate icons"
+        end
+    end
     -- the same unit through its nameplate
     if unit == "target" or unit == "focus" then
         local plate = PlateFor(unit)
@@ -1003,7 +1128,47 @@ end
 -- Each try is checked: a time that turns out to be zero (seen on enemy auras on this client) counts
 -- as failed and the next way is tried, instead of leaving the icon without numbers.
 M.stats.timer = { data = 0, id = 0, secret = 0, none = 0 }
+local function MirrorPlate(cd, unit, a)
+    local P = M.stats.plate
+    local src = a.plateCD
+    -- 1. exactly what the game last gave its own icon's countdown
+    local seenCD = src and cdSeen[src]
+    if seenCD and type(cd[seenCD[1]]) == "function" then
+        if pcall(cd[seenCD[1]], cd, seenCD[2], seenCD[3]) then P.mirrored = P.mirrored + 1; return true end
+    end
+    -- 2. by the aura id the icon carries
+    local id = a.auraInstanceID
+    if (IsSecret(id) or id ~= nil) and C_UnitAuras and C_UnitAuras.GetAuraDuration then
+        local ok, dur = pcall(C_UnitAuras.GetAuraDuration, unit or "target", id)
+        if ok and dur ~= nil and pcall(cd.SetCooldownFromDurationObject, cd, dur) then P.byID = P.byID + 1; return true end
+    end
+    -- 3. the game's countdown times, when they can be read
+    if src and src.GetCooldownTimes then
+        local ok, st, du = pcall(src.GetCooldownTimes, src)
+        if ok and not IsSecret(st) and not IsSecret(du) and type(st) == "number" and type(du) == "number" and du > 0 then
+            cd:SetCooldown(st / 1000, du / 1000)
+            P.byTimes = P.byTimes + 1
+            return true
+        end
+    end
+    -- 4. your cast of the spell with this icon
+    local tex = a.icon
+    if not IsSecret(tex) and tex ~= nil then
+        local now = GetTime()
+        for _, c in pairs(casts) do
+            if c.icon ~= nil and not IsSecret(c.icon) and c.icon == tex and now < c.start + c.duration then
+                cd:SetCooldown(c.start, c.duration)
+                P.byCast = P.byCast + 1
+                return true
+            end
+        end
+    end
+    P.noTimer = P.noTimer + 1
+    return false
+end
+
 local function FeedData(cd, unit, a)
+    if a.plateFrame then return MirrorPlate(cd, unit, a) end
     local T = M.stats.timer
     local exp, dur = a.expirationTime, a.duration
     local plain = not IsSecret(exp) and not IsSecret(dur) and type(dur) == "number" and type(exp) == "number"
@@ -1221,6 +1386,8 @@ function M:Init()
         acc = acc + e
         if acc < 0.05 then return end
         acc = 0
+        local okP, hasPlate, changed = pcall(PlateCheck)
+        if okP and changed then dirty.target = true end
         if next(pending) then pcall(DropUnconfirmed) end
         if next(casts) then
             local now = GetTime()
@@ -1240,7 +1407,9 @@ function M:Init()
     NS.On("UNIT_AURA", function(_, unit, info)
         if type(unit) ~= "string" then return end
         if unit == "target" or unit == "focus" then pcall(SeenUpdate, unit, info) end
-        if unit == "target" then pcall(TargetAuraChanged) end
+        -- with a nameplate, only a new icon on it confirms a cast (PlateCheck); the target's
+        -- auras "change" far too often on this client to tell anything
+        if unit == "target" and not PlateFrameFor("target") then pcall(TargetAuraChanged) end
         if unit:find("^nameplate") then
             -- the target's / focus's nameplate: its announcements count for them too
             for _, u in ipairs({ "target", "focus" }) do
@@ -1248,7 +1417,6 @@ function M:Init()
                 if okU and not IsSecret(same) and same == true then
                     M.stats.plateEvents = (M.stats.plateEvents or 0) + 1
                     pcall(SeenUpdate, u, info)
-                    if u == "target" then pcall(TargetAuraChanged) end
                     dirty[u] = true
                 end
             end
@@ -1261,6 +1429,7 @@ function M:Init()
         seen.target = {}
         for k in pairs(casts) do casts[k] = nil end
         for k in pairs(pending) do pending[k] = nil end
+        plateCount = nil
         dirty.target = true
     end)
     NS.On("UNIT_SPELLCAST_SUCCEEDED", function(_, unit, _, spellID)
@@ -1534,6 +1703,10 @@ function M:Diagnose()
         pr = string.format("%s: debuffs read %d, buffs read %d", plate, #hb, #hp)
     end
     NS.Print(string.format("  target's nameplate: %s   nameplate aura events used: %d", pr, st.plateEvents or 0))
+    local P = st.plate
+    local icons = PlateIcons("target", 40)
+    NS.Print(string.format("  nameplate icons used: %s   timers from: the game's countdown %d, aura id %d, readable times %d, your cast %d, none %d",
+        icons and (#icons .. " showing now") or "no nameplate", P.mirrored, P.byID, P.byTimes, P.byCast, P.noTimer))
     -- what the target's nameplate draws itself (its own aura icons): can addons see them?
     local okP, pf = pcall(function() return C_NamePlate and C_NamePlate.GetNamePlateForUnit and C_NamePlate.GetNamePlateForUnit("target") end)
     if not okP or type(pf) ~= "table" then
