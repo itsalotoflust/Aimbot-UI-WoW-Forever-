@@ -1345,7 +1345,7 @@ local function BuildGeneral(page)
         function(v) W().underlines = v; UI.ApplyStyle() end)
 
     page:Section("Window", "Size, opacity, text size and locking")
-    page:Check("Show an \"Aimbot UI\" button under the Escape menu", function() return W().menuButton ~= false end,
+    page:Check("Show an \"Aimbot UI\" button on the Escape menu", function() return W().menuButton ~= false end,
         function(v) W().menuButton = v; UI.UpdateMenuButton() end)
     page:Slider("Window scale", 0.6, 1.6, 0.05,
         function() return W().scale end,
@@ -2074,7 +2074,7 @@ local ALIASES = {
 
 ----------------------------------------------------------------------
 -- Escape menu button
--- Our own button, shown under the game's Escape menu while it is open. Nothing is added to the
+-- Our own button, shown just above the game's Escape menu while it is open. Nothing is added to the
 -- game's own menu or its button list (that list also holds Log Out / Exit Game, and changing it
 -- from an addon can get those blocked). Clicking closes the menu and opens the settings window.
 ----------------------------------------------------------------------
@@ -2100,7 +2100,8 @@ function UI.SetupMenuButton()
     menuButton = b
     b:SetSize(160, 28)
     b:SetFrameStrata("DIALOG")
-    b:SetPoint("TOP", gm, "BOTTOM", 0, -6)
+    -- above the menu, clear of its "Game Menu" title, which sticks out over the top edge
+    b:SetPoint("BOTTOM", gm, "TOP", 0, 24)
     b:SetText("Aimbot UI")
     local fs = b.GetFontString and b:GetFontString()
     if fs then pcall(fs.SetTextColor, fs, 0.30, 0.72, 1.00) end

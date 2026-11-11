@@ -1,4 +1,4 @@
-AIMBOT UI  v2.18.0  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.18.1  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -10,11 +10,15 @@ INSTALL
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
 
+NEW IN 2.18.1
+  - Escape menu: the Aimbot UI button moved from under the menu to the top, just above the
+    "Game Menu" title.
+
 NEW IN 2.18.0
   - Escape menu: an "Aimbot UI" button now sits just under the game's Escape menu while it's
     open. Click it to close the menu and open the settings window, no typing needed. It's our
     own button: nothing is added to the game's menu itself, so Log Out / Exit Game are never
-    affected. Turn it off in the General tab ("Show an Aimbot UI button under the Escape menu").
+    affected. Turn it off in the General tab ("Show an Aimbot UI button on the Escape menu").
 
 NEW IN 2.17.3
   - Aura Timers: countdowns are back on your debuffs. 2.17.0 switched the icons under the target
