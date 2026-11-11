@@ -1,4 +1,4 @@
-AIMBOT UI  v2.17.1  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.17.2  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,15 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.17.2
+  - Aura Timers: nameplate icons still had no countdown. Your diag showed the game's timer IS
+    seen now (SetCooldown), but copying it failed every time: the times are hidden from addons,
+    and the countdown widget most likely refuses hidden times handed to it this way. Copying now
+    tries, in order: the same call, then the hidden times wrapped in a duration object (the form
+    hidden times are meant to travel in), then the expiration-time call. Our countdown is also
+    switched to "aura display time" like the game's own icon.
+    /aimbot diag shows which way worked, or the exact refusal if none did.
 
 NEW IN 2.17.1
   - Aura Timers: most nameplate-based icons had no countdown (your diag: 17 copied, 192 none).

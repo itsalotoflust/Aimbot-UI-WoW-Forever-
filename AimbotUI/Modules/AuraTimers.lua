@@ -1070,7 +1070,8 @@ function PlateIcons(unit, max)   -- the local declared above
                     local sid = rawget(sf.f, "spellID") or rawget(sf.f, "spellId")
                     out[#out + 1] = { unit = token, index = #out + 1, data = {
                         icon = okX and tex or nil, auraInstanceID = id, spellId = sid, isHarmful = true,
-                        plateCD = cd, plateFrame = sf.f, cc = (listName == "CrowdControlListFrame") } }
+                        plateCD = cd, plateFrame = sf.f, cc = (listName == "CrowdControlListFrame"),
+                        useADT = rawget(sf.f, "useAuraDisplayTime") } }
                 end
             end
         end
@@ -1164,10 +1165,37 @@ M.stats.timer = { data = 0, id = 0, secret = 0, none = 0 }
 local function MirrorPlate(cd, unit, a)
     local P = M.stats.plate
     local src = a.plateCD
-    -- 1. exactly what the game last gave its own icon's countdown
+    -- 1. exactly what the game last gave its own icon's countdown. The game's icon keeps its time
+    -- in "aura display time" (useAuraDisplayTime), so ours is switched the same way first. The
+    -- values are hidden from addons; if the widget won't take them straight, they are wrapped in a
+    -- duration object, which is the form hidden times are meant to travel in.
     local seenCD = src and cdSeen[src]
-    if seenCD and type(cd[seenCD[1]]) == "function" then
-        if pcall(cd[seenCD[1]], cd, seenCD[2], seenCD[3]) then P.mirrored = P.mirrored + 1; return true end
+    if seenCD then
+        local useADT = a.useADT
+        if cd.SetUseAuraDisplayTime and not IsSecret(useADT) then pcall(cd.SetUseAuraDisplayTime, cd, useADT == true) end
+        local m, x, y = seenCD[1], seenCD[2], seenCD[3]
+        P.lastArgs = string.format("%s(%s, %s)", tostring(m), IsSecret(x) and "secret" or type(x), IsSecret(y) and "secret" or type(y))
+        if type(cd[m]) == "function" then
+            local ok, err = pcall(cd[m], cd, x, y)
+            if ok then P.mirrored = P.mirrored + 1; P.how = "direct"; return true end
+            P.lastError = tostring(err)
+        end
+        if m == "SetCooldown" and C_DurationUtil and C_DurationUtil.CreateDuration and cd.SetCooldownFromDurationObject then
+            local okD, d = pcall(C_DurationUtil.CreateDuration)
+            if okD and d then
+                for _, fn in ipairs({ "SetTimeFromStart", "SetTimeSpan", "SetStartAndDuration" }) do
+                    if type(d[fn]) == "function" and pcall(d[fn], d, x, y)
+                        and pcall(cd.SetCooldownFromDurationObject, cd, d) then
+                        P.mirrored = P.mirrored + 1; P.how = "duration object (" .. fn .. ")"; return true
+                    end
+                end
+            end
+        end
+        if m == "SetCooldown" and cd.SetCooldownFromExpirationTime then
+            -- last try: some clients take (start, duration) here too
+            local ok = pcall(cd.SetCooldownFromExpirationTime, cd, x, y)
+            if ok then P.mirrored = P.mirrored + 1; P.how = "from expiration time"; return true end
+        end
     end
     -- 2. by the aura id the icon carries
     local id = a.auraInstanceID
@@ -1741,6 +1769,9 @@ function M:Diagnose()
     local icons = PlateIcons("target", 40)
     NS.Print(string.format("  nameplate icons used: %s   timers from: the game's countdown %d, aura id %d, readable times %d, your cast %d, none %d",
         icons and (#icons .. " showing now") or "no nameplate", P.mirrored, P.byID, P.byTimes, P.byCast, P.noTimer))
+    NS.Print(string.format("    copying: last seen %s   worked with: %s   last error: %s   duration objects: %s",
+        tostring(P.lastArgs or "-"), tostring(P.how or "-"), tostring(P.lastError or "none"),
+        tostring(C_DurationUtil ~= nil and C_DurationUtil.CreateDuration ~= nil)))
     -- what the target's nameplate draws itself (its own aura icons): can addons see them?
     local okP, pf = pcall(function() return C_NamePlate and C_NamePlate.GetNamePlateForUnit and C_NamePlate.GetNamePlateForUnit("target") end)
     if not okP or type(pf) ~= "table" then

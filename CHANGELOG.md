@@ -2,6 +2,13 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.17.2
+
+- **Aura Timers:** nameplate icons still had no countdown. Your diag showed the game's timer is seen now (`SetCooldown`), but copying it failed every time: the times are hidden from addons, and the countdown widget most likely refuses hidden times handed to it this way.
+  - Copying now tries, in order: the same call, then the hidden times wrapped in a duration object (the form hidden times are meant to travel in), then the expiration-time call.
+  - Our countdown is also switched to "aura display time" like the game's own icon.
+  - `/aimbot diag` shows which way worked, or the exact refusal if none did.
+
 ## 2.17.1
 
 - **Aura Timers:** most nameplate-based icons had no countdown (your diag: 17 copied, 192 none). 2.17.0 only noticed a timer the game set on an icon it was already watching, but the game sets a new icon's timer the moment it makes it, before Aura Timers can look. Now every countdown the game starts is noted as it happens (through the cooldown widgets' shared methods), so the timer is there no matter when the icon is first seen.
