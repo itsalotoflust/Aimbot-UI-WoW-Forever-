@@ -1,4 +1,4 @@
-AIMBOT UI  v2.19.1  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.19.2  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,16 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.19.2
+  - Aura Timers: switching target no longer wipes your timers. They stay with the enemy you
+    put them on (by its GUID), and come back with the right time left when you target it again.
+    A timer that ran out while you were away isn't brought back; an enemy you don't return to
+    is forgotten after 10 minutes. If the client hides an enemy's GUID, switching still clears.
+  - Escape menu: the button still stayed above the menu. The game's button names may be drawn as
+    a separate text on each button rather than as the button's own text, which the last version
+    couldn't read; both are read now. The first time you open the menu each session, a chat line
+    says where the button went and which menu buttons it could read.
 
 NEW IN 2.19.1
   - Escape menu: the Aimbot UI button now really goes into the menu list, between Shop and

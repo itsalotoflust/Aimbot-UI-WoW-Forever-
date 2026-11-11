@@ -668,6 +668,7 @@ end
 -- cleared on a new target or when it dies. A recast restarts the timer.
 local casts = {}                  -- spellID -> { start, duration, icon }
 local PlateIcons, PlateFrameFor   -- defined with the nameplate reading below
+local SwitchTarget                -- keeps your timers with the enemy they're on
 local plateRefreshAt              -- when a nameplate aura icon's countdown was last (re)started
 local pending = {}                -- casts waiting to be confirmed by an aura change on the target
 local lastTargetAura              -- when the target's auras last changed
@@ -871,6 +872,52 @@ local function TargetAuraChanged(row)
         end
     end
 end
+
+-- Your timers belong to the enemy you put them on. Switching target keeps them with that enemy
+-- (by its GUID) and brings them back when you target it again; before 2.19.2 a target switch
+-- threw them away. When the client hides an enemy's GUID, a switch still clears them.
+local byGUID = {}                 -- guid -> { casts = {...}, seen = {...}, at = time }
+local curGUID
+local BYGUID_KEEP = 600           -- forget an enemy you haven't come back to for 10 minutes
+
+local function TargetGUID()
+    if not UnitGUID then return nil end
+    local ok, g = pcall(UnitGUID, "target")
+    if ok and not IsSecret(g) and type(g) == "string" and g ~= "" then return g end
+end
+
+function SwitchTarget()   -- the local declared above
+    local now = GetTime()
+    -- put the old target's timers away
+    if curGUID then
+        local keep = { casts = {}, seen = {}, at = now }
+        for sid, c in pairs(casts) do
+            if now < c.start + c.duration then keep.casts[sid] = c end
+        end
+        for id, a in pairs(seen.target or {}) do keep.seen[id] = a end
+        if next(keep.casts) or next(keep.seen) then byGUID[curGUID] = keep else byGUID[curGUID] = nil end
+    end
+    for k in pairs(casts) do casts[k] = nil end
+    for k in pairs(pending) do if not pending[k].trap then pending[k] = nil end end
+    seen.target = {}
+    -- bring back the new target's
+    curGUID = TargetGUID()
+    local back = curGUID and byGUID[curGUID]
+    if back then
+        for sid, c in pairs(back.casts) do
+            if now < c.start + c.duration then casts[sid] = c end
+        end
+        for id, a in pairs(back.seen) do seen.target[id] = a end
+        byGUID[curGUID] = nil
+    end
+    -- forget enemies left long ago
+    for g, v in pairs(byGUID) do
+        if now - (v.at or 0) > BYGUID_KEEP then byGUID[g] = nil end
+    end
+    M.stats.restored = (M.stats.restored or 0) + (back and 1 or 0)
+end
+M._t_SwitchTarget = function() return SwitchTarget() end
+M._t_byGUID = byGUID
 
 -- With a nameplate, a cast is confirmed when its row of the plate gets a new icon (every tick).
 -- The plate only shows what really landed, so a miss never confirms.
@@ -1500,6 +1547,7 @@ function M:Init()
             local okD, dead = pcall(UnitIsDead, "target")
             if okD and not IsSecret(dead) and dead == true then
                 for k in pairs(casts) do casts[k] = nil end
+                if curGUID then byGUID[curGUID] = nil end
                 dirty.target = true
             else
                 for _, c in pairs(casts) do
@@ -1532,9 +1580,7 @@ function M:Init()
         if unit:find("^nameplate") then dirty.plates[unit] = true end
     end)
     NS.On("PLAYER_TARGET_CHANGED", function()
-        seen.target = {}
-        for k in pairs(casts) do casts[k] = nil end
-        for k in pairs(pending) do pending[k] = nil end
+        pcall(SwitchTarget)
         plateCount, plateCC = nil, nil
         dirty.target = true
     end)

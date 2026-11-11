@@ -2275,6 +2275,20 @@ local function MenuButtons(gm)
                 local okF, fs = pcall(k.GetFontString, k)
                 if okF and fs then okX, txt = pcall(fs.GetText, fs) end
             end
+            if (not okX) or txt == nil or txt == "" then
+                -- the label can be a plain text drawn on the button (button.Text) rather than the
+                -- button's own text: read the first text region that says something
+                local okR, regions = pcall(function() return { k:GetRegions() } end)
+                if okR then
+                    for _, r in ipairs(regions) do
+                        local okO, ro = pcall(r.GetObjectType, r)
+                        if okO and ro == "FontString" then
+                            local okRT, rt = pcall(r.GetText, r)
+                            if okRT and not NS.IsSecret(rt) and type(rt) == "string" and rt ~= "" then okX, txt = true, rt; break end
+                        end
+                    end
+                end
+            end
             local li = rawget(k, "layoutIndex")
             local isShown = okS and not NS.IsSecret(shown) and shown == true
             local hasText = okX and not NS.IsSecret(txt) and type(txt) == "string" and txt ~= ""
@@ -2317,7 +2331,10 @@ local function PlaceMenuButton()
     end
     menuButton:SetSize(160, 28)
     menuButton:SetPoint("BOTTOM", gm, "TOP", 0, 24)
-    UI._menuPlace = "above the menu (Shop button not found among " .. #list .. ")"
+    local names = {}
+    for i = 1, math.min(#list, 6) do names[#names + 1] = list[i].text end
+    UI._menuPlace = "above the menu (Shop not found; buttons read: " .. #list
+        .. (#names > 0 and (" - " .. table.concat(names, ", ")) or "") .. ")"
 end
 UI._PlaceMenuButton = PlaceMenuButton
 
@@ -2336,7 +2353,14 @@ function UI.UpdateMenuButton()
         -- the game lays its buttons out a moment after opening: place again then
         if C_Timer and C_Timer.After then
             for _, d in ipairs({ 0, 0.05, 0.15, 0.4, 1 }) do
-                C_Timer.After(d, function() pcall(PlaceMenuButton) end)
+                C_Timer.After(d, function()
+                    pcall(PlaceMenuButton)
+                    if d == 1 and not UI._menuReported then
+                        UI._menuReported = true
+                        NS.Print(string.format("Escape menu button: %s   (frames looked at %s)",
+                            tostring(UI._menuPlace), tostring(UI._menuSeen)))
+                    end
+                end)
             end
         end
     end
