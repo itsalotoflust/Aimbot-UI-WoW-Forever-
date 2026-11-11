@@ -2,6 +2,15 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.17.3
+
+- **Aura Timers:** countdowns are back on your debuffs. 2.17.0 switched the icons under the target frame to copies of the target's nameplate icons, whose countdowns can't be copied on this client, so they lost their numbers. The icons are your landed casts again, with their timers (as in 2.16.4), and the nameplate is only used to tell what really landed:
+  - a cast counts once a new icon shows up on the target's nameplate (debuff or crowd-control row); a miss adds no icon and is dropped, whatever else happens on the target
+  - a recast on a debuff that's still up restarts its timer when the game restarts that icon's countdown; a recast that misses leaves the old timer
+  - traps: placing one shows nothing; when it catches, a new icon appears on the plate (crowd control for Freezing Trap, debuffs for Immolation / Explosive) and the timer starts then. A trap that catches nothing in a minute is dropped.
+  - Intimidation is timed from when the stun shows on the plate
+- Without a nameplate, the older timing check is used.
+
 ## 2.17.2
 
 - **Aura Timers:** nameplate icons still had no countdown. Your diag showed the game's timer is seen now (`SetCooldown`), but copying it failed every time: the times are hidden from addons, and the countdown widget most likely refuses hidden times handed to it this way.

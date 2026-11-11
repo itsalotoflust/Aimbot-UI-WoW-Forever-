@@ -668,9 +668,10 @@ end
 -- cleared on a new target or when it dies. A recast restarts the timer.
 local casts = {}                  -- spellID -> { start, duration, icon }
 local PlateIcons, PlateFrameFor   -- defined with the nameplate reading below
+local plateRefreshAt              -- when a nameplate aura icon's countdown was last (re)started
 local pending = {}                -- casts waiting to be confirmed by an aura change on the target
 local lastTargetAura              -- when the target's auras last changed
-local CONFIRM_AFTER = 1.0         -- seconds a cast may wait for the target's auras to change
+local CONFIRM_AFTER = 1.5         -- seconds a cast may wait for its debuff to show up
 local CONFIRM_BEFORE = 0.25       -- an aura change this shortly before the cast also counts
 M.stats.casts = { seen = 0, used = 0, learned = 0, fromText = 0, unknown = 0, confirmed = 0, missed = 0 }
 
@@ -760,7 +761,13 @@ local TRAPS = { [1499] = true, [14310] = true, [14311] = true,                 -
 local TRAP_EFFECT = { [3355] = true, [14308] = true, [14309] = true,           -- Freezing Trap Effect
     [13797] = true, [14298] = true, [14299] = true, [14300] = true, [14301] = true, -- Immolation Trap Effect
     [13812] = true, [14314] = true, [14315] = true }                           -- Explosive Trap Effect
-M.stats.traps = { placed = 0, effects = 0 }
+M.stats.traps = { placed = 0, effects = 0, caught = 0 }
+-- How long each trap's effect lasts, and which nameplate row shows it when it catches something.
+local TRAP_DURATION = { [1499] = 10, [14310] = 15, [14311] = 20,
+    [13795] = 15, [14302] = 15, [14303] = 15, [14304] = 15, [14305] = 15,
+    [13813] = 20, [14316] = 20, [14317] = 20 }
+local TRAP_ROW = { [1499] = "cc", [14310] = "cc", [14311] = "cc" }   -- the others land as debuffs
+local TRAP_WINDOW = 60                                               -- a trap lasts a minute
 -- Known crowd control / debuffs that count even when the client calls them "not harmful"
 -- (Intimidation is cast on your pet, for example).
 local FORCE = {
@@ -784,7 +791,19 @@ local SAME_AS = { [24394] = 19577 }   -- the pet's stun is the Intimidation you 
 local function CastLanded(spellID, byPet)
     if IsSecret(spellID) or type(spellID) ~= "number" or spellID == 75 then return end
     if SAME_AS[spellID] then casts[SAME_AS[spellID]] = nil; pending[SAME_AS[spellID]] = nil end
-    if TRAPS[spellID] then M.stats.traps.placed = M.stats.traps.placed + 1; return end   -- placing isn't hitting
+    if TRAPS[spellID] then
+        -- placing isn't hitting: the trap waits for a new icon in the matching row of the target's
+        -- nameplate (crowd control for Freezing Trap, debuffs for the fire traps), and its timer
+        -- starts then
+        M.stats.traps.placed = M.stats.traps.placed + 1
+        local d = TRAP_DURATION[spellID]
+        if d then
+            pending[spellID] = { start = GetTime(), duration = d, window = TRAP_WINDOW, delayed = true, trap = true,
+                need = TRAP_ROW[spellID] or "debuff",
+                icon = SpellCall(C_Spell, "GetSpellTexture", "GetSpellTexture", spellID) }
+        end
+        return
+    end
     local trapHit = TRAP_EFFECT[spellID]
     if trapHit then M.stats.traps.effects = M.stats.traps.effects + 1 end
     local okE, enemy = pcall(UnitCanAttack, "player", "target")
@@ -812,7 +831,9 @@ local function CastLanded(spellID, byPet)
     if from == "text" then M.stats.casts.fromText = M.stats.casts.fromText + 1 end
     local icon = SpellCall(C_Spell, "GetSpellTexture", "GetSpellTexture", spellID)
     local entry = { start = GetTime(), duration = dur, icon = icon,
-        window = DELAYED[spellID] or CONFIRM_AFTER, delayed = DELAYED[spellID] ~= nil }
+        window = DELAYED[spellID] or CONFIRM_AFTER, delayed = DELAYED[spellID] ~= nil,
+        need = DELAYED[spellID] and "cc" or nil,
+        refresh = casts[spellID] ~= nil and GetTime() < casts[spellID].start + casts[spellID].duration }
     M.stats.casts.seen = M.stats.casts.seen + 1
     -- A cast that "succeeded" can still miss (or be resisted, dodged, parried). Addons aren't told,
     -- but a debuff that lands makes the game update the target's auras. So the cast only counts
@@ -822,7 +843,7 @@ local function CastLanded(spellID, byPet)
         -- stepped in, which is assumed to be your target)
         casts[spellID] = entry
         M.stats.casts.confirmed = M.stats.casts.confirmed + 1
-    elseif not entry.delayed and lastTargetAura and entry.start - lastTargetAura <= CONFIRM_BEFORE then
+    elseif not entry.delayed and not PlateFrameFor("target") and lastTargetAura and entry.start - lastTargetAura <= CONFIRM_BEFORE then
         casts[spellID] = entry
         M.stats.casts.confirmed = M.stats.casts.confirmed + 1
     else
@@ -830,12 +851,19 @@ local function CastLanded(spellID, byPet)
     end
 end
 
--- The target's auras changed: casts waiting for that are confirmed.
-local function TargetAuraChanged()
+-- Something new showed up on the target: casts waiting for it are confirmed.
+-- row = "debuff" / "cc": a new icon in that row of the target's nameplate (reliable);
+-- row = nil: no nameplate, only "the target's auras changed" (traps never count on that).
+local function TargetAuraChanged(row)
     local now = GetTime()
     lastTargetAura = now
     for sid, entry in pairs(pending) do
-        if now - entry.start <= (entry.window or CONFIRM_AFTER) then
+        local fits
+        if row == nil then fits = not entry.trap
+        elseif row == "refresh" then fits = entry.refresh == true
+        else fits = entry.need == nil or entry.need == row end
+        if fits and now - entry.start <= (entry.window or CONFIRM_AFTER) then
+            if entry.trap then M.stats.traps.caught = M.stats.traps.caught + 1 end
             if entry.delayed then entry.start = now end   -- the debuff starts now, not at the cast
             casts[sid] = entry
             M.stats.casts.confirmed = M.stats.casts.confirmed + 1
@@ -844,16 +872,25 @@ local function TargetAuraChanged()
     end
 end
 
--- With a nameplate, a cast is confirmed when the plate gets a new icon (checked every tick).
-local plateCount
+-- With a nameplate, a cast is confirmed when its row of the plate gets a new icon (every tick).
+-- The plate only shows what really landed, so a miss never confirms.
+local plateCount, plateCC, lastRefreshSeen
 local function PlateCheck()
     local icons = PlateIcons("target", 40)
-    if not icons then plateCount = nil; return false, false end
-    local n = #icons
-    local grew = plateCount ~= nil and n > plateCount
-    local changed = plateCount ~= n
-    plateCount = n
-    if grew then TargetAuraChanged() end
+    if not icons then plateCount, plateCC = nil, nil; return false, false end
+    local nd, nc = 0, 0
+    for _, e in ipairs(icons) do if e.data.cc then nc = nc + 1 else nd = nd + 1 end end
+    local grewD = plateCount ~= nil and nd > plateCount
+    local grewC = plateCC ~= nil and nc > plateCC
+    local changed = plateCount ~= nd or plateCC ~= nc
+    plateCount, plateCC = nd, nc
+    if grewC then TargetAuraChanged("cc") end
+    if grewD then TargetAuraChanged("debuff") end
+    -- a recast on a debuff that's still up adds no icon, but the game restarts its countdown
+    if plateRefreshAt and plateRefreshAt ~= lastRefreshSeen then
+        lastRefreshSeen = plateRefreshAt
+        TargetAuraChanged("refresh")
+    end
     return true, changed
 end
 M._t_PlateCheck = PlateCheck
@@ -969,6 +1006,11 @@ M._t_PlateFor = PlateFor
 -- and a trap shows when it catches something. Icons and countdowns are copied as the game sets
 -- them (secret values are passed straight through, never read).
 local PLATE_LISTS = { "CrowdControlListFrame", "DebuffListFrame" }
+-- 2.17.0 showed the plate's icons themselves, but their countdowns can't be copied on this client,
+-- so the icons lost their numbers. The icons shown are your landed casts again (with their timers);
+-- the plate is used to tell which casts landed.
+local SHOW_PLATE_ICONS = false
+M._t_ShowPlateIcons = function(v) SHOW_PLATE_ICONS = v end
 local cdSeen = setmetatable({}, { __mode = "k" })   -- game cooldown -> { how, a, b } as last set
 local cdHooked = setmetatable({}, { __mode = "k" })
 M.stats.plate = { found = 0, icons = 0, mirrored = 0, byID = 0, byTimes = 0, byCast = 0, noTimer = 0 }
@@ -979,7 +1021,9 @@ M.stats.plate = { found = 0, icons = 0, mirrored = 0, byID = 0, byTimes = 0, byC
 -- icon's timer the moment it creates it, so most icons were missed ("none" in the diag).
 local allHooked = false
 local CD_METHODS = { "SetCooldown", "SetCooldownFromDurationObject", "SetCooldownFromExpirationTime", "SetCooldownDuration" }
+local plateCDs = setmetatable({}, { __mode = "k" })   -- countdowns that belong to nameplate aura icons
 local function Record(cd, m, a, b)
+    if plateCDs[cd] and GetTime then plateRefreshAt = GetTime() end
     local t = cdSeen[cd]
     if not t then t = {}; cdSeen[cd] = t end
     t[1], t[2], t[3] = m, a, b
@@ -1053,7 +1097,7 @@ function PlateIcons(unit, max)   -- the local declared above
                 for _, f in ipairs(kids) do
                     -- hook every icon's countdown early, so its next timer is caught
                     local hcd = CooldownOf(f)
-                    if hcd then HookCooldown(hcd) end
+                    if hcd then HookCooldown(hcd); plateCDs[hcd] = true end
                     local icon = rawget(f, "Icon") or rawget(f, "icon")
                     if type(icon) == "table" and icon.GetTexture and Shown(f) then
                         local li = rawget(f, "layoutIndex")
@@ -1086,7 +1130,7 @@ local function Gather(unit, filter, max)
     if #list > 0 then return list, way end
     -- the nameplate's own icons: when the unit has a nameplate they are what the game shows for
     -- your debuffs and crowd control, so they decide (an empty plate means none of yours)
-    if (unit == "target" or unit == "focus") and filter:find("HARMFUL", 1, true) then
+    if SHOW_PLATE_ICONS and (unit == "target" or unit == "focus") and filter:find("HARMFUL", 1, true) then
         local icons = PlateIcons(unit, max)
         if icons then
             M.stats.ways[filter .. " plate icons"] = #icons
@@ -1471,7 +1515,7 @@ function M:Init()
         if unit == "target" or unit == "focus" then pcall(SeenUpdate, unit, info) end
         -- with a nameplate, only a new icon on it confirms a cast (PlateCheck); the target's
         -- auras "change" far too often on this client to tell anything
-        if unit == "target" and not PlateFrameFor("target") then pcall(TargetAuraChanged) end
+        if unit == "target" and not PlateFrameFor("target") then pcall(TargetAuraChanged, nil) end
         if unit:find("^nameplate") then
             -- the target's / focus's nameplate: its announcements count for them too
             for _, u in ipairs({ "target", "focus" }) do
@@ -1491,7 +1535,7 @@ function M:Init()
         seen.target = {}
         for k in pairs(casts) do casts[k] = nil end
         for k in pairs(pending) do pending[k] = nil end
-        plateCount = nil
+        plateCount, plateCC = nil, nil
         dirty.target = true
     end)
     NS.On("UNIT_SPELLCAST_SUCCEEDED", function(_, unit, _, spellID)
@@ -1755,8 +1799,8 @@ function M:Diagnose()
     local cs = st.casts
     NS.Print(string.format("  your casts: tracked %d  landed %d  missed %d  shown %d   durations known: %d spells (learned %d this session, from description %d, unknown %d)",
         cs.seen, cs.confirmed, cs.missed, cs.used, nl, cs.learned, cs.fromText, cs.unknown))
-    NS.Print(string.format("  traps: placed %d   went off (effect reported by the game) %d",
-        st.traps.placed, st.traps.effects))
+    NS.Print(string.format("  traps: placed %d   caught something (seen on the nameplate) %d   effect reported by the game %d",
+        st.traps.placed, st.traps.caught, st.traps.effects))
     local plate = PlateFor("target")
     local pr = "no nameplate"
     if plate then

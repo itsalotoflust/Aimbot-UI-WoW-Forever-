@@ -2,13 +2,13 @@
 
 An all-in-one interface addon suite for **World of Warcraft Forever** (interface 16001).
 
-**Current version: 2.17.2**
+**Current version: 2.17.3**
 
 Open it in game with `/aimbot` (or `/aui`). Every module has its own tab and its own on/off switch, and if one module hits a problem it reports in chat and the rest keep running.
 
-## What's new in 2.17.2
+## What's new in 2.17.3
 
-- **Aura Timers:** another attempt at copying the nameplate icons' hidden countdowns (through a duration object), with the exact result in `/aimbot diag`.
+- **Aura Timers:** countdowns are back on your debuffs, and the target's nameplate is used to tell which spells really landed (misses never show; traps start when they catch).
 
 See [CHANGELOG.md](CHANGELOG.md) for every version.
 

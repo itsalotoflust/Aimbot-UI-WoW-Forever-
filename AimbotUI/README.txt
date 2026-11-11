@@ -1,4 +1,4 @@
-AIMBOT UI  v2.17.2  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.17.3  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,22 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.17.3
+  - Aura Timers: countdowns are back on your debuffs. 2.17.0 switched the icons under the target
+    frame to copies of the target's nameplate icons, whose countdowns can't be copied on this
+    client, so they lost their numbers. The icons are your landed casts again, with their timers
+    (as in 2.16.4), and the nameplate is only used to tell what really landed:
+    * a cast counts once a new icon shows up on the target's nameplate (debuff or crowd-control
+      row); a miss adds no icon and is dropped, whatever else happens on the target
+    * a recast on a debuff that's still up restarts its timer when the game restarts that
+      icon's countdown; a recast that misses leaves the old timer
+    * traps: placing one shows nothing; when it catches, a new icon appears on the plate
+      (crowd control for Freezing Trap, debuffs for Immolation / Explosive) and the timer starts
+      then (Freezing 10 / 15 / 20 s, Immolation 15 s, Explosive 20 s). A trap that catches
+      nothing in a minute is dropped.
+    * Intimidation is timed from when the stun shows on the plate
+    Without a nameplate, the older timing check is used.
 
 NEW IN 2.17.2
   - Aura Timers: nameplate icons still had no countdown. Your diag showed the game's timer IS
