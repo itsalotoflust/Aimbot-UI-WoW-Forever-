@@ -2,6 +2,11 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.17.1
+
+- **Aura Timers:** most nameplate-based icons had no countdown (your diag: 17 copied, 192 none). 2.17.0 only noticed a timer the game set on an icon it was already watching, but the game sets a new icon's timer the moment it makes it, before Aura Timers can look. Now every countdown the game starts is noted as it happens (through the cooldown widgets' shared methods), so the timer is there no matter when the icon is first seen.
+- `/aimbot diag` also lists the fields on the first nameplate icon and whether its countdown was seen.
+
 ## 2.17.0
 
 - **Aura Timers:** your debuffs and crowd control on your target now come from the icons the target's nameplate shows. Your diag showed those icons are visible to addons (the aura lookups still find nothing), and the game puts exactly your debuffs and crowd control there the moment they land. So while your target has a nameplate:

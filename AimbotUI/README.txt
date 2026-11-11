@@ -1,4 +1,4 @@
-AIMBOT UI  v2.17.0  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.17.1  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,15 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.17.1
+  - Aura Timers: most nameplate-based icons had no countdown (your diag: 17 copied, 192 none).
+    2.17.0 only noticed a timer the game set on an icon it was already watching, but the game
+    sets a new icon's timer the moment it makes it, before Aura Timers can look. Now every
+    countdown the game starts is noted as it happens (through the cooldown widgets' shared
+    methods), so the timer is there no matter when the icon is first seen.
+    /aimbot diag also lists the fields on the first nameplate icon and whether its countdown
+    was seen, in case anything is still missing.
 
 NEW IN 2.17.0
   - Aura Timers: your debuffs and crowd control on your target now come from the icons the

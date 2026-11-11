@@ -973,12 +973,45 @@ local cdSeen = setmetatable({}, { __mode = "k" })   -- game cooldown -> { how, a
 local cdHooked = setmetatable({}, { __mode = "k" })
 M.stats.plate = { found = 0, icons = 0, mirrored = 0, byID = 0, byTimes = 0, byCast = 0, noTimer = 0 }
 
+-- Every countdown the game starts is noted (for all cooldown widgets, through their shared
+-- methods), so a nameplate icon's timer is known even when the icon was set up before Aura Timers
+-- first looked at it. 2.17.0 only watched icons it had already seen, and the game sets a new
+-- icon's timer the moment it creates it, so most icons were missed ("none" in the diag).
+local allHooked = false
+local CD_METHODS = { "SetCooldown", "SetCooldownFromDurationObject", "SetCooldownFromExpirationTime", "SetCooldownDuration" }
+local function Record(cd, m, a, b)
+    local t = cdSeen[cd]
+    if not t then t = {}; cdSeen[cd] = t end
+    t[1], t[2], t[3] = m, a, b
+end
+local function HookAllCooldowns()
+    if allHooked then return end
+    local ok, probe = pcall(CreateFrame, "Cooldown")
+    if not ok or not probe then return end
+    local mt = getmetatable(probe)
+    local idx = mt and mt.__index
+    if type(idx) ~= "table" then return end
+    local n = 0
+    for _, m in ipairs(CD_METHODS) do
+        if type(idx[m]) == "function" then
+            if pcall(hooksecurefunc, idx, m, function(self, a, b) Record(self, m, a, b) end) then n = n + 1 end
+        end
+    end
+    if type(idx.Clear) == "function" then
+        pcall(hooksecurefunc, idx, "Clear", function(self) cdSeen[self] = nil end)
+    end
+    allHooked = n > 0
+    M.stats.cdHookAll = allHooked
+end
+M._t_HookAllCooldowns = HookAllCooldowns
+
 local function HookCooldown(cd)
+    if allHooked then return end
     if cdHooked[cd] or type(cd) ~= "table" then return end
     cdHooked[cd] = true
     for _, m in ipairs({ "SetCooldown", "SetCooldownFromDurationObject", "SetCooldownFromExpirationTime", "SetCooldownDuration" }) do
         if type(cd[m]) == "function" then
-            pcall(hooksecurefunc, cd, m, function(_, a, b) cdSeen[cd] = { m, a, b } end)
+            pcall(hooksecurefunc, cd, m, function(_, a, b) Record(cd, m, a, b) end)
         end
     end
     if type(cd.Clear) == "function" then pcall(hooksecurefunc, cd, "Clear", function() cdSeen[cd] = nil end) end
@@ -1359,6 +1392,7 @@ function M:Apply()
 end
 
 function M:Init()
+    pcall(HookAllCooldowns)
     savedCVar = S().savedCVar
     if type(S().own) ~= "table" then S().own = {} end
     local o = S().own
@@ -1755,6 +1789,25 @@ function M:Diagnose()
         NS.Print(string.format("  target's nameplate icons: frames looked at %d   icon frames %d (shown %d: icon readable %d, hidden %d, empty %d)   cooldowns %d (shown %d)",
             c.frames, c.icons, c.iconsShown, c.texRead, c.texHidden, c.texEmpty, c.cds, c.cdsShown))
         if #c.ex > 0 then NS.Print("    e.g. " .. table.concat(c.ex, "   ")) end
+        -- the fields the game keeps on its first shown plate icon (to find its aura id)
+        local icons = PlateIcons("target", 40)
+        if icons and icons[1] and icons[1].data.plateFrame then
+            local f = icons[1].data.plateFrame
+            local keys = {}
+            pcall(function()
+                for k, v in pairs(f) do
+                    if type(k) == "string" and k ~= "0" then
+                        local tv = IsSecret(v) and "secret" or type(v)
+                        if tv ~= "function" and tv ~= "userdata" then keys[#keys + 1] = k .. "=" .. tv end
+                    end
+                end
+            end)
+            table.sort(keys)
+            NS.Print("    first plate icon fields: " .. table.concat(keys, " ", 1, math.min(#keys, 30)))
+            local okS, sc = pcall(function() return cdSeen[icons[1].data.plateCD] end)
+            NS.Print(string.format("    its countdown seen: %s   all countdowns watched: %s",
+                (okS and sc and tostring(sc[1])) or "no", tostring(M.stats.cdHookAll)))
+        end
     end
     NS.Print(string.format("  event durations: readable %d  hidden %d  zero/missing %d   timers given from: aura times %d, aura id %d, hidden times %d, none %d",
         st.seen.durRead or 0, st.seen.durHidden or 0, st.seen.durZero or 0,
