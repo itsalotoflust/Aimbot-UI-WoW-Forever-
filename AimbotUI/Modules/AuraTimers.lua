@@ -1459,17 +1459,37 @@ local function DoOwn(unit)
     local nd, rd = FillKind(unit, set, "debuffs", rb)
     M.stats.ownShown[unit] = nb + nd
     Shield(unit, set, nb + nd, (rb or 0) + (rd or 0))
-    -- On an enemy where nothing at all could be read (no buffs, no debuffs, by any way), the game's
-    -- own icons are shown instead: no timers, but your debuffs stay visible. If the enemy really
-    -- has no auras the game shows nothing either, and an enemy with readable buffs keeps ours.
-    local okC, enemy = pcall(UnitCanAttack, "player", unit)
-    enemy = okC and not IsSecret(enemy) and enemy == true
+    -- Where our icons would leave something unseen, the game's own icons are shown instead (no
+    -- timers from us, but nothing goes missing). If the unit really has no auras the game shows
+    -- nothing either.
+    --  * enemy: nothing at all could be read (no buffs, no debuffs, by any way). An enemy with
+    --    readable buffs keeps ours.
+    --  * anyone else (friendly players, your group, NPCs you can't attack): no buffs could be read.
+    --    The lookups can come back empty for other players' buffs on this client, and our empty row
+    --    plus the game's hidden icons made their buffs invisible. Ours are hidden so debuffs don't
+    --    show twice. (Your casts are only timed on enemies, so nothing of ours is lost here.)
+    --  * the game won't say (a hidden answer): the enemy rule, so cast timers are never dropped.
+    local okC, atk = pcall(UnitCanAttack, "player", unit)
+    local kind = "unknown"
+    if okC and not IsSecret(atk) and type(atk) == "boolean" then kind = atk and "enemy" or "friendly" end
     M.stats.fallback = M.stats.fallback or {}
-    if enemy and o.hideGame and nb + nd == 0 then
-        M.stats.fallback[unit] = true
+    M.stats.fallbackWhy = M.stats.fallbackWhy or {}
+    local why
+    if o.hideGame then
+        if kind == "friendly" then
+            if o.buffs and nb == 0 then why = "not an enemy, no buffs readable" end
+        elseif nb + nd == 0 then
+            why = kind .. ", nothing readable"
+        end
+    end
+    M.stats.fallback[unit] = why ~= nil
+    M.stats.fallbackWhy[unit] = why or kind
+    if why then
         HideGame(unit, false)
-    else
-        M.stats.fallback[unit] = false
+        if kind == "friendly" then
+            set.holder:Hide()
+            M.stats.ownShown[unit] = 0
+        end
     end
 end
 M._t_DoOwn = DoOwn
@@ -1833,9 +1853,11 @@ function M:Diagnose()
     for k, v in pairs(st.ways) do ways[#ways + 1] = k .. "=" .. v end
     table.sort(ways)
     NS.Print("  aura reads (last target/focus update): " .. (#ways > 0 and table.concat(ways, "  ") or "none yet"))
-    NS.Print(string.format("  read with: buffs %s, debuffs %s   game icons used instead on enemy: target %s, focus %s",
+    local fw = st.fallbackWhy or {}
+    NS.Print(string.format("  read with: buffs %s, debuffs %s   game icons used instead: target %s (%s), focus %s (%s)",
         tostring(st.way_buffs or "-"), tostring(st.way_debuffs or "-"),
-        tostring(st.fallback and st.fallback.target), tostring(st.fallback and st.fallback.focus)))
+        tostring(st.fallback and st.fallback.target), tostring(fw.target or "-"),
+        tostring(st.fallback and st.fallback.focus), tostring(fw.focus or "-")))
     local sc = 0
     for _ in pairs(seen.target) do sc = sc + 1 end
     NS.Print(string.format("  aura events: added %d  removed %d  full updates %d  hidden ids %d   held for target now: %d",

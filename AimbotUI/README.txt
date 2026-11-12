@@ -1,4 +1,4 @@
-AIMBOT UI  v2.19.4  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.19.5  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,14 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.19.5
+  - Aura Timers: other players' buffs were invisible under the target / focus frame. The game
+    can refuse to tell addons a friendly player's buffs, so Aimbot UI's own icon row came up
+    empty while the game's icons stayed hidden. Now, on anyone you can't attack, if no buffs
+    can be read the game's own icons are shown instead (no timers from Aimbot UI there, but
+    nothing goes missing). Enemies work as before.
+  - /aimbot diag: the "game icons used instead" line now covers friendly targets and says why.
 
 NEW IN 2.19.4
   - Escape menu: fixed the error "Texture:SetScale(): Scale must be > 0" when opening the menu

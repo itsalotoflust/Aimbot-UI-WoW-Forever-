@@ -2,6 +2,13 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.19.5
+
+- **Aura Timers:** other players' buffs were invisible under the target / focus frame. On this client the aura lookups can come back empty for a friendly player's buffs, so Aimbot UI's own icon row was empty while the game's icons stayed hidden. The "show the game's icons when nothing can be read" fallback only covered enemies.
+  - On anyone you can't attack: if no buffs can be read, the game's own icons are shown and ours are hidden (so debuffs don't show twice). If the buffs can be read, our icons with timers stay.
+  - Enemies are unchanged: the game's icons only come back when nothing at all can be read, so your cast timers are kept. If the game hides whether a unit can be attacked, the enemy rule is used.
+  - `/aimbot diag`: the "game icons used instead" line now covers target and focus of any kind, with the reason.
+
 ## 2.19.4
 
 - **Escape menu:** fixed the error `Texture:SetScale(): Scale must be > 0` when opening the menu (the button was squeezed to no height for a moment, which breaks the game's button art).
