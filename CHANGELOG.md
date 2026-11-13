@@ -2,6 +2,11 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.19.6
+
+- **Privacy:** "Show my name in a colour" leaked onto other names. After targeting yourself and then an enemy or NPC, the target frame kept your name colour on their name, because the game reuses the same text and doesn't recolour it. Now a text that carried your colour gets its normal colour back as soon as it shows someone else. If the game has already recoloured it (nameplates do), its colour is left alone.
+- **/aimbot diag:** new Privacy line: your name colour on/off, texts carrying it, and how many times another name's colour was put back.
+
 ## 2.19.5
 
 - **Aura Timers:** other players' buffs were invisible under the target / focus frame. On this client the aura lookups can come back empty for a friendly player's buffs, so Aimbot UI's own icon row was empty while the game's icons stayed hidden. The "show the game's icons when nothing can be read" fallback only covered enemies.

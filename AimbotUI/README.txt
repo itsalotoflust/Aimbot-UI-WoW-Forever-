@@ -1,4 +1,4 @@
-AIMBOT UI  v2.19.5  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.19.6  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,13 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.19.6
+  - Privacy: "Show my name in a colour" no longer leaks onto other names. If you targeted
+    yourself and then an enemy (or any NPC), the target frame kept your name colour on their
+    name. Now only your own name gets your colour; everyone else's goes back to normal.
+  - /aimbot diag: new line showing your name colour, how many texts carry it, and how many
+    times another name's colour was put back.
 
 NEW IN 2.19.5
   - Aura Timers: other players' buffs were invisible under the target / focus frame. The game

@@ -111,21 +111,49 @@ end
 -- Text on frames
 ----------------------------------------------------------------------
 local original = setmetatable({}, { __mode = "k" })     -- fontstring -> { r, g, b } before we recoloured it
+local tinted = setmetatable({}, { __mode = "k" })       -- fontstring -> true while it carries your name colour
+M.colourRestores = 0
+
+local function Near(a, b) return type(a) == "number" and not Secret(a) and math.abs(a - b) < 0.01 end
+
+-- A name text we tinted with your colour that now shows someone else (the target frame keeps the
+-- same text when you switch from yourself to an enemy, and the game doesn't recolour it), so the
+-- colour goes back to what it was. If the game has already given it a colour of its own (nameplates
+-- do), that colour is left alone.
+local function Untint(fs)
+    if not tinted[fs] then return end
+    tinted[fs] = nil
+    local o = original[fs]
+    original[fs] = nil
+    if not (fs.SetTextColor and fs.GetTextColor) then return end
+    local ok, r, g, b = pcall(fs.GetTextColor, fs)
+    local c = S().ownColor
+    local stillOurs = ok and Near(r, c[1]) and Near(g, c[2]) and Near(b, c[3])
+    if not stillOurs then return end
+    if not o then
+        local n = NORMAL_FONT_COLOR
+        if type(n) == "table" and type(n.r) == "number" then o = { n.r, n.g, n.b } else o = { 1, 0.82, 0 } end
+    end
+    pcall(fs.SetTextColor, fs, o[1], o[2], o[3])
+    M.colourRestores = M.colourRestores + 1
+end
 
 local function SetName(fs, unit, wasOwn)
     if not (fs and fs.SetText) then return end
     local label, own = NameForUnit(unit)
+    local s = S()
+    if not (own and s.ownColorOn) then Untint(fs) end
     if label == nil then return end
     local okT, cur = pcall(fs.GetText, fs)
     if not (okT and IsStr(cur) and cur == label) then pcall(fs.SetText, fs, label) end
-    local s = S()
     if own and s.ownColorOn and fs.SetTextColor then
-        if not original[fs] and fs.GetTextColor then
+        if not tinted[fs] and fs.GetTextColor then
             local ok, r, g, b = pcall(fs.GetTextColor, fs)
             if ok and type(r) == "number" and not Secret(r) then original[fs] = { r, g, b } end
         end
         local c = s.ownColor
         pcall(fs.SetTextColor, fs, c[1], c[2], c[3])
+        tinted[fs] = true
     end
 end
 
@@ -133,8 +161,7 @@ local function RestoreName(fs, unit)
     if not (fs and fs.SetText) then return end
     local ok, real = pcall(UnitName, unit)
     if ok and IsStr(real) then pcall(fs.SetText, fs, real) end
-    local o = original[fs]
-    if o and fs.SetTextColor then pcall(fs.SetTextColor, fs, o[1], o[2], o[3]); original[fs] = nil end
+    Untint(fs)
 end
 
 local function ResolveFS(paths)
@@ -1050,6 +1077,10 @@ function M:Diagnose()
         NS.Print(string.format("    %s [%s] -> showing \"%s\"", okN and IsStr(nm) and nm or "?", tagBound[fs], shown))
     end
     NS.Print(string.format("  instant name fixes (target/focus redraws): %d", M.instantFixes or 0))
+    local nt = 0
+    for _ in pairs(tinted) do nt = nt + 1 end
+    NS.Print(string.format("  your name colour: %s   texts tinted now: %d   colours put back on other names: %d",
+        s.ownColorOn and "on" or "off", nt, M.colourRestores))
     for _, t in ipairs(CollectTargets()) do
         local ok, txt = pcall(t.fs.GetText, t.fs)
         NS.Print(string.format("    %s -> showing \"%s\"", t.unit, ok and IsStr(txt) and txt or "?"))
