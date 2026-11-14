@@ -2,6 +2,11 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.19.7
+
+- **Party Death Alert:** the message no longer says "Party member". It reads "<Name> has died" with the skull. With Privacy's private mode on, the name follows the Privacy setting (class, or "Player"); if Privacy hides names entirely, the class is shown. The Test button uses the new wording.
+- **Privacy:** new `DisplayName(unit)` so other modules can show the same name Privacy shows.
+
 ## 2.19.6
 
 - **Privacy:** "Show my name in a colour" leaked onto other names. After targeting yourself and then an enemy or NPC, the target frame kept your name colour on their name, because the game reuses the same text and doesn't recolour it. Now a text that carried your colour gets its normal colour back as soon as it shows someone else. If the game has already recoloured it (nameplates do), its colour is left alone.

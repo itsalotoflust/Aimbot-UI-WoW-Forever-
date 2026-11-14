@@ -2,14 +2,13 @@
 
 An all-in-one interface addon suite for **World of Warcraft Forever** (interface 16001).
 
-**Current version: 2.19.6**
+**Current version: 2.19.7**
 
 Open it in game with `/aimbot` (or `/aui`). Every module has its own tab and its own on/off switch, and if one module hits a problem it reports in chat and the rest keep running.
 
-## What's new in 2.19.6
+## What's new in 2.19.7
 
-- **Privacy:** your name colour now only goes on your own name. Targeting yourself and then an enemy no longer leaves the enemy's name in your colour.
-- **/aimbot diag** shows your name colour status and how often another name's colour was put back.
+- **Party Death Alert:** says "<Name> has died" with a skull, no "Party member". In private mode the name follows your Privacy setting (usually their class).
 
 See [CHANGELOG.md](CHANGELOG.md) for every version.
 

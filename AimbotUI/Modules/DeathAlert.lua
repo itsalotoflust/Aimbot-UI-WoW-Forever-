@@ -1,6 +1,6 @@
 --[[
   Aimbot UI - Party Death Alert
-  When someone in your party dies, shows "<Name> died" in the middle of your screen (only you
+  When someone in your party dies, shows "<Name> has died" with a skull in the middle of your screen (only you
   see it; nothing is sent to chat). Size, color, how long it stays and where it sits can all be
   changed, and the text can be dragged anywhere.
 
@@ -39,7 +39,7 @@ local state = {}            -- key -> true (dead) / false (alive)
 M.stats = { deaths = 0, secret = 0, last = nil }
 
 local function Alert()
-    if not alert then alert = NS.CreateAlertText("AimbotUIDeathAlert", S, "Party member died " .. SKULL) end
+    if not alert then alert = NS.CreateAlertText("AimbotUIDeathAlert", S, "Hunter has died " .. SKULL) end
     return alert
 end
 
@@ -66,12 +66,15 @@ local function ColoredName(unit)
     local class, classFile
     local ok, a, b = pcall(UnitClass, unit)
     if ok and not IsSecret(a) and not IsSecret(b) then class, classFile = a, b end
-    -- Privacy mode hides other players' names: say the class instead
+    -- Privacy mode: use whatever Privacy shows for them (their class, "Player"...). If Privacy
+    -- shows nothing at all, the class is used so the alert still says who.
     local priv = NS.modules.privacy
     if priv and priv.IsActive and priv.IsActive() then
-        name = class and ("Party member (" .. class .. ")") or "Party member"
+        local label = priv.DisplayName and priv.DisplayName(unit)
+        if type(label) == "string" and not IsSecret(label) and label ~= "" then name = label
+        else name = class end
     end
-    name = name or "Party member"
+    name = name or class or "Someone"
     local c = classFile and RAID_CLASS_COLORS and RAID_CLASS_COLORS[classFile]
     if S().classColor and c then
         local function B(v) return math.floor(v * 255 + 0.5) end
@@ -81,7 +84,7 @@ local function ColoredName(unit)
 end
 
 local function Died(name)
-    return name .. " died" .. (S().skull and (" " .. SKULL) or "")
+    return name .. " has died" .. (S().skull and (" " .. SKULL) or "")
 end
 
 local function Announce(unit)
@@ -167,10 +170,18 @@ function M.Build(page)
         function(v) S().classColor = v end)
     page:Check("Skull icon after the text", function() return S().skull end, function(v) S().skull = v end)
     page:Check("Play a sound", function() return S().sound end, function(v) S().sound = v end)
-    page:Note("Only you see this; nothing is sent to chat. With Privacy's private mode on, the class is shown instead of the name.")
+    page:Note("Only you see this; nothing is sent to chat. With Privacy's private mode on, the name follows your Privacy setting (usually their class).")
     page:Button("Test", function()
         if not S().enabled then NS.Print("Party Death Alert is off: turn it on at the top of this tab first."); return end
-        Alert():Show(Died(S().classColor and "|cfffff468Party member|r" or "Party member"))
+        local _, classFile = UnitClass("player")
+        local label = (NS.modules.privacy and NS.modules.privacy.IsActive and NS.modules.privacy.IsActive())
+            and (UnitClass("player")) or (UnitName("player"))
+        local c = classFile and RAID_CLASS_COLORS and RAID_CLASS_COLORS[classFile]
+        if S().classColor and c and type(label) == "string" then
+            label = string.format("|cff%02x%02x%02x%s|r", math.floor(c.r * 255 + 0.5), math.floor(c.g * 255 + 0.5),
+                math.floor(c.b * 255 + 0.5), label)
+        end
+        Alert():Show(Died(type(label) == "string" and label or "Someone"))
     end)
 
     page:Section("Text", "Size, color, position and how long it stays")

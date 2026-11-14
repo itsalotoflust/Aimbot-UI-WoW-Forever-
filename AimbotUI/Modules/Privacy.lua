@@ -881,6 +881,14 @@ M.ApplyAll = ApplyAll
 
 function M.IsActive() return active and S().enabled end
 
+-- What private mode shows for a unit's name right now ("Mage", "Player", "" or your chosen name),
+-- or nil when private mode is off or the unit is left alone. Used by other modules' messages.
+function M.DisplayName(unit)
+    if not (active and S().enabled) then return nil end
+    local ok, label = pcall(NameForUnit, unit)
+    if ok and IsStr(label) then return label end
+end
+
 function M.SetActive(on, quiet)
     on = on and true or false
     if on and not S().enabled then

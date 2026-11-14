@@ -1,4 +1,4 @@
-AIMBOT UI  v2.19.6  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.19.7  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,13 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.19.7
+  - Party Death Alert: no more "Party member" in the message. It now says "<Name> has died"
+    with the skull, e.g. "Bob has died". With Privacy's private mode on, the name follows your
+    Privacy setting: their class ("Mage has died"), or "Player" if you chose that. If Privacy
+    is set to hide names completely, the class is shown so you still know who died.
+  - The Test button shows the new wording.
 
 NEW IN 2.19.6
   - Privacy: "Show my name in a colour" no longer leaks onto other names. If you targeted
