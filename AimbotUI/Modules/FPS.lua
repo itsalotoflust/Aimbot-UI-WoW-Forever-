@@ -215,3 +215,24 @@ function M.Build(page)
 end
 
 M._t = { Update = Update, Compose = Compose, Frame = function() return frame end, Text = function() return text end }
+
+-- Live preview at the top of this tab (Sharp window style). Drawn on our own frames only.
+function M.LivePreview(stage)
+    local bg = stage:CreateTexture(nil, "BACKGROUND")
+    local fs = stage:CreateFontString(nil, "OVERLAY")
+    fs:SetPoint("CENTER", stage, "CENTER", 0, -4)
+    bg:SetPoint("TOPLEFT", fs, "TOPLEFT", -6, 4)
+    bg:SetPoint("BOTTOMRIGHT", fs, "BOTTOMRIGHT", 6, -4)
+    bg:SetColorTexture(0, 0, 0, 0.5)
+    return function()
+        local s = S()
+        local size = math.max(9, math.min(tonumber(s.size) or 14, 32))
+        fs:SetFont(STANDARD_TEXT_FONT, size, s.outline and "OUTLINE" or "")
+        local c = s.color or { 1, 1, 1, 1 }
+        fs:SetTextColor(c[1], c[2], c[3], c[4] or 1)
+        local text = Compose(62, 48, 131)
+        if text == "" then text = "(nothing to show)" end
+        fs:SetText(text)
+        bg:SetShown(s.background and true or false)
+    end
+end

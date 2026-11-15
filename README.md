@@ -2,14 +2,15 @@
 
 An all-in-one interface addon suite for **World of Warcraft Forever** (interface 16001).
 
-**Current version: 2.20.0**
+**Current version: 2.21.0**
 
 Open it in game with `/aimbot` (or `/aui`). Every module has its own tab and its own on/off switch, and if one module hits a problem it reports in chat and the rest keep running.
 
-## What's new in 2.20.0
+## What's new in 2.21.0
 
-- **New "Sharp (compact)" window style:** settings in two columns, a module's areas as tabs along the top, power buttons in the side menu to turn modules on or off, tighter text, and a footer with Reset tab / Reload UI / Done. Choose it under General > Theme > Style.
-- **New theme:** Modern: Teal.
+- **Sharp style:** colour swatches, eye (show/hide) buttons and gear pop-outs on the settings they belong to, so pages are shorter and tidier.
+- **Live previews** at the top of 11 tabs that update as you change settings.
+- Row hover highlight, dividers and a softer selected-item glow.
 
 See [CHANGELOG.md](CHANGELOG.md) for every version.
 

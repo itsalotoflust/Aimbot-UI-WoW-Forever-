@@ -1,4 +1,4 @@
-AIMBOT UI  v2.20.0  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.21.0  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,24 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.21.0
+  - Sharp window style, more like a modern UI suite (other styles are unchanged):
+      * Settings that belong together now share one line:
+          - a colour that goes with a setting is a small swatch on that setting's line
+            (e.g. Text size + Text color);
+          - a "Show ..." switch becomes an eye on the line it controls; the line dims while
+            it's hidden (e.g. FPS: Latency to show);
+          - font, outline and text-size settings go into a pop-out behind a gear button, and so
+            do "move left / right" + "move up / down" (Position) and Width + Height (Size).
+        Every setting still works the same, Undo still works, and search still finds the ones
+        inside a pop-out (it opens it for you). Rows of several colours (one per state or
+        resource) stay as they are.
+      * Live preview at the top of 11 tabs, updating as you change settings: Aura Timers,
+        Auto Shot Timer, Combat Indicator, Damage Font, Durability Alert, FPS / MS,
+        Loss of Control, Party Death Alert, Queue Timer, Range Alert, Talent Alert.
+      * Polish: rows light up under the mouse, thin dividers between lines, and a soft glow
+        on the selected side menu item.
 
 NEW IN 2.20.0
   - Settings window: new "Sharp (compact)" style. Pick it under General > Theme > Style, then

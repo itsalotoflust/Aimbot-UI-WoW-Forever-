@@ -153,3 +153,19 @@ function M.Build(page)
         Alert():Layout()
     end)
 end
+
+-- Live preview at the top of this tab (Sharp window style). Drawn on our own frames only.
+function M.LivePreview(stage)
+    local fs = stage:CreateFontString(nil, "OVERLAY")
+    fs:SetPoint("CENTER", stage, "CENTER", 0, -4)
+    return function()
+        local s = NS.Mod("durability")
+        local size = math.max(10, math.min(tonumber(s.size) or 24, 34))
+        fs:SetFont(STANDARD_TEXT_FONT, size, "THICKOUTLINE")
+        local c = s.color or { 1, 1, 1, 1 }
+        fs:SetTextColor(c[1], c[2], c[3], c[4] or 1)
+        local text = "Repair your gear: 35%"
+        fs:SetText(text)
+        if s.pulse then fs:SetAlpha(0.35 + 0.65 * (0.5 + 0.5 * math.cos(GetTime() * 5.2))) else fs:SetAlpha(1) end
+    end
+end

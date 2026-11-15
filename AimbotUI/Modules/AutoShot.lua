@@ -641,3 +641,63 @@ function M.Build(page)
     C("Range unknown", function() return S().colors.unknown end)
     C("One colour", function() return S().custom end)
 end
+
+-- Live preview at the top of this tab (Sharp window style). Drawn on our own frames only.
+function M.LivePreview(stage)
+    local bg = stage:CreateTexture(nil, "BACKGROUND")
+    local bar = stage:CreateTexture(nil, "ARTWORK")
+    local spark = stage:CreateTexture(nil, "OVERLAY")
+    local tick = stage:CreateTexture(nil, "OVERLAY", nil, 2)
+    local txt = stage:CreateFontString(nil, "OVERLAY")
+    local edges = {}
+    for i = 1, 4 do edges[i] = stage:CreateTexture(nil, "BORDER") end
+    local t0 = GetTime()
+    return function()
+        local s = S()
+        local w = math.max(60, math.min(tonumber(s.width) or 250, (stage:GetWidth() or 300) - 40))
+        local h = math.max(6, math.min(tonumber(s.height) or 18, 40))
+        bg:ClearAllPoints()
+        bg:SetPoint("CENTER", stage, "CENTER", 0, -4)
+        bg:SetSize(w, h)
+        bg:SetColorTexture(0, 0, 0, tonumber(s.background) or 0.55)
+        local path = M.TEXTURES[1][3]
+        for _, t in ipairs(M.TEXTURES) do if t[1] == s.texture then path = t[3] end end
+        pcall(bar.SetTexture, bar, path)
+        local c = s.colors and s.colors.ranged or { 0.67, 0.83, 0.45, 1 }
+        if s.colorMode == "custom" and s.custom then c = s.custom
+        elseif s.colorMode == "class" then c = { 0.67, 0.83, 0.45, 1 } end
+        bar:SetVertexColor(c[1], c[2], c[3], c[4] or 1)
+        local p = ((GetTime() - t0) % 2.2) / 2.2
+        bar:ClearAllPoints()
+        bar:SetPoint("TOPLEFT", bg, "TOPLEFT", 0, 0)
+        bar:SetPoint("BOTTOMLEFT", bg, "BOTTOMLEFT", 0, 0)
+        bar:SetWidth(math.max(1, w * p))
+        spark:ClearAllPoints()
+        spark:SetPoint("CENTER", bar, "RIGHT", 0, 0)
+        spark:SetSize(3, h + 4)
+        spark:SetColorTexture(1, 1, 1, 0.9)
+        spark:SetShown(s.showSpark ~= false)
+        tick:ClearAllPoints()
+        tick:SetPoint("TOP", bg, "TOPRIGHT", -w * 0.2, 0)
+        tick:SetSize(2, h)
+        tick:SetColorTexture(1, 1, 1, 0.8)
+        tick:SetShown(s.showTick ~= false)
+        txt:SetFont(STANDARD_TEXT_FONT, math.max(8, math.min(tonumber(s.fontSize) or 12, 24)), "OUTLINE")
+        txt:ClearAllPoints()
+        txt:SetPoint("CENTER", bg, "CENTER", 0, 0)
+        txt:SetText(string.format("%.1f", (1 - p) * 2.2))
+        txt:SetShown(s.showText ~= false)
+        local b = tonumber(s.border) or 1
+        for i, e in ipairs(edges) do
+            e:ClearAllPoints()
+            e:SetColorTexture(0, 0, 0, 1)
+            e:SetShown(b > 0)
+        end
+        if b > 0 then
+            edges[1]:SetPoint("BOTTOMLEFT", bg, "TOPLEFT", -b, 0); edges[1]:SetPoint("BOTTOMRIGHT", bg, "TOPRIGHT", b, 0); edges[1]:SetHeight(b)
+            edges[2]:SetPoint("TOPLEFT", bg, "BOTTOMLEFT", -b, 0); edges[2]:SetPoint("TOPRIGHT", bg, "BOTTOMRIGHT", b, 0); edges[2]:SetHeight(b)
+            edges[3]:SetPoint("TOPRIGHT", bg, "TOPLEFT", 0, 0); edges[3]:SetPoint("BOTTOMRIGHT", bg, "BOTTOMLEFT", 0, 0); edges[3]:SetWidth(b)
+            edges[4]:SetPoint("TOPLEFT", bg, "TOPRIGHT", 0, 0); edges[4]:SetPoint("BOTTOMLEFT", bg, "BOTTOMRIGHT", 0, 0); edges[4]:SetWidth(b)
+        end
+    end
+end

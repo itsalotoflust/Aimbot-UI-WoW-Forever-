@@ -246,3 +246,22 @@ function M.Build(page)
         .. "garbled. The fonts only contain standard English letters, so other languages may look wrong. "
         .. "If the numbers ever look wrong, pick Default (Blizzard) and restart.")
 end
+
+-- Live preview at the top of this tab (Sharp window style). Drawn on our own frames only.
+function M.LivePreview(stage)
+    local fs = stage:CreateFontString(nil, "OVERLAY")
+    fs:SetPoint("CENTER", stage, "CENTER", 0, -4)
+    local crit = stage:CreateFontString(nil, "OVERLAY")
+    crit:SetPoint("LEFT", fs, "RIGHT", 24, 6)
+    return function()
+        local id = NS.Mod("damage").font
+        local file = STANDARD_TEXT_FONT
+        if type(id) == "number" and id > 0 then file = FONT_DIR .. "damage" .. id .. ".ttf" end
+        if not fs:SetFont(file, 26, "OUTLINE") then fs:SetFont(STANDARD_TEXT_FONT, 26, "OUTLINE") end
+        if not crit:SetFont(file, 34, "OUTLINE") then crit:SetFont(STANDARD_TEXT_FONT, 34, "OUTLINE") end
+        fs:SetTextColor(1, 1, 1)
+        crit:SetTextColor(1, 0.85, 0.2)
+        fs:SetText("1,284")
+        crit:SetText("3,907")
+    end
+end

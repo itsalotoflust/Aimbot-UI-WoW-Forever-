@@ -2006,3 +2006,46 @@ function M.Build(page)
     page:Slider("Nameplate icons", 6, 24, 1, function() return S().plateSize end,
         function(v) S().plateSize = v; NS.ApplyModule("auratimers") end)
 end
+
+-- Live preview at the top of this tab (Sharp window style). Drawn on our own frames only.
+M.livePreviewHeight = 86
+function M.LivePreview(stage)
+    local icons, texts = {}, {}
+    local ART = { "Spell_Shadow_ShadowWordPain", "Spell_Nature_FaerieFire", "Ability_Hunter_SniperShot",
+        "Spell_Holy_PowerWordShield", "Spell_Nature_Rejuvenation", "Ability_Rogue_Rupture",
+        "Spell_Frost_FrostArmor02", "Spell_Shadow_CurseOfTounges", "Ability_Hunter_Quickshot", "Spell_Fire_Immolation" }
+    local t0 = GetTime()
+    return function()
+        local o = NS.Mod("auratimers").own or {}
+        local size = math.max(12, math.min(tonumber(o.iconSize) or 22, 32))
+        local per = math.max(1, math.min(tonumber(o.perRow) or 5, 10))
+        local gap = math.max(0, math.min(tonumber(o.spacing) or 3, 10))
+        local n = math.min(per * 2, 10)
+        local total = per * size + (per - 1) * gap
+        for i = 1, 10 do
+            local ic = icons[i]
+            if not ic then
+                ic = stage:CreateTexture(nil, "ARTWORK")
+                pcall(ic.SetTexture, ic, "Interface\\Icons\\" .. ART[i])
+                pcall(ic.SetTexCoord, ic, 0.08, 0.92, 0.08, 0.92)
+                icons[i] = ic
+                texts[i] = stage:CreateFontString(nil, "OVERLAY")
+            end
+            local shown = i <= n
+            ic:SetShown(shown); texts[i]:SetShown(shown)
+            if shown then
+                local r, c = math.floor((i - 1) / per), (i - 1) % per
+                ic:SetSize(size, size)
+                ic:ClearAllPoints()
+                ic:SetPoint("TOPLEFT", stage, "TOP", -total / 2 + c * (size + gap), -14 - r * (size + gap))
+                local ts = tonumber(o.timerSize) or 0
+                if ts <= 0 then ts = math.max(8, math.floor(size * 0.5)) end
+                texts[i]:SetFont(STANDARD_TEXT_FONT, math.min(ts, 20), "OUTLINE")
+                texts[i]:ClearAllPoints()
+                texts[i]:SetPoint("CENTER", ic, "CENTER", 0, 0)
+                local left = (i * 3.7 - (GetTime() - t0)) % 18
+                texts[i]:SetText(string.format("%d", math.ceil(left)))
+            end
+        end
+    end
+end

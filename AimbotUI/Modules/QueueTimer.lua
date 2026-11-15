@@ -253,3 +253,31 @@ function M.Build(page)
         function(v) S().locked = v; NS.ApplyModule("queuetimer") end)
     page:Note("Unlock to show the bar and drag it anywhere, then lock it again.")
 end
+
+-- Live preview at the top of this tab (Sharp window style). Drawn on our own frames only.
+function M.LivePreview(stage)
+    local bg = stage:CreateTexture(nil, "BACKGROUND")
+    local bar = stage:CreateTexture(nil, "ARTWORK")
+    local txt = stage:CreateFontString(nil, "OVERLAY")
+    local t0 = GetTime()
+    return function()
+        local s = NS.Mod("queuetimer")
+        local w = math.max(60, math.min(tonumber(s.width) or 260, (stage:GetWidth() or 300) - 40))
+        local h = math.max(8, math.min(tonumber(s.height) or 22, 40))
+        bg:ClearAllPoints()
+        bg:SetPoint("CENTER", stage, "CENTER", 0, -4)
+        bg:SetSize(w, h)
+        bg:SetColorTexture(0, 0, 0, 0.55)
+        local left = 40 - ((GetTime() - t0) % 40)
+        local warn = left <= (tonumber(s.warnAt) or 10)
+        bar:ClearAllPoints()
+        bar:SetPoint("TOPLEFT", bg, "TOPLEFT", 0, 0)
+        bar:SetPoint("BOTTOMLEFT", bg, "BOTTOMLEFT", 0, 0)
+        bar:SetWidth(math.max(1, w * left / 40))
+        if warn then bar:SetColorTexture(0.9, 0.2, 0.15, 0.9) else bar:SetColorTexture(0.25, 0.65, 1, 0.9) end
+        txt:SetFont(STANDARD_TEXT_FONT, math.max(9, math.min(h - 6, 16)), "OUTLINE")
+        txt:ClearAllPoints()
+        txt:SetPoint("CENTER", bg, "CENTER", 0, 0)
+        txt:SetText(string.format("Dungeon  %d", math.ceil(left)))
+    end
+end

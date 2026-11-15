@@ -257,3 +257,33 @@ function M.Build(page)
     page:Slider("Move up / down", -200, 200, 1, function() return S().y end,
         function(v) S().y = v; PlaceAll() end)
 end
+
+-- Live preview at the top of this tab (Sharp window style). Drawn on our own frames only.
+function M.LivePreview(stage)
+    local icon = stage:CreateTexture(nil, "ARTWORK")
+    icon:SetPoint("LEFT", stage, "LEFT", 40, -4)
+    pcall(icon.SetTexture, icon, "Interface\\CharacterFrame\\UI-StateIcon")
+    pcall(icon.SetTexCoord, icon, 0.5, 1, 0, 0.5)
+    local enter = stage:CreateFontString(nil, "OVERLAY")
+    enter:SetPoint("CENTER", stage, "CENTER", -40, -4)
+    local leave = stage:CreateFontString(nil, "OVERLAY")
+    leave:SetPoint("CENTER", stage, "CENTER", 70, -4)
+    return function()
+        local s = NS.Mod("combatind")
+        local t = s.text or {}
+        local size = math.max(10, math.min(tonumber(s.size) or 22, 40))
+        icon:SetSize(size, size)
+        icon:SetShown(s.showIn ~= false)
+        local ts = math.max(10, math.min(tonumber(t.size) or 26, 32))
+        enter:SetFont(STANDARD_TEXT_FONT, ts, "THICKOUTLINE")
+        leave:SetFont(STANDARD_TEXT_FONT, ts, "THICKOUTLINE")
+        local ec, lc = t.enterColor or { 1, 0.2, 0.2, 1 }, t.leaveColor or { 0.3, 1, 0.3, 1 }
+        enter:SetTextColor(ec[1], ec[2], ec[3], ec[4] or 1)
+        leave:SetTextColor(lc[1], lc[2], lc[3], lc[4] or 1)
+        enter:SetText("+Combat")
+        leave:SetText("-Combat")
+        local on = t.enabled ~= false
+        enter:SetShown(on and t.showEnter ~= false)
+        leave:SetShown(on and t.showLeave ~= false)
+    end
+end

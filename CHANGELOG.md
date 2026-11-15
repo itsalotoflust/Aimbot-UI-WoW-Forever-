@@ -2,6 +2,12 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.21.0
+
+- **Sharp style: settings that belong together share one line.** A colour that goes with a setting becomes a swatch on its line; a "Show ..." switch becomes an eye on the line it controls (the line dims while hidden); font / outline / text-size settings, move left/right + up/down (Position), and Width + Height (Size) go into a pop-out behind a gear. Undo and search still work (search opens the pop-out). Runs of several colours stay as rows. Other styles are unchanged.
+- **Live previews** at the top of 11 tabs in Sharp: Aura Timers, Auto Shot Timer, Combat Indicator, Damage Font, Durability Alert, FPS / MS, Loss of Control, Party Death Alert, Queue Timer, Range Alert, Talent Alert.
+- **Polish:** row hover highlight, thin dividers between lines, soft glow on the selected side menu item.
+
 ## 2.20.0
 
 - **Settings window: new "Sharp (compact)" style** (General > Theme > Style, then Reload). Your current style stays until you switch.

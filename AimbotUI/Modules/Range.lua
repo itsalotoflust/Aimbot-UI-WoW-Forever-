@@ -328,3 +328,25 @@ function M.Build(page)
         function(v) S().interval = v end,
         function(v) return string.format("%.2f", v) end)
 end
+
+-- Live preview at the top of this tab (Sharp window style). Drawn on our own frames only.
+function M.LivePreview(stage)
+    local good = stage:CreateFontString(nil, "OVERLAY")
+    good:SetPoint("CENTER", stage, "CENTER", -70, -4)
+    local bad = stage:CreateFontString(nil, "OVERLAY")
+    bad:SetPoint("CENTER", stage, "CENTER", 70, -4)
+    return function()
+        local s = NS.Mod("range")
+        local size = math.max(9, math.min(tonumber(s.readoutSize) or 18, 32))
+        local flags = s.readoutOutline and "OUTLINE" or ""
+        good:SetFont(STANDARD_TEXT_FONT, size, flags)
+        bad:SetFont(STANDARD_TEXT_FONT, size, flags)
+        local g, b = s.goodColor or { 0.3, 1, 0.3, 1 }, s.badColor or { 1, 0.35, 0.35, 1 }
+        good:SetTextColor(g[1], g[2], g[3], g[4] or 1)
+        bad:SetTextColor(b[1], b[2], b[3], b[4] or 1)
+        good:SetText("20-30 yd")
+        bad:SetText("> 40 yd")
+        good:SetShown(s.showReadout ~= false)
+        bad:SetShown(s.showReadout ~= false)
+    end
+end

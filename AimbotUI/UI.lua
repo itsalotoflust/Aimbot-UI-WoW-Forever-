@@ -526,6 +526,28 @@ local function LayoutCardSharp(self, card, y, cw)
     local colW = two and math.floor((innerW - GAP) / 2) or innerW
     card.columns = two and 2 or 1
     local lineH                       -- height of the line whose left column is filled, waiting for a right one
+    card.dividers = card.dividers or {}
+    local nDiv = 0
+    local function Divider(atY)
+        nDiv = nDiv + 1
+        local d = card.dividers[nDiv]
+        if not d then
+            d = card.frame:CreateTexture(nil, "BORDER")
+            d:SetHeight(1)
+            d:SetColorTexture(1, 1, 1, 0.04)
+            card.dividers[nDiv] = d
+        end
+        d:ClearAllPoints()
+        d:SetPoint("TOPLEFT", card.frame, "TOPLEFT", PAD, -atY)
+        d:SetPoint("TOPRIGHT", card.frame, "TOPRIGHT", -PAD, -atY)
+        d:Show()
+    end
+    local lines = 0
+    local function EndLine(h)
+        if lines > 0 then Divider(iy - math.floor(VGAP / 2) - 1) end
+        lines = lines + 1
+        iy = iy + h + VGAP
+    end
     for _, row in ipairs(card.rows) do
         row.frame:ClearAllPoints()
         if two and row.half then
@@ -538,22 +560,23 @@ local function LayoutCardSharp(self, card, y, cw)
                 row.frame:SetPoint("TOPLEFT", card.frame, "TOPLEFT", PAD + colW + GAP, -iy)
                 row.col = 2
                 lineH = math.max(lineH, h)
-                iy = iy + lineH + VGAP
+                EndLine(lineH)
                 lineH = nil
             end
             row.frame:SetWidth(colW)
             row.frame:SetHeight(h)
         else
-            if lineH then iy = iy + lineH + VGAP; lineH = nil end
+            if lineH then EndLine(lineH); lineH = nil end
             local h = row.height(innerW)
             row.frame:SetPoint("TOPLEFT", card.frame, "TOPLEFT", PAD, -iy)
             row.frame:SetPoint("TOPRIGHT", card.frame, "TOPRIGHT", -PAD, -iy)
             row.frame:SetHeight(h)
             row.col = 0
-            iy = iy + h + VGAP
+            EndLine(h)
         end
     end
-    if lineH then iy = iy + lineH + VGAP end
+    if lineH then EndLine(lineH) end
+    for i = nDiv + 1, #card.dividers do card.dividers[i]:Hide() end
     card.frame:SetHeight(iy + 6)
     return iy + 6 + 10
 end
@@ -597,8 +620,323 @@ end
 
 function Page:Back() end     -- kept so older calls do nothing harmful; the side menu dropdown replaced it
 
+----------------------------------------------------------------------
+-- Sharp style: settings that belong together share one line (2.21.0)
+--   * a colour right after a setting becomes a small swatch on that setting's line
+--   * a "Show ..." switch right before a setting about the same thing becomes an eye on its line
+--   * font / outline / shadow settings, and x / y offsets, go into a pop-out behind a gear button
+-- Nothing is lost: every setting still works, refreshes, undoes and is found by search
+-- (search opens the pop-out). Other styles keep the plain one-setting-per-line layout.
+----------------------------------------------------------------------
+local STOP = { show = true, the = true, your = true, with = true, when = true, from = true, that = true,
+    this = true, colour = true, color = true, size = true, only = true, also = true, them = true,
+    their = true, ["while"] = true, into = true, over = true, under = true, each = true }
+local function Words(label)
+    local t = {}
+    for w in tostring(label or ""):lower():gmatch("%a+") do
+        if #w >= 4 and not STOP[w] then t[(w:gsub("s$", ""))] = true end
+    end
+    return t
+end
+local function ShareWord(a, b)
+    local wa = Words(a)
+    for w in pairs(Words(b)) do if wa[w] then return true end end
+    return false
+end
+UI._ShareWord = ShareWord
+
+local function IsStyleLabel(l)
+    l = tostring(l or ""):lower()
+    return l:find("font") or l:find("outline") or l:find("shadow") or l:find("text size")
+        or l:find("number size")
+end
+local function IsOffsetLabel(l)
+    l = tostring(l or ""):lower()
+    return l:find("offset") or l:find("left / right") or l:find("up / down") or l:find("horizontal")
+        or l:find("vertical") or l:find("^x$") or l:find("^y$")
+end
+local function IsSizeLabel(l)
+    l = tostring(l or ""):lower()
+    return l == "width" or l == "height"
+end
+
+-- the leftmost thing on the right side of a line: new icons go just left of it
+local function LeftEdge(row) return row.leftmost or row.ctrl end
+local function PutLeft(row, obj, gap)
+    obj:ClearAllPoints()
+    if row.kind == "group" and not row.leftmost then gap = -1 end
+    obj:SetPoint("RIGHT", LeftEdge(row), "LEFT", -(gap or 8), 0)
+    row.leftmost = obj
+    if row.fs then row.fs:SetPoint("RIGHT", obj, "LEFT", -10, 0) end
+end
+
+-- small icons drawn from plain textures
+local function IconButton(parent, size)
+    local b = CreateFrame("Button", nil, parent)
+    b:SetSize(size or 18, size or 18)
+    local hl = UI.Round(b, "HIGHLIGHT", (size or 18))
+    hl:SetPoint("CENTER")
+    Paint(hl, 1, 1, 1, 0.08)
+    return b
+end
+local function SideFill() local c = W().bg; return c[1], c[2], c[3] end
+
+function UI.MakeEye(parent)
+    local b = IconButton(parent, 18)
+    local outer = UI.Round(b, "ARTWORK", 14); outer:SetSize(15, 9); outer:SetPoint("CENTER")
+    local inner = UI.Round(b, "ARTWORK", 10); inner:SetSize(11, 6); inner:SetPoint("CENTER")
+    inner:SetDrawLayer("ARTWORK", 2)
+    local pupil = UI.Round(b, "ARTWORK", 5); pupil:SetPoint("CENTER"); pupil:SetDrawLayer("ARTWORK", 3)
+    local slash = b:CreateTexture(nil, "ARTWORK", nil, 4)
+    slash:SetSize(2, 17); slash:SetPoint("CENTER")
+    if slash.SetRotation then pcall(slash.SetRotation, slash, math.rad(45)) end
+    function b.Set(on)
+        local c = on and W().text or { 0.42, 0.42, 0.46 }
+        Paint(outer, c[1], c[2], c[3], 1)
+        Paint(pupil, c[1], c[2], c[3], 1)
+        local r, g, bl = SideFill()
+        Paint(inner, r, g, bl, 1)
+        slash:SetColorTexture(c[1], c[2], c[3], 1)
+        slash:SetShown(not on)
+    end
+    return b
+end
+
+function UI.MakeGear(parent)
+    local b = IconButton(parent, 18)
+    local parts = {}
+    local body = UI.Round(b, "ARTWORK", 11); body:SetPoint("CENTER"); parts[#parts + 1] = body
+    for i = 0, 7 do
+        local tooth = b:CreateTexture(nil, "ARTWORK")
+        tooth:SetSize(3, 3)
+        local a = i * math.pi / 4
+        tooth:SetPoint("CENTER", b, "CENTER", math.floor(math.cos(a) * 6 + 0.5), math.floor(math.sin(a) * 6 + 0.5))
+        if tooth.SetRotation then pcall(tooth.SetRotation, tooth, a) end
+        parts[#parts + 1] = tooth
+    end
+    local hole = UI.Round(b, "ARTWORK", 4); hole:SetPoint("CENTER"); hole:SetDrawLayer("ARTWORK", 2)
+    function b.Set(active)
+        local c = active and W().accent or W().muted
+        for _, t in ipairs(parts) do
+            if rounds[t] then Paint(t, c[1], c[2], c[3], 1) else t:SetColorTexture(c[1], c[2], c[3], 1) end
+        end
+        local r, g, bl = SideFill()
+        Paint(hole, r, g, bl, 1)
+    end
+    return b
+end
+
+-- A colour row becomes a swatch on the line before it.
+local function AttachSwatch(page, host, crow)
+    local btn = crow.ctrl
+    btn:SetParent(host.frame)
+    btn:SetSize(16, 16)
+    PutLeft(host, btn, 8)
+    Tip(btn, crow.label or "Colour", "Click to pick a colour.")
+    crow.host = host
+    host.swatch = btn
+end
+
+-- A "Show ..." switch becomes an eye on the line after it; the line dims while it is off.
+local function AttachEye(page, host, srow)
+    local eye = UI.MakeEye(host.frame)
+    PutLeft(host, eye, 8)
+    local function refresh()
+        local on = srow.get() and true or false
+        eye.Set(on)
+        host.frame:SetAlpha(on and 1 or 0.55)
+    end
+    eye:SetScript("OnClick", function() srow.set(not srow.get()); refresh() end)
+    Tip(eye, srow.label or "Show", "Click to show or hide.")
+    table.insert(page.refreshers, refresh)
+    refresh()
+    srow.host = host
+    host.eye = eye
+end
+
+-- Pop-out panel for grouped settings, opened by a gear on the host line.
+local openPop
+function UI.ClosePops() if openPop then openPop:Hide(); openPop = nil end end
+local POP_W = 300
+local function MakePop(page, host, title, rows)
+    local pop = CreateFrame("Frame", nil, win or UIParent)
+    pop:SetFrameStrata("HIGH")
+    pop:SetClampedToScreen(true)
+    pop:EnableMouse(true)
+    pop:Hide()
+    local bg = pop:CreateTexture(nil, "BACKGROUND")
+    bg:SetAllPoints()
+    local edges = Edges(pop, 1, 1, 1, 1, "BORDER")
+    for _, e in ipairs(edges) do UI.Accent(e, 0.45) end
+    local head = UI.Text(pop, string.upper(title or "Options"), -2, 0.62, 0.62, 0.67)
+    head:SetPoint("TOPLEFT", pop, "TOPLEFT", 14, -10)
+    head:SetPoint("RIGHT", pop, "RIGHT", -34, 0)
+    head:SetWordWrap(false)
+    local x = CreateFrame("Button", nil, pop)
+    x:SetSize(18, 18)
+    x:SetPoint("TOPRIGHT", pop, "TOPRIGHT", -6, -6)
+    local xt = UI.Text(x, "x", 0, 0.62, 0.62, 0.67)
+    xt:SetPoint("CENTER", 0, 1)
+    x:SetScript("OnClick", function() UI.ClosePops() end)
+    pop.rows = rows
+    for _, r in ipairs(rows) do
+        r.frame:SetParent(pop)
+        r.pop = pop
+        r.host = host
+    end
+    function pop.Layout()
+        local c = W().bg
+        bg:SetColorTexture(c[1], c[2], c[3], 0.98)
+        local y, inner = 30, POP_W - 28
+        for _, r in ipairs(rows) do
+            local h = r.height(inner)
+            r.frame:ClearAllPoints()
+            r.frame:SetPoint("TOPLEFT", pop, "TOPLEFT", 14, -y)
+            r.frame:SetWidth(inner)
+            r.frame:SetHeight(h)
+            r.frame:Show()
+            y = y + h + 6
+        end
+        pop:SetSize(POP_W, y + 6)
+    end
+    function pop.Open()
+        if openPop and openPop ~= pop then openPop:Hide() end
+        pop:ClearAllPoints()
+        pop:SetPoint("TOPLEFT", host.gear, "BOTTOMRIGHT", 4, -2)
+        pop.Layout()
+        pop:Show()
+        openPop = pop
+        for _, fn in ipairs(page.refreshers) do pcall(fn) end
+    end
+    pop:SetScript("OnHide", function()
+        if openPop == pop then openPop = nil end
+        if host.gear then host.gear.Set(false) end
+    end)
+    pop:SetScript("OnShow", function() if host.gear then host.gear.Set(true) end end)
+    return pop
+end
+
+local function AttachGear(page, host, rows, title)
+    local gear = UI.MakeGear(host.frame)
+    PutLeft(host, gear, 8)
+    host.gear = gear
+    local pop = MakePop(page, host, title, rows)
+    host.popout = pop
+    gear:SetScript("OnClick", function()
+        if pop:IsShown() then pop:Hide() else pop.Open() end
+    end)
+    local names = {}
+    for _, r in ipairs(rows) do names[#names + 1] = r.label or "?" end
+    Tip(gear, title or "More options", table.concat(names, ", "))
+    gear.Set(false)
+    table.insert(page.refreshers, function() gear.Set(pop:IsShown()) end)
+end
+
+-- Runs once per page in Sharp style, before areas are decided.
+function UI.GroupSharp(page)
+    for _, card in ipairs(page.cards) do
+        local rows = card.rows
+        card.allRows = {}
+        for i, r in ipairs(rows) do card.allRows[i] = r end
+        local kept = {}
+        -- 1. colours onto the line before
+        for i, r in ipairs(rows) do
+            local prev = kept[#kept]
+            -- a run of several colours (one per state or resource) stays as it is
+            local loneColour = r.kind == "color" and not (rows[i + 1] and rows[i + 1].kind == "color")
+                and not (rows[i - 1] and rows[i - 1].kind == "color")
+            if loneColour and prev and (prev.kind == "check" or prev.kind == "slider" or prev.kind == "cycle")
+                and not prev.swatch then
+                AttachSwatch(page, prev, r)
+                r.frame:Hide()
+            else
+                kept[#kept + 1] = r
+            end
+        end
+        rows = kept; kept = {}
+        -- 2. "Show ..." switches as an eye on the next line about the same thing
+        local i = 1
+        while i <= #rows do
+            local r, nxt = rows[i], rows[i + 1]
+            local lbl = r.label and r.label:lower() or ""
+            if r.kind == "check" and nxt and lbl:find("^show ") and not r.swatch
+                and (nxt.kind == "slider" or nxt.kind == "cycle") and not nxt.eye
+                and nxt.label and ShareWord(r.label:sub(6), nxt.label) then
+                AttachEye(page, nxt, r)
+                r.frame:Hide()
+                i = i + 1
+            else
+                kept[#kept + 1] = r
+                i = i + 1
+            end
+        end
+        rows = kept; kept = {}
+        -- 3. gear pop-outs: text style runs, then offset runs
+        i = 1
+        while i <= #rows do
+            local r = rows[i]
+            local run = {}
+            local j = i
+            while rows[j] and rows[j].half and IsStyleLabel(rows[j].label) do run[#run + 1] = rows[j]; j = j + 1 end
+            if #run >= 2 then
+                local host = run[1]
+                local rest = {}
+                for k = 2, #run do rest[#rest + 1] = run[k]; run[k].frame:Hide() end
+                AttachGear(page, host, rest, "Text style")
+                kept[#kept + 1] = host
+                i = j
+            else
+                run = {}
+                j = i
+                local isSize = rows[j] and rows[j].kind == "slider" and IsSizeLabel(rows[j].label)
+                local test = isSize and IsSizeLabel or IsOffsetLabel
+                while rows[j] and rows[j].kind == "slider" and test(rows[j].label) do
+                    run[#run + 1] = rows[j]; j = j + 1
+                end
+                if #run >= 2 then
+                    local prev = kept[#kept]
+                    local related = prev and prev.half and not prev.gear and prev.label
+                        and (ShareWord(prev.label, run[1].label) or prev.label:lower():find("position"))
+                    local host = related and prev or nil
+                    local list = run
+                    if not host and isSize then
+                        host = run[1]
+                        list = {}
+                        for k = 2, #run do list[#list + 1] = run[k] end
+                        kept[#kept + 1] = host
+                    elseif not host then
+                        -- a line of its own: "Position" with just the gear
+                        local f = CreateFrame("Frame", nil, card.frame)
+                        local fs = UI.Text(f, "Position", LabelOff())
+                        fs:SetPoint("LEFT", f, "LEFT", 0, 0)
+                        fs:SetWordWrap(false)
+                        local stub = CreateFrame("Frame", nil, f)
+                        stub:SetSize(1, 1)
+                        stub:SetPoint("RIGHT", f, "RIGHT", 0, 0)
+                        host = { frame = f, fs = fs, ctrl = stub, kind = "group", half = true,
+                            height = function() return RowH(24) end }
+                        kept[#kept + 1] = host
+                    end
+                    for _, x in ipairs(list) do x.frame:Hide() end
+                    AttachGear(page, host, list, isSize and "Size" or "Position")
+                    i = j
+                else
+                    kept[#kept + 1] = r
+                    i = i + 1
+                end
+            end
+        end
+        card.rows = kept
+    end
+end
+
 -- Called once after a module's Build(): decides whether this page gets the area list.
 function Page:Finish()
+    if UI.sharp and not self.grouped then
+        self.grouped = true
+        local ok, err = pcall(UI.GroupSharp, self)
+        if not ok then NS.ReportError("settings layout", err) end
+    end
     local areas = {}
     for _, card in ipairs(self.cards) do
         if card.title and not card.pinned and #card.rows > 0 then areas[#areas + 1] = card end
@@ -756,6 +1094,22 @@ local function AddRow(self, height, label, half)
         height = (type(height) == "function") and height or function() return height end,
     }
     table.insert(card.rows, row)
+    if UI.sharp and half then
+        -- soft highlight while the mouse is over the row (kept while over its controls)
+        local hov = f:CreateTexture(nil, "BACKGROUND")
+        hov:SetPoint("TOPLEFT", f, "TOPLEFT", -6, 1)
+        hov:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", 6, -1)
+        hov:SetColorTexture(1, 1, 1, 0.035)
+        hov:Hide()
+        f:EnableMouse(true)
+        if f.SetMouseClickEnabled then pcall(f.SetMouseClickEnabled, f, false) end
+        local function watch()
+            local ok, over = pcall(f.IsMouseOver, f)
+            if not (ok and over) then hov:Hide(); f:SetScript("OnUpdate", nil) end
+        end
+        f:SetScript("OnEnter", function() hov:Show(); f:SetScript("OnUpdate", watch) end)
+        row.hover = hov
+    end
     return f, row
 end
 
@@ -779,8 +1133,9 @@ end
 
 function Page:Check(label, get, set, desc)
     set = Undoable(label, get, set)
-    local f = AddRow(self, 24, label, true)
+    local f, row = AddRow(self, 24, label, true)
     local sw = Toggle(f, get, set)
+    row.kind, row.ctrl, row.get, row.set = "check", sw, get, set
     local fs = UI.Text(f, label, LabelOff())
     if UI.classic then
         sw:SetPoint("LEFT", f, "LEFT", -4, 0)
@@ -794,6 +1149,7 @@ function Page:Check(label, get, set, desc)
     fs:SetWordWrap(false)
     LabelTip(f, fs, label)
     if type(desc) == "string" then Tip(sw, label, desc) end
+    row.fs = fs
     table.insert(self.refreshers, sw.Refresh)
     self:Reflow()
     return sw
@@ -810,7 +1166,8 @@ end
 
 function Page:Slider(label, min, max, step, get, set, fmt)
     set = Undoable(label, get, set)
-    local f = AddRow(self, 24, label, true)
+    local f, row = AddRow(self, 24, label, true)
+    row.kind = "slider"
     local holder = CreateFrame("Frame", nil, f)
     holder:SetPoint("RIGHT", f, "RIGHT", 0, 0)
     holder:SetSize(UI.sharp and 44 or 58, UI.sharp and 18 or 20)
@@ -883,6 +1240,7 @@ function Page:Slider(label, min, max, step, get, set, fmt)
     fs:SetPoint("RIGHT", s, "LEFT", -12, 0)
     fs:SetWordWrap(false)
     LabelTip(f, fs, label)
+    row.ctrl, row.fs = s, fs
 
     local refreshing = false
     local function show(v) val:SetText(fmt and fmt(v) or tostring(v)) end
@@ -938,9 +1296,10 @@ end
 
 function Page:Color(label, get, set)
     set = Undoable(label, get, set, true)
-    local f = AddRow(self, 24, label, true)
+    local f, row = AddRow(self, 24, label, true)
     local btn = CreateFrame("Button", nil, f)
     btn:SetSize(40, 18)
+    row.kind, row.ctrl, row.get, row.set = "color", btn, get, set
     btn:SetPoint("RIGHT", f, "RIGHT", 0, 0)
     local edge = btn:CreateTexture(nil, "BACKGROUND")
     edge:SetAllPoints()
@@ -957,6 +1316,7 @@ function Page:Color(label, get, set)
     fs:SetPoint("RIGHT", btn, "LEFT", -12, 0)
     fs:SetWordWrap(false)
     LabelTip(f, fs, label)
+    row.fs = fs
 
     local function refresh()
         local c = get()
@@ -1091,7 +1451,7 @@ end
 -- options = { { "key", "Label" }, ... }
 function Page:Cycle(label, options, get, set)
     set = Undoable(label, get, set)
-    local f = AddRow(self, 26, label, true)
+    local f, row = AddRow(self, 26, label, true)
     local btn = MakeDropBox(f, UI.sharp and 128 or 190, UI.sharp and 20 or 22)
     btn:SetPoint("RIGHT", f, "RIGHT", 0, 0)
     local fs = UI.Text(f, label, LabelOff())
@@ -1099,6 +1459,7 @@ function Page:Cycle(label, options, get, set)
     fs:SetPoint("RIGHT", btn, "LEFT", -12, 0)
     fs:SetWordWrap(false)
     LabelTip(f, fs, label)
+    row.kind, row.ctrl, row.fs = "cycle", btn, fs
 
     local function refresh()
         local cur = get()
@@ -1410,6 +1771,7 @@ end
 -- Tabs
 ----------------------------------------------------------------------
 local function SelectTab(key)
+    UI.ClosePops()
     currentTab = key
     for k, t in pairs(tabs) do
         local on = (k == key)
@@ -1418,6 +1780,8 @@ local function SelectTab(key)
         t.header:SetShown(on)
         t.sel:SetShown(on)
         t.selBar:SetShown(on)
+        if t.selGlow then t.selGlow:SetShown(on) end
+        if t.preview then t.preview:SetShown(on) end
         if on then t.page:Reflow() end
         if on and t.header.LayoutTabs then pcall(t.header.LayoutTabs) end
     end
@@ -2061,7 +2425,7 @@ local function Create()
                 if area and hit(base) then
                     found[#found + 1] = { text = area, where = tabName, t = t, card = card, rank = 3, order = order, area = true, close = closeness(area) }
                 end
-                for _, row in ipairs(card.rows) do
+                for _, row in ipairs(card.allRows or card.rows) do
                     local label = row.label and row.label:lower()
                     local where = tabName .. (area and (" > " .. area) or "")
                     if label and anyIn(label) and hit(label .. " " .. base) then
@@ -2125,8 +2489,10 @@ local function Create()
         searchBox:ClearFocus()
         LeaveSearch()
         if r.row then
-            Reveal(r.row)
-            C_Timer.After(0, function() ScrollTo(page, r.row) end)
+            local target = r.row.host or r.row          -- grouped settings: their line
+            Reveal(target)
+            C_Timer.After(0, function() ScrollTo(page, target) end)
+            if r.row.pop then C_Timer.After(0.05, function() pcall(r.row.pop.Open) end) end
         end
     end
 
@@ -2326,7 +2692,7 @@ local function Create()
         UI._testMenu = testMenu
     end
     testBtn:SetScript("OnClick", UI.ToggleTestMenu)
-    win:HookScript("OnHide", function() if testMenu then testMenu:Hide() end end)
+    win:HookScript("OnHide", function() if testMenu then testMenu:Hide() end; UI.ClosePops() end)
 
     -- Tabs ----------------------------------------------------------
     local lastGroup2
@@ -2396,6 +2762,16 @@ local function Create()
         sel:SetAllPoints()
         UI.Accent(sel, 0.13)
         sel:Hide()
+        local selGlow
+        if UI.sharp then
+            -- a soft glow at the start of the selected line
+            selGlow = btn:CreateTexture(nil, "BACKGROUND", nil, 1)
+            selGlow:SetPoint("TOPLEFT", btn, "TOPLEFT", 0, 0)
+            selGlow:SetPoint("BOTTOMLEFT", btn, "BOTTOMLEFT", 0, 0)
+            selGlow:SetWidth(46)
+            UI.Accent(selGlow, 0.12)
+            selGlow:Hide()
+        end
         local selBar = btn:CreateTexture(nil, "ARTWORK")
         selBar:SetPoint("TOPLEFT", btn, "TOPLEFT", 0, -6)
         selBar:SetPoint("BOTTOMLEFT", btn, "BOTTOMLEFT", 0, 6)
@@ -2450,8 +2826,42 @@ local function Create()
 
         local header, sw = BuildHeader(content, label, mod and mod.desc or "Window look, module switches and maintenance.",
             mod and key or nil)
+        -- Sharp style: a live preview under the header for modules that draw something
+        local above = header
+        if UI.sharp and mod and type(mod.LivePreview) == "function" then
+            local box = CreateFrame("Frame", nil, content)
+            box:SetPoint("TOPLEFT", header, "BOTTOMLEFT", 10, -8)
+            box:SetPoint("TOPRIGHT", header, "BOTTOMRIGHT", -24, -8)
+            box:SetHeight(mod.livePreviewHeight or 74)
+            box:Hide()
+            local bg = box:CreateTexture(nil, "BACKGROUND")
+            bg:SetAllPoints()
+            bg:SetColorTexture(0, 0, 0, 0.30)
+            Edges(box, 1, 1, 1, 0.07, "BORDER")
+            local cap = UI.Text(box, "PREVIEW", -4, 0.62, 0.62, 0.67)
+            cap:SetPoint("TOPLEFT", box, "TOPLEFT", 8, -6)
+            cap:SetAlpha(0.7)
+            local stage = CreateFrame("Frame", nil, box)
+            stage:SetPoint("TOPLEFT", box, "TOPLEFT", 4, -4)
+            stage:SetPoint("BOTTOMRIGHT", box, "BOTTOMRIGHT", -4, 4)
+            local okP, refresh = pcall(mod.LivePreview, stage, box)
+            if not okP then NS.ReportError("preview " .. label, refresh); refresh = nil end
+            if type(refresh) == "function" then
+                local wait = 0
+                box:SetScript("OnUpdate", function(_, el)
+                    wait = wait - el
+                    if wait > 0 then return end
+                    wait = 0.15
+                    local okR, e = pcall(refresh, stage, el)
+                    if not okR then box:SetScript("OnUpdate", nil); NS.ReportError("preview " .. label, e) end
+                end)
+            end
+            UI._previews = UI._previews or {}
+            UI._previews[key] = box
+            above = box
+        end
         local holder = CreateFrame("Frame", nil, content)
-        holder:SetPoint("TOPLEFT", header, "BOTTOMLEFT", 6, -6)
+        holder:SetPoint("TOPLEFT", above, above == header and "BOTTOMLEFT" or "BOTTOMLEFT", above == header and 6 or -4, -6)
         holder:SetPoint("BOTTOMRIGHT", content, "BOTTOMRIGHT", -2, 4)
         local page = UI.NewPage(holder)
         if mod then page.moduleKey, page.moduleName = key, label end
@@ -2463,7 +2873,7 @@ local function Create()
 
         local t = { key = key, label = label, btn = btn, page = page, sel = sel, selBar = selBar,
             header = header, switch = sw, dot = dot, module = mod and true or false,
-            power = power, labelFs = fs }
+            power = power, labelFs = fs, selGlow = selGlow, preview = UI._previews and UI._previews[key] }
         tabs[key] = t
         table.insert(tabList, t)
         sideEntries[#sideEntries + 1] = { tab = t }

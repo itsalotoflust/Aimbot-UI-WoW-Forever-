@@ -298,3 +298,27 @@ function M.Build(page)
         NS.ApplyModule("lossofcontrol")
     end)
 end
+
+-- Live preview at the top of this tab (Sharp window style). Drawn on our own frames only.
+function M.LivePreview(stage)
+    local icon = stage:CreateTexture(nil, "ARTWORK")
+    icon:SetPoint("LEFT", stage, "CENTER", -70, -4)
+    pcall(icon.SetTexture, icon, "Interface\\Icons\\Spell_Frost_FrostNova")
+    pcall(icon.SetTexCoord, icon, 0.08, 0.92, 0.08, 0.92)
+    local num = stage:CreateFontString(nil, "OVERLAY")
+    num:SetPoint("CENTER", icon, "CENTER", 0, 0)
+    local name = stage:CreateFontString(nil, "OVERLAY")
+    name:SetPoint("LEFT", icon, "RIGHT", 10, 0)
+    return function()
+        local s = NS.Mod("lossofcontrol")
+        local isz = math.max(16, math.min(tonumber(s.iconSize) or 64, 56))
+        icon:SetSize(isz, isz)
+        num:SetFont(STANDARD_TEXT_FONT, math.max(8, math.min(tonumber(s.numberSize) or 26, isz - 4)), "THICKOUTLINE")
+        num:SetText("2.4")
+        name:SetFont(STANDARD_TEXT_FONT, math.max(8, math.min(tonumber(s.nameSize) or 20, 28)), "OUTLINE")
+        local c = s.nameColor or { 1, 0.82, 0, 1 }
+        name:SetTextColor(c[1], c[2], c[3], c[4] or 1)
+        name:SetText("Stunned")
+        name:SetShown(s.showName ~= false)
+    end
+end
