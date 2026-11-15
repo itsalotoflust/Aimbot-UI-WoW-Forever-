@@ -1228,7 +1228,7 @@ function Page:Slider(label, min, max, step, get, set, fmt)
     row.kind = "slider"
     local holder = CreateFrame("Frame", nil, f)
     holder:SetPoint("RIGHT", f, "RIGHT", 0, 0)
-    holder:SetSize(UI.sharp and 44 or 58, UI.sharp and 18 or 20)
+    holder:SetSize(UI.sharp and 54 or 58, UI.sharp and 18 or 20)
     local edge = holder:CreateTexture(nil, "BACKGROUND")
     edge:SetAllPoints()
     edge:SetColorTexture(1, 1, 1, 0.10)

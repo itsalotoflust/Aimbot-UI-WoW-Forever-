@@ -161,6 +161,31 @@ end
 
 function M:Apply() UpdateAll() end
 
+-- /aimbot diag: what every macro on your bars resolves to (macros are where costs go missing)
+function M:Diagnose()
+    local P = NS.Print
+    local n, shown = 0, 0
+    NS.ForEachButton(function(btn)
+        local action = NS.GetAction(btn)
+        if not action or not GetActionInfo then return end
+        local ok, kind, id, sub = pcall(GetActionInfo, action)
+        if not ok or kind ~= "macro" or NS.IsSecret(kind) then return end
+        n = n + 1
+        if shown >= 14 then return end
+        shown = shown + 1
+        local okT, name = pcall(GetActionText, action)
+        if not okT or NS.IsSecret(name) then name = "?" end
+        local sid, how = NS.SpellForAction(action)
+        local cost, ptype
+        if sid then cost, ptype = CostFor(sid) end
+        P(string.format("  macro slot %d '%s': id=%s sub=%s -> %s%s", action, tostring(name),
+            NS.IsSecret(id) and "secret" or tostring(id), NS.IsSecret(sub) and "secret" or tostring(sub),
+            sid and ("spell " .. sid .. " (" .. tostring(how) .. ")") or tostring(how or "nothing"),
+            cost and ("  cost " .. cost .. " type " .. tostring(ptype)) or (sid and "  no cost readable" or "")))
+    end)
+    P(string.format("  macros on bars: %d (shown %d)", n, shown))
+end
+
 function M:Init()
     for _, ev in ipairs({
         "PLAYER_ENTERING_WORLD", "ACTIONBAR_SLOT_CHANGED", "ACTIONBAR_PAGE_CHANGED",

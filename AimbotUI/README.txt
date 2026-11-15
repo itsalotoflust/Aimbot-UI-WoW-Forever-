@@ -1,4 +1,4 @@
-AIMBOT UI  v2.22.0  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.22.1  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,15 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.22.1
+  - Mana Costs: macros now show their cost. Newer clients report a macro that shows a spell
+    with that spell's own ID, and we were treating it as the macro's number, so nothing was
+    found. Both ways are handled now, and the macro's name is tried as a last resort.
+    (Range Alert uses the same lookup, so macros work there too.)
+  - /aimbot diag: Mana Costs lists each macro on your bars and the spell and cost it found.
+  - Sharp style: the number box next to sliders is a little wider, so "100%" isn't cut off
+    to "0%".
 
 NEW IN 2.22.0
   - Sharp window style: each tab is now one long page that scrolls down, instead of tabs

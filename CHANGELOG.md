@@ -2,6 +2,12 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.22.1
+
+- **Mana Costs:** macros show their cost again. Newer clients report a macro that shows a spell with that spell's own ID (subtype "spell"); we treated it as the macro index. Both styles are handled, with the macro name as a last resort. Range Alert shares the lookup.
+- **/aimbot diag:** Mana Costs lists each macro on your bars with the spell and cost it resolved.
+- **Sharp style:** wider slider value box, so "100%" isn't cut off.
+
 ## 2.22.0
 
 - **Sharp style: one long scrolling page per tab** instead of tabs along the top. Every section is stacked under its own header bar (name in the highlight colour, description in grey, a coloured line under it, clear space before the next section). A - / + button folds a section away and the choice is remembered; search opens a folded section when it jumps to a setting.

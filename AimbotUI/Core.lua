@@ -7,7 +7,7 @@
 local ADDON_NAME, NS = ...
 _G.AimbotUI = NS
 
-NS.version = "2.22.0"
+NS.version = "2.22.1"
 NS.modules = {}
 NS.moduleOrder = {}
 
@@ -208,18 +208,45 @@ function NS.GetAction(btn)
 end
 
 -- Returns spellID for an action slot (spell or macro-with-spell), else nil.
+-- The spell an action slot casts, or nil. Second return says how it was found (for /aimbot diag).
+-- Macros: newer clients report a macro that shows a spell as ("macro", <that spell's ID>, "spell"),
+-- so the ID is already the spell. Older ones give the macro's own index, which GetMacroSpell turns
+-- into the spell; the macro's name (the button text) is tried last.
+local function SpellFromMacroResult(v)
+    if issecret(v) then return nil end
+    if type(v) == "number" and v > 0 then return v end
+    if type(v) == "string" and v ~= "" then
+        local f = C_Spell and C_Spell.GetSpellIDForSpellIdentifier
+        if f then
+            local ok, sid = pcall(f, v)
+            if ok and type(sid) == "number" and not issecret(sid) then return sid end
+        end
+    end
+end
 function NS.SpellForAction(action)
     if not action or not GetActionInfo then return nil end
-    local ok, kind, id = pcall(GetActionInfo, action)
-    if not ok or issecret(kind) or issecret(id) then return nil end
+    local ok, kind, id, sub = pcall(GetActionInfo, action)
+    if not ok or issecret(kind) or issecret(id) or issecret(sub) then return nil end
     if kind == "spell" then
-        return id
-    elseif kind == "macro" and id then
+        return id, "spell"
+    elseif kind == "macro" then
+        if sub == "spell" and type(id) == "number" and id > 0 then return id, "macro shows spell" end
+        if sub == "item" then return nil, "macro uses an item" end
         local fn = GetMacroSpell or (C_Macro and C_Macro.GetMacroSpell)
-        if fn then
-            local ok2, sid = pcall(fn, id)
-            if ok2 and not issecret(sid) then return sid end
+        if fn and id then
+            local ok2, v = pcall(fn, id)
+            local sid = ok2 and SpellFromMacroResult(v)
+            if sid then return sid, "macro index" end
         end
+        if fn and GetActionText then
+            local okT, name = pcall(GetActionText, action)
+            if okT and type(name) == "string" and not issecret(name) and name ~= "" then
+                local ok3, v = pcall(fn, name)
+                local sid = ok3 and SpellFromMacroResult(v)
+                if sid then return sid, "macro name" end
+            end
+        end
+        return nil, "macro: no spell found"
     end
 end
 
