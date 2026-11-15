@@ -128,6 +128,8 @@ UI.sharp = false
 local function LabelOff() return UI.sharp and -1 or 0 end
 local function RowH(h) return UI.sharp and (h - 2) or h end
 local SHARP_TWO_COL = 470        -- inner width a section needs before it splits into two columns
+local SHARP_BAR_H = 32           -- height of a section's header bar
+local SHARP_SECTION_GAP = 18     -- space between one section and the next
 local GOLD = { 1, 0.82, 0 }
 
 -- Classic window borders and backgrounds.
@@ -520,8 +522,27 @@ local function LayoutCardSharp(self, card, y, cw)
     card.frame:SetPoint("TOPLEFT", self.child, "TOPLEFT", 4, -y)
     card.frame:SetPoint("TOPRIGHT", self.child, "TOPRIGHT", -4, -y)
     local PAD, GAP, VGAP = 14, 28, 6
-    local iy = card.title and 32 or 12
+    local iy = card.title and (SHARP_BAR_H + 12) or 12
     local innerW = cw - 8 - PAD * 2
+    if card.fold then
+        -- folded away: just the header bar
+        local folded = UI.IsFolded(self, card)
+        card.foldText:SetText(folded and "+" or "-")
+        if not card.foldWired then
+            card.foldWired = true
+            card.fold:SetScript("OnClick", function()
+                UI.SetFolded(self, card, not UI.IsFolded(self, card))
+                self:Reflow()
+            end)
+            Tip(card.fold, card.title or "Section", "Click to fold this section away or open it again.")
+        end
+        if folded then
+            for _, row in ipairs(card.rows) do row.frame:Hide() end
+            for _, d in ipairs(card.dividers or {}) do d:Hide() end
+            card.frame:SetHeight(SHARP_BAR_H + 1)
+            return SHARP_BAR_H + 1 + SHARP_SECTION_GAP
+        end
+    end
     local two = innerW >= SHARP_TWO_COL
     local colW = two and math.floor((innerW - GAP) / 2) or innerW
     card.columns = two and 2 or 1
@@ -550,6 +571,7 @@ local function LayoutCardSharp(self, card, y, cw)
     end
     for _, row in ipairs(card.rows) do
         row.frame:ClearAllPoints()
+        row.frame:Show()
         if two and row.half then
             local h = row.height(colW)
             if not lineH then
@@ -578,7 +600,19 @@ local function LayoutCardSharp(self, card, y, cw)
     if lineH then EndLine(lineH) end
     for i = nDiv + 1, #card.dividers do card.dividers[i]:Hide() end
     card.frame:SetHeight(iy + 6)
-    return iy + 6 + 10
+    return iy + 6 + SHARP_SECTION_GAP
+end
+
+-- Folded sections are remembered per tab and section name.
+local function FoldKey(page, card) return (page.moduleKey or "general") .. "/" .. tostring(card.title) end
+function UI.IsFolded(page, card)
+    local w = W()
+    return type(w.folded) == "table" and w.folded[FoldKey(page, card)] == true
+end
+function UI.SetFolded(page, card, v)
+    local w = W()
+    if type(w.folded) ~= "table" then w.folded = {} end
+    w.folded[FoldKey(page, card)] = v and true or nil
 end
 UI._LayoutCardSharp = LayoutCardSharp
 
@@ -941,7 +975,8 @@ function Page:Finish()
     for _, card in ipairs(self.cards) do
         if card.title and not card.pinned and #card.rows > 0 then areas[#areas + 1] = card end
     end
-    if #areas < (UI.sharp and 2 or 3) then self.menuMode = false; return end
+    -- Sharp style (2.22.0): one long page, every section stacked under its own header bar
+    if UI.sharp or #areas < 3 then self.menuMode = false; return end
     self.menuMode = true
     self.areas = areas
 
@@ -977,17 +1012,40 @@ function Page:Section(title, desc, opts)
         pinned = (type(opts) == "table" and opts.pinned) and true or false,
         openFirst = (type(opts) == "table" and opts.open) and true or false }
     if title and UI.sharp then
-        -- small grey capitals, with the description in the same line after it
-        local fs = UI.Text(f, string.upper(title), -2, 0.62, 0.62, 0.67)
-        fs:SetPoint("TOPLEFT", f, "TOPLEFT", 14, -12)
+        -- a header bar: the section name in the highlight colour, its description after it in
+        -- grey, a line under the bar, and a button on the right that folds the section away
+        local bar = f:CreateTexture(nil, "BACKGROUND", nil, 1)
+        bar:SetPoint("TOPLEFT", f, "TOPLEFT", 1, -1)
+        bar:SetPoint("TOPRIGHT", f, "TOPRIGHT", -1, -1)
+        bar:SetHeight(SHARP_BAR_H - 1)
+        bar:SetColorTexture(1, 1, 1, 0.045)
+        local under = f:CreateTexture(nil, "BORDER")
+        under:SetPoint("TOPLEFT", f, "TOPLEFT", 1, -SHARP_BAR_H)
+        under:SetPoint("TOPRIGHT", f, "TOPRIGHT", -1, -SHARP_BAR_H)
+        under:SetHeight(1)
+        UI.Accent(under, 0.35)
+        local fs = UI.Text(f, title, 1)
+        fs:SetPoint("LEFT", f, "TOPLEFT", 14, -SHARP_BAR_H / 2)
         fs:SetWordWrap(false)
+        local a = W().accent
+        fs:SetTextColor(a[1], a[2], a[3])
+        UI._sectionTitles = UI._sectionTitles or {}
+        table.insert(UI._sectionTitles, fs)
         card.titleText = fs
+        local fold = CreateFrame("Button", nil, f)
+        fold:SetSize(SHARP_BAR_H, SHARP_BAR_H)
+        fold:SetPoint("TOPRIGHT", f, "TOPRIGHT", -4, 0)
+        local foldTx = UI.Text(fold, "-", 2, 0.62, 0.62, 0.67)
+        foldTx:SetPoint("CENTER", 0, 1)
+        local foldHl = fold:CreateTexture(nil, "HIGHLIGHT")
+        foldHl:SetAllPoints()
+        foldHl:SetColorTexture(1, 1, 1, 0.06)
+        card.fold, card.foldText = fold, foldTx
         if type(desc) == "string" and desc ~= "" then
-            local d = UI.Text(f, desc, -3, 0.62, 0.62, 0.67)
-            d:SetPoint("LEFT", fs, "RIGHT", 8, 0)
-            d:SetPoint("RIGHT", f, "RIGHT", -14, 0)
+            local d = UI.Text(f, desc, -2, 0.62, 0.62, 0.67)
+            d:SetPoint("LEFT", fs, "RIGHT", 10, 0)
+            d:SetPoint("RIGHT", fold, "LEFT", -6, 0)
             d:SetWordWrap(false)
-            d:SetAlpha(0.75)
             card.descText = d
         end
     elseif title then
@@ -1750,6 +1808,7 @@ function UI.ApplyStyle()
     if UI.sharp then
         local a = w.accent
         for _, g in ipairs(UI._groupLabels or {}) do g:SetTextColor(a[1], a[2], a[3]) end
+        for _, t in ipairs(UI._sectionTitles or {}) do t:SetTextColor(a[1], a[2], a[3]) end
         if UI._logoHole then Paint(UI._logoHole, w.titleBar[1], w.titleBar[2], w.titleBar[3], 1) end
         for _, fn in ipairs(UI._sharpRestyle or {}) do pcall(fn) end
     end
@@ -2032,8 +2091,8 @@ local function BuildGeneral(page)
             styleNote:SetText("|cffff8040The style changes after a reload.|r Click \"Reload now\" below (or type /reload).")
         else
             styleNote:SetText("Classic uses the game's own look (stone or gold border, gold labels, checkboxes). "
-                .. "Modern is flat with round switches. Sharp is compact: settings in two columns, tabs along the top "
-                .. "and on/off buttons in the side menu. Changing any color makes the theme Custom.")
+                .. "Modern is flat with round switches. Sharp is compact: one long page per tab with a header bar on each "
+                .. "section, settings in two columns and on/off buttons in the side menu. Changing any color makes the theme Custom.")
         end
     end)
     page:Cycle("Classic border", { { "stone", "Stone" }, { "gold", "Gold trim" }, { "tooltip", "Thin (tooltip)" }, { "none", "None" } },
@@ -2147,7 +2206,7 @@ local function BuildGeneral(page)
 
     page:Section("Help", "Commands, controls and credits")
     page:Note("Drag the title bar to move the window and the bottom-right corner to resize it. "
-        .. "Each tab opens a list of areas (in the Sharp style they are tabs along the top of the page). "
+        .. "Each tab opens a list of areas (in the Sharp style every section is on one long page instead; fold any section with its - button). "
         .. "In the Sharp style, the power button next to each module in the side menu turns it on or off. "
         .. "Every tab has its own Enabled switch and a Reset tab button.")
     page:Note("Commands:  /aimbot  opens the window.   /aimbot <tab>  opens a tab.   "
@@ -2485,6 +2544,7 @@ local function Create()
         if currentTab ~= r.t.key then SelectTab(r.t.key) end
         local page = r.t.page
         if page.menuMode and r.card and not r.card.pinned then page:Open(r.card) end
+        if r.card and UI.IsFolded(page, r.card) then UI.SetFolded(page, r.card, false); page:Reflow() end
         searchBox:SetText("")
         searchBox:ClearFocus()
         LeaveSearch()

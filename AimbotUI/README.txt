@@ -1,4 +1,4 @@
-AIMBOT UI  v2.21.0  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.22.0  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,16 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.22.0
+  - Sharp window style: each tab is now one long page that scrolls down, instead of tabs
+    along the top. Every section is stacked in order under its own header bar:
+      * the section name in the highlight colour with its description after it in grey,
+      * a coloured line under the bar and clear space before the next section, so it's easy
+        to see where one section ends and the next begins,
+      * a - button on the right of the bar folds that section away (+ opens it again); folded
+        sections are remembered. Search opens a folded section when it jumps to a setting.
+    Two-column settings, swatches, eyes, gear pop-outs and previews are unchanged.
 
 NEW IN 2.21.0
   - Sharp window style, more like a modern UI suite (other styles are unchanged):

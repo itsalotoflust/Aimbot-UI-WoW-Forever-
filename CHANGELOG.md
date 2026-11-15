@@ -2,6 +2,10 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.22.0
+
+- **Sharp style: one long scrolling page per tab** instead of tabs along the top. Every section is stacked under its own header bar (name in the highlight colour, description in grey, a coloured line under it, clear space before the next section). A - / + button folds a section away and the choice is remembered; search opens a folded section when it jumps to a setting.
+
 ## 2.21.0
 
 - **Sharp style: settings that belong together share one line.** A colour that goes with a setting becomes a swatch on its line; a "Show ..." switch becomes an eye on the line it controls (the line dims while hidden); font / outline / text-size settings, move left/right + up/down (Position), and Width + Height (Size) go into a pop-out behind a gear. Undo and search still work (search opens the pop-out). Runs of several colours stay as rows. Other styles are unchanged.
