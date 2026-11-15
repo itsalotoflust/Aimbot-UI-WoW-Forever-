@@ -2,6 +2,17 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.20.0
+
+- **Settings window: new "Sharp (compact)" style** (General > Theme > Style, then Reload). Your current style stays until you switch.
+  - Switches, sliders, colours and dropdowns sit two to a line in each section; notes, buttons and lists keep the full width. Narrow windows fall back to one column. Labels cut short show in full on hover.
+  - A tab's areas become tabs along the top of the page (wrapping if needed) instead of a list in the side menu.
+  - A power button on each module in the side menu turns it on or off; modules that are off are greyed.
+  - Smaller text and spacing, section titles in small grey capitals, a crosshair logo with a larger title, a boxed close button, the version at the bottom of the side menu.
+  - Footer: Test..., Reset tab and Reload UI on the left; Undo and Done on the right.
+  - The first time Sharp is used the window is widened to 880 so two columns fit.
+- **New theme: Modern: Teal.** Picking a colour theme keeps the Sharp layout.
+
 ## 2.19.7
 
 - **Party Death Alert:** the message no longer says "Party member". It reads "<Name> has died" with the skull. With Privacy's private mode on, the name follows the Privacy setting (class, or "Player"); if Privacy hides names entirely, the class is shown. The Test button uses the new wording.

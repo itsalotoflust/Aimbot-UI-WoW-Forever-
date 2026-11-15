@@ -1,4 +1,4 @@
-AIMBOT UI  v2.19.7  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.20.0  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,22 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.20.0
+  - Settings window: new "Sharp (compact)" style. Pick it under General > Theme > Style, then
+    click "Reload now". Your current style stays the default until you switch.
+      * Settings sit two to a line in each section (switches, sliders, colours, dropdowns);
+        notes, buttons and lists still use the full width. A narrow window goes back to one
+        column. Hover a label that's cut short to see all of it.
+      * A tab's areas are tabs along the top of the page (like Display / Colors / General)
+        instead of a list in the side menu. They wrap onto a second line if needed.
+      * Each module in the side menu has a power button to turn it on or off; modules that
+        are off are greyed.
+      * Smaller, tidier text and spacing, section titles in small grey capitals, a logo and
+        larger title, a boxed close button, the version at the bottom of the side menu.
+      * Footer: Test..., Reset tab and Reload UI on the left, Undo and Done on the right.
+      * The first time you use Sharp the window is widened to 880 so two columns fit.
+  - New theme: Modern: Teal. Picking a colour theme keeps the Sharp layout.
 
 NEW IN 2.19.7
   - Party Death Alert: no more "Party member" in the message. It now says "<Name> has died"

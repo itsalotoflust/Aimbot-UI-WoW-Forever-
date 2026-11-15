@@ -122,6 +122,12 @@ end
 
 -- Classic WoW style (set once when the window is built; switching style needs a /reload).
 UI.classic = false
+-- Sharp style (2.20.0): a compact modern look. Settings in two columns, a module's areas as tabs
+-- along the top, on/off buttons in the side menu, smaller text. Also set once at build time.
+UI.sharp = false
+local function LabelOff() return UI.sharp and -1 or 0 end
+local function RowH(h) return UI.sharp and (h - 2) or h end
+local SHARP_TWO_COL = 470        -- inner width a section needs before it splits into two columns
 local GOLD = { 1, 0.82, 0 }
 
 -- Classic window borders and backgrounds.
@@ -211,6 +217,24 @@ local function Tip(frame, title, text)
     end)
     frame:HookScript("OnLeave", function() GameTooltip:Hide() end)
 end
+
+-- A label that may be cut short (narrow columns): hovering it shows the whole text when it is.
+local function LabelTip(parent, fs, text)
+    if not (UI.sharp and type(text) == "string" and text ~= "") then return end
+    local hot = CreateFrame("Frame", nil, parent)
+    hot:SetAllPoints(fs)
+    hot:EnableMouse(true)
+    if hot.SetMouseClickEnabled then pcall(hot.SetMouseClickEnabled, hot, false) end
+    hot:SetScript("OnEnter", function(self)
+        local ok, cut = pcall(fs.IsTruncated, fs)
+        if not (ok and cut) then return end
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:SetText(text, 1, 1, 1, 1, true)
+        GameTooltip:Show()
+    end)
+    hot:SetScript("OnLeave", function() GameTooltip:Hide() end)
+end
+UI._LabelTip = LabelTip
 
 -- Flat button: soft fill, a faint top light, accent wash on hover.
 local function ClassicButton(parent, label, width, height)
@@ -488,6 +512,53 @@ local function LayoutCard(self, card, y, cw)
     return iy + 8 + 14
 end
 
+-- Sharp style: switches, sliders, colours and dropdowns sit two to a line when the section is wide
+-- enough; notes, buttons, text boxes and lists always take the whole width.
+local function LayoutCardSharp(self, card, y, cw)
+    card.frame:Show()
+    card.frame:ClearAllPoints()
+    card.frame:SetPoint("TOPLEFT", self.child, "TOPLEFT", 4, -y)
+    card.frame:SetPoint("TOPRIGHT", self.child, "TOPRIGHT", -4, -y)
+    local PAD, GAP, VGAP = 14, 28, 6
+    local iy = card.title and 32 or 12
+    local innerW = cw - 8 - PAD * 2
+    local two = innerW >= SHARP_TWO_COL
+    local colW = two and math.floor((innerW - GAP) / 2) or innerW
+    card.columns = two and 2 or 1
+    local lineH                       -- height of the line whose left column is filled, waiting for a right one
+    for _, row in ipairs(card.rows) do
+        row.frame:ClearAllPoints()
+        if two and row.half then
+            local h = row.height(colW)
+            if not lineH then
+                row.frame:SetPoint("TOPLEFT", card.frame, "TOPLEFT", PAD, -iy)
+                row.col = 1
+                lineH = h
+            else
+                row.frame:SetPoint("TOPLEFT", card.frame, "TOPLEFT", PAD + colW + GAP, -iy)
+                row.col = 2
+                lineH = math.max(lineH, h)
+                iy = iy + lineH + VGAP
+                lineH = nil
+            end
+            row.frame:SetWidth(colW)
+            row.frame:SetHeight(h)
+        else
+            if lineH then iy = iy + lineH + VGAP; lineH = nil end
+            local h = row.height(innerW)
+            row.frame:SetPoint("TOPLEFT", card.frame, "TOPLEFT", PAD, -iy)
+            row.frame:SetPoint("TOPRIGHT", card.frame, "TOPRIGHT", -PAD, -iy)
+            row.frame:SetHeight(h)
+            row.col = 0
+            iy = iy + h + VGAP
+        end
+    end
+    if lineH then iy = iy + lineH + VGAP end
+    card.frame:SetHeight(iy + 6)
+    return iy + 6 + 10
+end
+UI._LayoutCardSharp = LayoutCardSharp
+
 function Page:Reflow()
     local menu = self.menuMode
     -- visibility first, so it is right even before the window has a width
@@ -504,7 +575,7 @@ function Page:Reflow()
         for _, card in ipairs(self.cards) do
             if (pass == 1) == (card.pinned and true or false) then
                 if CardShown(self, card) then
-                    y = y + LayoutCard(self, card, y, cw)
+                    y = y + (UI.sharp and LayoutCardSharp or LayoutCard)(self, card, y, cw)
                 else
                     card.frame:Hide()
                 end
@@ -520,6 +591,7 @@ function Page:Open(card)
     self.view = card
     if self.frame.SetVerticalScroll then self.frame:SetVerticalScroll(0) end
     self:Reflow()
+    if self.onOpen then pcall(self.onOpen, card) end
     if UI.LayoutSidebar then UI.LayoutSidebar() end
 end
 
@@ -531,7 +603,7 @@ function Page:Finish()
     for _, card in ipairs(self.cards) do
         if card.title and not card.pinned and #card.rows > 0 then areas[#areas + 1] = card end
     end
-    if #areas < 3 then self.menuMode = false; return end
+    if #areas < (UI.sharp and 2 or 3) then self.menuMode = false; return end
     self.menuMode = true
     self.areas = areas
 
@@ -548,7 +620,10 @@ function Page:Section(title, desc, opts)
     local f = CreateFrame("Frame", nil, self.child)
     local bg = f:CreateTexture(nil, "BACKGROUND")
     bg:SetAllPoints()
-    if UI.classic then
+    if UI.sharp then
+        bg:SetColorTexture(1, 1, 1, 0.025)
+        Edges(f, 1, 1, 1, 0.06, "BORDER")
+    elseif UI.classic then
         bg:SetColorTexture(0, 0, 0, 0.22)
         Edges(f, 1, 1, 1, 0.06, "BORDER")
     else
@@ -563,7 +638,21 @@ function Page:Section(title, desc, opts)
     local card = { frame = f, rows = {}, title = title, desc = desc,
         pinned = (type(opts) == "table" and opts.pinned) and true or false,
         openFirst = (type(opts) == "table" and opts.open) and true or false }
-    if title then
+    if title and UI.sharp then
+        -- small grey capitals, with the description in the same line after it
+        local fs = UI.Text(f, string.upper(title), -2, 0.62, 0.62, 0.67)
+        fs:SetPoint("TOPLEFT", f, "TOPLEFT", 14, -12)
+        fs:SetWordWrap(false)
+        card.titleText = fs
+        if type(desc) == "string" and desc ~= "" then
+            local d = UI.Text(f, desc, -3, 0.62, 0.62, 0.67)
+            d:SetPoint("LEFT", fs, "RIGHT", 8, 0)
+            d:SetPoint("RIGHT", f, "RIGHT", -14, 0)
+            d:SetWordWrap(false)
+            d:SetAlpha(0.75)
+            card.descText = d
+        end
+    elseif title then
         local dot = UI.Round(f, "ARTWORK", 7)
         dot:SetPoint("TOPLEFT", f, "TOPLEFT", 16, -17)
         UI.Accent(dot, 1)
@@ -658,11 +747,12 @@ local function IsTestLabel(label)
     return l:find("^test") ~= nil or l:find("^show test") ~= nil
 end
 
-local function AddRow(self, height, label)
+local function AddRow(self, height, label, half)
     local card = self.current or self:Section(nil)
     local f = CreateFrame("Frame", nil, card.frame)
+    if type(height) == "number" then height = RowH(height) end
     local row = {
-        frame = f, label = type(label) == "string" and label or nil,
+        frame = f, label = type(label) == "string" and label or nil, half = half and true or false,
         height = (type(height) == "function") and height or function() return height end,
     }
     table.insert(card.rows, row)
@@ -689,9 +779,9 @@ end
 
 function Page:Check(label, get, set, desc)
     set = Undoable(label, get, set)
-    local f = AddRow(self, 24, label)
+    local f = AddRow(self, 24, label, true)
     local sw = Toggle(f, get, set)
-    local fs = UI.Text(f, label)
+    local fs = UI.Text(f, label, LabelOff())
     if UI.classic then
         sw:SetPoint("LEFT", f, "LEFT", -4, 0)
         fs:SetPoint("LEFT", sw, "RIGHT", 2, 1)
@@ -702,6 +792,7 @@ function Page:Check(label, get, set, desc)
         fs:SetPoint("RIGHT", sw, "LEFT", -12, 0)
     end
     fs:SetWordWrap(false)
+    LabelTip(f, fs, label)
     if type(desc) == "string" then Tip(sw, label, desc) end
     table.insert(self.refreshers, sw.Refresh)
     self:Reflow()
@@ -719,10 +810,10 @@ end
 
 function Page:Slider(label, min, max, step, get, set, fmt)
     set = Undoable(label, get, set)
-    local f = AddRow(self, 24, label)
+    local f = AddRow(self, 24, label, true)
     local holder = CreateFrame("Frame", nil, f)
     holder:SetPoint("RIGHT", f, "RIGHT", 0, 0)
-    holder:SetSize(58, 20)
+    holder:SetSize(UI.sharp and 44 or 58, UI.sharp and 18 or 20)
     local edge = holder:CreateTexture(nil, "BACKGROUND")
     edge:SetAllPoints()
     edge:SetColorTexture(1, 1, 1, 0.10)
@@ -747,7 +838,7 @@ function Page:Slider(label, min, max, step, get, set, fmt)
 
     local s = UI.classic and BackdropFrame("Slider", f) or CreateFrame("Slider", nil, f)
     s:SetPoint("RIGHT", holder, "LEFT", -10, 0)
-    s:SetSize(180, UI.classic and 17 or 18)
+    s:SetSize(UI.sharp and 104 or 180, UI.classic and 17 or 18)
     s:SetOrientation("HORIZONTAL")
     s:SetMinMaxValues(min, max)
     s:SetValueStep(step)
@@ -787,10 +878,11 @@ function Page:Slider(label, min, max, step, get, set, fmt)
         UI.Accent(fill, 0.6)
     end
 
-    local fs = UI.Text(f, label)
+    local fs = UI.Text(f, label, LabelOff())
     fs:SetPoint("LEFT", f, "LEFT", 0, 0)
     fs:SetPoint("RIGHT", s, "LEFT", -12, 0)
     fs:SetWordWrap(false)
+    LabelTip(f, fs, label)
 
     local refreshing = false
     local function show(v) val:SetText(fmt and fmt(v) or tostring(v)) end
@@ -846,7 +938,7 @@ end
 
 function Page:Color(label, get, set)
     set = Undoable(label, get, set, true)
-    local f = AddRow(self, 24, label)
+    local f = AddRow(self, 24, label, true)
     local btn = CreateFrame("Button", nil, f)
     btn:SetSize(40, 18)
     btn:SetPoint("RIGHT", f, "RIGHT", 0, 0)
@@ -860,10 +952,11 @@ function Page:Color(label, get, set)
     hl:SetAllPoints()
     hl:SetColorTexture(1, 1, 1, 0.12)
 
-    local fs = UI.Text(f, label)
+    local fs = UI.Text(f, label, LabelOff())
     fs:SetPoint("LEFT", f, "LEFT", 0, 0)
     fs:SetPoint("RIGHT", btn, "LEFT", -12, 0)
     fs:SetWordWrap(false)
+    LabelTip(f, fs, label)
 
     local function refresh()
         local c = get()
@@ -998,13 +1091,14 @@ end
 -- options = { { "key", "Label" }, ... }
 function Page:Cycle(label, options, get, set)
     set = Undoable(label, get, set)
-    local f = AddRow(self, 26, label)
-    local btn = MakeDropBox(f, 190, 22)
+    local f = AddRow(self, 26, label, true)
+    local btn = MakeDropBox(f, UI.sharp and 128 or 190, UI.sharp and 20 or 22)
     btn:SetPoint("RIGHT", f, "RIGHT", 0, 0)
-    local fs = UI.Text(f, label)
+    local fs = UI.Text(f, label, LabelOff())
     fs:SetPoint("LEFT", f, "LEFT", 0, 0)
     fs:SetPoint("RIGHT", btn, "LEFT", -12, 0)
     fs:SetWordWrap(false)
+    LabelTip(f, fs, label)
 
     local function refresh()
         local cur = get()
@@ -1127,6 +1221,62 @@ function Page:Container()
     return f
 end
 
+-- Sharp style: the on/off button on each module in the side menu, drawn as a power symbol
+-- (a ring with a gap at the top and a short bar through it). Its inner parts take the side menu's
+-- colour so the ring reads as a ring.
+local function SideColor()
+    local w = W()
+    local a = w.sidebar[4] or 0
+    return w.bg[1] * (1 - a) + w.sidebar[1] * a, w.bg[2] * (1 - a) + w.sidebar[2] * a,
+        w.bg[3] * (1 - a) + w.sidebar[3] * a
+end
+function UI.MakePower(parent, key, name)
+    local b = CreateFrame("Button", nil, parent)
+    b:SetSize(18, 18)
+    local ring = UI.Round(b, "ARTWORK", 12)
+    ring:SetPoint("CENTER", b, "CENTER", 0, 0)
+    local hole = UI.Round(b, "ARTWORK", 8)
+    hole:SetDrawLayer("ARTWORK", 2)
+    hole:SetPoint("CENTER", ring, "CENTER", 0, 0)
+    local gap = b:CreateTexture(nil, "ARTWORK", nil, 3)
+    gap:SetSize(4, 5)
+    gap:SetPoint("TOP", ring, "TOP", 0, 1)
+    local bar = b:CreateTexture(nil, "ARTWORK", nil, 4)
+    bar:SetSize(2, 7)
+    bar:SetPoint("TOP", ring, "TOP", 0, 1)
+    local hl = UI.Round(b, "HIGHLIGHT", 18)
+    hl:SetPoint("CENTER")
+    Paint(hl, 1, 1, 1, 0.08)
+    function b.Refresh()
+        local on = NS.Mod(key) and NS.Mod(key).enabled
+        local r, g, bl = 0.40, 0.40, 0.44
+        if on then local c = W().accent; r, g, bl = c[1], c[2], c[3] end
+        Paint(ring, r, g, bl, 1)
+        bar:SetColorTexture(r, g, bl, 1)
+        local sr, sg, sb = SideColor()
+        Paint(hole, sr, sg, sb, 1)
+        gap:SetColorTexture(sr, sg, sb, 1)
+        b.on = on and true or false
+    end
+    b:SetScript("OnClick", function()
+        local m = NS.Mod(key)
+        if not m then return end
+        m.enabled = not m.enabled
+        NS.ApplyModule(key)
+        UI.RefreshAll()
+    end)
+    b:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        local on = NS.Mod(key) and NS.Mod(key).enabled
+        GameTooltip:SetText(name or key, 1, 1, 1)
+        GameTooltip:AddLine(on and "On - click to turn off" or "Off - click to turn on", 0.8, 0.8, 0.8)
+        GameTooltip:Show()
+    end)
+    b:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    b.Refresh()
+    return b
+end
+
 -- Side menu order: groups in a fixed order, modules A-Z inside each group.
 local GROUP_ORDER = { Style = 1, Combat = 2, Tools = 3, QoL = 4 }
 local GROUP_LABEL = { Style = "LOOK", Combat = "COMBAT", Tools = "TOOLS", QoL = "QUALITY OF LIFE" }
@@ -1151,12 +1301,20 @@ UI.SortedModules = SortedModules
 ----------------------------------------------------------------------
 local function RefreshTabDots()
     for _, t in ipairs(tabList) do
-        if t.module then
+        if t.module and UI.sharp then
             local on = NS.Mod(t.key) and NS.Mod(t.key).enabled
-            if on then
+            if t.power then t.power.Refresh() end
+            if t.labelFs then
+                local c = on and W().text or W().muted
+                t.labelFs:SetTextColor(c[1], c[2], c[3])
+                t.labelFs:SetAlpha(on and 1 or 0.7)
+            end
+        elseif t.module then
+            local on = NS.Mod(t.key) and NS.Mod(t.key).enabled
+            if on and t.dot then
                 local c = W().accent
                 Paint(t.dot, c[1], c[2], c[3], 1)
-            else
+            elseif t.dot then
                 Paint(t.dot, 0.32, 0.32, 0.35, 1)
             end
         end
@@ -1213,7 +1371,14 @@ function UI.ApplyStyle()
         UI._title:SetTextColor(tc[1], tc[2], tc[3])
     end
     if UI._ver then UI._ver:SetShown(w.showVersion ~= false) end
-    if UI._mark then
+    if UI.sharp and UI._logo then
+        -- "Show the coloured mark before the title" shows or hides the logo in this style
+        local show = w.titleMark ~= false
+        for _, part in ipairs(UI._logoParts or {}) do part:SetShown(show) end
+        UI._title:ClearAllPoints()
+        if show then UI._title:SetPoint("LEFT", UI._logo, "RIGHT", 10, 0)
+        else UI._title:SetPoint("LEFT", titleBar, "LEFT", 14, 0) end
+    elseif UI._mark then
         UI._mark:SetShown(w.titleMark ~= false)
         UI._title:ClearAllPoints()
         if w.titleMark ~= false then UI._title:SetPoint("LEFT", UI._mark, "RIGHT", 8, 0)
@@ -1221,6 +1386,12 @@ function UI.ApplyStyle()
     end
     if UI._tline then UI._tline:SetShown(w.titleLine ~= false) end
     for _, u in ipairs(underlines) do u:SetShown(w.underlines ~= false) end
+    if UI.sharp then
+        local a = w.accent
+        for _, g in ipairs(UI._groupLabels or {}) do g:SetTextColor(a[1], a[2], a[3]) end
+        if UI._logoHole then Paint(UI._logoHole, w.titleBar[1], w.titleBar[2], w.titleBar[3], 1) end
+        for _, fn in ipairs(UI._sharpRestyle or {}) do pcall(fn) end
+    end
     grip:SetShown(not w.locked)
     for _, p in ipairs(pages) do p:Reflow() end
     UI.RefreshAll()
@@ -1248,12 +1419,117 @@ local function SelectTab(key)
         t.sel:SetShown(on)
         t.selBar:SetShown(on)
         if on then t.page:Reflow() end
+        if on and t.header.LayoutTabs then pcall(t.header.LayoutTabs) end
+    end
+    if UI._resetBtn then
+        local mod = tabs[key] and tabs[key].module
+        pcall(UI._resetBtn.SetAlpha, UI._resetBtn, mod and 1 or 0.4)
+        pcall(UI._resetBtn.SetEnabled, UI._resetBtn, mod and true or false)
     end
     if UI.LayoutSidebar then UI.LayoutSidebar(true) end
 end
 
 -- Pinned header: title, description, and (for modules) the enable switch + reset.
+-- Sharp style header: title, one line of description, the module's on/off switch, and (added once
+-- the page is built) a row of tabs for its areas. Reset tab lives in the footer.
+local SHARP_HEAD = 60
+local SHARP_TAB_H = 26
+local function BuildHeaderSharp(parent, title, desc, key)
+    local h = CreateFrame("Frame", nil, parent)
+    h:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, 0)
+    h:SetPoint("TOPRIGHT", parent, "TOPRIGHT", 0, 0)
+    h:SetHeight(SHARP_HEAD)
+    h:Hide()
+    local sw
+    if key then
+        sw = Toggle(h, function() return NS.Mod(key).enabled end,
+            function(v) NS.Mod(key).enabled = v; NS.ApplyModule(key) end)
+        sw:SetPoint("TOPRIGHT", h, "TOPRIGHT", -18, -16)
+        local lbl = UI.Text(h, "On", -2, 0.62, 0.62, 0.67)
+        lbl:SetPoint("RIGHT", sw, "LEFT", -8, 0)
+        local refreshSwitch = sw.Refresh
+        function sw.Refresh()
+            refreshSwitch()
+            local on = NS.Mod(key) and NS.Mod(key).enabled
+            lbl:SetText(on and "On" or "Off")
+        end
+    end
+    local t = UI.Text(h, title, 6, 1, 1, 1)
+    t:SetPoint("TOPLEFT", h, "TOPLEFT", 18, -14)
+    t:SetPoint("RIGHT", h, "RIGHT", key and -110 or -18, 0)
+    t:SetWordWrap(false)
+    local d = UI.Text(h, desc or "", -2, 0.62, 0.62, 0.67)
+    d:SetPoint("TOPLEFT", t, "BOTTOMLEFT", 0, -5)
+    d:SetPoint("RIGHT", h, "RIGHT", -18, 0)
+    d:SetWordWrap(false)
+    LabelTip(h, d, desc)
+    local line = h:CreateTexture(nil, "ARTWORK")
+    line:SetPoint("BOTTOMLEFT", h, "BOTTOMLEFT", 18, 0)
+    line:SetPoint("BOTTOMRIGHT", h, "BOTTOMRIGHT", -18, 0)
+    line:SetHeight(1)
+    line:SetColorTexture(1, 1, 1, 0.07)
+    h.tabs = {}
+
+    -- One tab per area; tabs that don't fit wrap onto another line.
+    function h.LayoutTabs()
+        if #h.tabs == 0 then h:SetHeight(SHARP_HEAD); return end
+        local width = h:GetWidth()
+        if not width or width < 50 then width = 500 end
+        local x, line = 18, 0
+        for _, tb in ipairs(h.tabs) do
+            local okW, sw2 = pcall(tb.fs.GetStringWidth, tb.fs)
+            local w = math.max(44, math.floor(((okW and type(sw2) == "number") and sw2 or 60) + 22))
+            if x > 18 and x + w > width - 18 then x, line = 18, line + 1 end
+            tb:ClearAllPoints()
+            tb:SetPoint("TOPLEFT", h, "TOPLEFT", x, -(SHARP_HEAD - 6 + line * SHARP_TAB_H))
+            tb:SetSize(w, SHARP_TAB_H)
+            tb.line = line
+            x = x + w + 2
+        end
+        h.tabLines = line + 1
+        h:SetHeight(SHARP_HEAD - 6 + (line + 1) * SHARP_TAB_H + 4)
+    end
+    function h.RefreshTabs(view)
+        local a = W().accent
+        for _, tb in ipairs(h.tabs) do
+            local on = (tb.card == view)
+            tb.under:SetShown(on)
+            local c = on and { 1, 1, 1 } or W().muted
+            tb.fs:SetTextColor(c[1], c[2], c[3])
+            Paint(tb.under, a[1], a[2], a[3], 1)
+        end
+    end
+    function h.AddTabs(page)
+        for _, card in ipairs(page.areas or {}) do
+            local tb = CreateFrame("Button", nil, h)
+            tb.card = card
+            tb.fs = UI.Text(tb, (card.title:gsub("%s*%b()", "")), -1)
+            tb.fs:SetPoint("CENTER", tb, "CENTER", 0, 1)
+            tb.fs:SetJustifyH("CENTER")
+            tb.fs:SetWordWrap(false)
+            local hl = tb:CreateTexture(nil, "HIGHLIGHT")
+            hl:SetPoint("TOPLEFT", 1, -2); hl:SetPoint("BOTTOMRIGHT", -1, 2)
+            hl:SetColorTexture(1, 1, 1, 0.05)
+            tb.under = tb:CreateTexture(nil, "ARTWORK")
+            tb.under:SetPoint("BOTTOMLEFT", tb, "BOTTOMLEFT", 6, 0)
+            tb.under:SetPoint("BOTTOMRIGHT", tb, "BOTTOMRIGHT", -6, 0)
+            tb.under:SetHeight(2)
+            tb:SetScript("OnClick", function() page:Open(card) end)
+            h.tabs[#h.tabs + 1] = tb
+        end
+        page.onOpen = function(card) h.RefreshTabs(card) end
+        h:SetScript("OnSizeChanged", function() h.LayoutTabs() end)
+        h.LayoutTabs()
+        h.RefreshTabs(page.view)
+        UI._sharpRestyle = UI._sharpRestyle or {}
+        table.insert(UI._sharpRestyle, function() h.LayoutTabs(); h.RefreshTabs(page.view) end)
+    end
+    return h, sw
+end
+UI._BuildHeaderSharp = BuildHeaderSharp
+
 local function BuildHeader(parent, title, desc, key)
+    if UI.sharp then return BuildHeaderSharp(parent, title, desc, key) end
     local h = CreateFrame("Frame", nil, parent)
     h:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, 0)
     h:SetPoint("TOPRIGHT", parent, "TOPRIGHT", 0, 0)
@@ -1326,6 +1602,7 @@ local THEMES = {
     { "sand",     "Modern: Sand",         { 0.10, 0.09, 0.07 }, { 0.90, 0.72, 0.50 } },
     { "blood",    "Modern: Blood",        { 0.05, 0.02, 0.02 }, { 0.75, 0.08, 0.10 } },
     { "mono",     "Modern: Mono",         { 0.06, 0.06, 0.06 }, { 1.00, 1.00, 1.00 } },
+    { "teal",     "Modern: Teal",         { 0.05, 0.075, 0.075 }, { 0.12, 0.82, 0.64 } },
     { "c_stone",  "Classic: Stone",       { 0, 0, 0 }, { 1.00, 0.82, 0.00 }, classic = true, border = "stone",   back = "dark" },
     { "c_gold",   "Classic: Gold trim",   { 0, 0, 0 }, { 1.00, 0.82, 0.00 }, classic = true, border = "gold",    back = "dark" },
     { "c_rock",   "Classic: Rock",        { 0, 0, 0 }, { 1.00, 0.82, 0.00 }, classic = true, border = "stone",   back = "rock" },
@@ -1348,7 +1625,8 @@ local function ApplyTheme(id)
             w.sidebar[1], w.sidebar[2], w.sidebar[3], w.sidebar[4] = 0, 0, 0, 0.28
             w.text[1], w.text[2], w.text[3] = 0.90, 0.90, 0.92
             w.muted[1], w.muted[2], w.muted[3] = 0.62, 0.62, 0.67
-            w.skin = t.classic and "classic" or "modern"
+            if t.classic then w.skin = "classic"
+            elseif w.skin ~= "sharp" then w.skin = "modern" end      -- a colour theme keeps the Sharp layout
             if t.classic then
                 -- gold labels, white titles, light grey notes, like the game's own option panels
                 w.text[1], w.text[2], w.text[3] = 1.00, 0.82, 0.00
@@ -1364,6 +1642,8 @@ local function ApplyTheme(id)
     end
 end
 
+UI._ApplyTheme = function(id) return ApplyTheme(id) end
+
 local function BuildGeneral(page)
     local function Custom() W().theme = "custom"; UI.ApplyStyle() end
     local function ColorRow(label, key)
@@ -1378,7 +1658,8 @@ local function BuildGeneral(page)
     page:Cycle("Theme", options,
         function() return W().theme end,
         function(v) if v ~= "custom" then ApplyTheme(v) end; W().theme = v; UI.ApplyStyle() end)
-    page:Cycle("Style", { { "classic", "Classic (game style)" }, { "modern", "Modern (flat)" } },
+    page:Cycle("Style", { { "classic", "Classic (game style)" }, { "modern", "Modern (flat)" },
+            { "sharp", "Sharp (compact)" } },
         function() return W().skin end,
         function(v) W().skin = v; UI.RefreshAll() end)
     local styleNote = page:Note("")
@@ -1386,8 +1667,9 @@ local function BuildGeneral(page)
         if W().skin ~= UI.builtSkin then
             styleNote:SetText("|cffff8040The style changes after a reload.|r Click \"Reload now\" below (or type /reload).")
         else
-            styleNote:SetText("Classic themes use the game's own look: stone or gold border, gold labels, checkboxes "
-                .. "and red buttons. Modern themes are flat with round switches. Changing any color below makes it Custom.")
+            styleNote:SetText("Classic uses the game's own look (stone or gold border, gold labels, checkboxes). "
+                .. "Modern is flat with round switches. Sharp is compact: settings in two columns, tabs along the top "
+                .. "and on/off buttons in the side menu. Changing any color makes the theme Custom.")
         end
     end)
     page:Cycle("Classic border", { { "stone", "Stone" }, { "gold", "Gold trim" }, { "tooltip", "Thin (tooltip)" }, { "none", "None" } },
@@ -1501,7 +1783,8 @@ local function BuildGeneral(page)
 
     page:Section("Help", "Commands, controls and credits")
     page:Note("Drag the title bar to move the window and the bottom-right corner to resize it. "
-        .. "Each tab opens a list of areas: click one to see its options, then click \"All areas\" (or the tab name again) to go back. "
+        .. "Each tab opens a list of areas (in the Sharp style they are tabs along the top of the page). "
+        .. "In the Sharp style, the power button next to each module in the side menu turns it on or off. "
         .. "Every tab has its own Enabled switch and a Reset tab button.")
     page:Note("Commands:  /aimbot  opens the window.   /aimbot <tab>  opens a tab.   "
         .. "/aimbot <tab> on|off  toggles a module.   /sparkle  toggles Button Flash.   "
@@ -1519,7 +1802,18 @@ local function Create()
         ApplyTheme("c_stone")
     end
     UI.classic = (w.skin == "classic")
+    UI.sharp = (w.skin == "sharp")
     UI.builtSkin = w.skin
+    if UI.sharp then
+        SIDEBAR_W = 206
+        -- first time in Sharp: make the window wide enough for two columns (it can still be resized)
+        if not w.sharpSized then
+            w.sharpSized = true
+            if (w.w or 0) < 880 then w.w = 880 end
+            if (w.h or 0) < 600 then w.h = 600 end
+        end
+    end
+    local TB_H = UI.sharp and 40 or 34
     win = CreateFrame("Frame", "AimbotUIWindow", UIParent)
     win:SetFrameStrata("MEDIUM")
     win:SetToplevel(true)
@@ -1580,7 +1874,7 @@ local function Create()
     local tb = CreateFrame("Frame", nil, win)
     tb:SetPoint("TOPLEFT", 1, -1)
     tb:SetPoint("TOPRIGHT", -1, -1)
-    tb:SetHeight(34)
+    tb:SetHeight(TB_H)
     tb:EnableMouse(true)
     tb:RegisterForDrag("LeftButton")
     titleBG = tb:CreateTexture(nil, "BACKGROUND")
@@ -1600,10 +1894,35 @@ local function Create()
     local ver = UI.Text(tb, "v" .. NS.version, -3, 0.62, 0.62, 0.67)
     ver:SetPoint("BOTTOMLEFT", title, "BOTTOMRIGHT", 8, 1)
     UI._title, UI._ver, UI._mark = title, ver, mark
+    if UI.sharp then
+        -- a small crosshair logo in front of a larger title; the version moves to the side menu
+        mark:SetAlpha(0)
+        local ring = UI.Round(tb, "ARTWORK", 20)
+        ring:SetPoint("LEFT", tb, "LEFT", 14, 0)
+        UI.Accent(ring, 1)
+        local hole = UI.Round(tb, "ARTWORK", 14)
+        hole:SetDrawLayer("ARTWORK", 2)
+        hole:SetPoint("CENTER", ring, "CENTER", 0, 0)
+        local dot = UI.Round(tb, "ARTWORK", 6)
+        dot:SetDrawLayer("ARTWORK", 3)
+        dot:SetPoint("CENTER", ring, "CENTER", 0, 0)
+        UI.Accent(dot, 1)
+        UI._logo, UI._logoHole, UI._logoParts = ring, hole, { ring, hole, dot }
+        title:SetText("Aimbot UI")
+        SetFontSafe(title, (W().fontSize or 12) + 5)
+        texts[title] = 5
+        title:ClearAllPoints()
+        title:SetPoint("LEFT", ring, "RIGHT", 10, 0)
+    end
 
     local close = CreateFrame("Button", nil, tb)
     close:SetSize(28, 24)
     close:SetPoint("RIGHT", -5, 0)
+    if UI.sharp then
+        close:SetSize(22, 22)
+        close:SetPoint("RIGHT", -10, 0)
+        Edges(close, 1, 1, 1, 0.16, "BORDER")
+    end
     local closeHL = close:CreateTexture(nil, "HIGHLIGHT")
     closeHL:SetAllPoints()
     closeHL:SetColorTexture(0.85, 0.22, 0.25, 0.85)
@@ -1622,7 +1941,7 @@ local function Create()
 
     -- Sidebar
     sidebar = CreateFrame("Frame", nil, win)
-    sidebar:SetPoint("TOPLEFT", 1, -35)
+    sidebar:SetPoint("TOPLEFT", 1, -(TB_H + 1))
     sidebar:SetPoint("BOTTOMLEFT", 1, 1)
     sidebar:SetWidth(SIDEBAR_W)
     sideBG = sidebar:CreateTexture(nil, "BACKGROUND")
@@ -1636,7 +1955,12 @@ local function Create()
     -- The side menu scrolls, because an open dropdown can be taller than the window.
     local sideScroll = CreateFrame("ScrollFrame", nil, sidebar)
     sideScroll:SetPoint("TOPLEFT", sidebar, "TOPLEFT", 0, -40)
-    sideScroll:SetPoint("BOTTOMRIGHT", sidebar, "BOTTOMRIGHT", -1, 0)
+    sideScroll:SetPoint("BOTTOMRIGHT", sidebar, "BOTTOMRIGHT", -1, UI.sharp and 24 or 0)
+    if UI.sharp then
+        ver:ClearAllPoints()
+        ver:SetParent(sidebar)
+        ver:SetPoint("BOTTOMLEFT", sidebar, "BOTTOMLEFT", 12, 8)
+    end
     local sideChild = CreateFrame("Frame", nil, sideScroll)
     sideChild:SetSize(SIDEBAR_W - 1, 10)
     sideScroll:SetScrollChild(sideChild)
@@ -1910,9 +2234,13 @@ local function Create()
     fline:SetColorTexture(1, 1, 1, 0.06)
     UI._footer = footer
 
-    local closeBtn = UI.MakeButton(footer, "Close", 84, 24)
+    local closeBtn = UI.MakeButton(footer, UI.sharp and "Done" or "Close", UI.sharp and 96 or 84, 24)
     closeBtn:SetPoint("RIGHT", footer, "RIGHT", -22, 0)
     closeBtn:SetScript("OnClick", function() win:Hide() end)
+    if UI.sharp then
+        -- Done: outlined in the highlight colour
+        for _, e in ipairs(Edges(closeBtn, 1, 1, 1, 1, "BORDER")) do UI.Accent(e, 0.9) end
+    end
     local undoBtn = UI.MakeButton(footer, "Undo", 84, 24)
     undoBtn:SetPoint("RIGHT", closeBtn, "LEFT", -8, 0)
     undoBtn:SetScript("OnClick", function()
@@ -1927,8 +2255,21 @@ local function Create()
         if undoBtn.label then pcall(undoBtn.label.SetText, undoBtn.label, n > 0 and ("Undo (" .. n .. ")") or "Undo") end
     end
 
-    local testBtn = UI.MakeButton(footer, "Test...", 96, 24)
+    local testBtn = UI.MakeButton(footer, "Test...", UI.sharp and 76 or 96, 24)
     testBtn:SetPoint("LEFT", footer, "LEFT", 12, 0)
+    if UI.sharp then
+        -- Reset tab and Reload UI sit next to Test... (the header has no Reset tab button in this style)
+        local resetBtn = UI.MakeButton(footer, "Reset tab", 86, 24)
+        resetBtn:SetPoint("LEFT", testBtn, "RIGHT", 6, 0)
+        resetBtn:SetScript("OnClick", function()
+            if currentTab and tabs[currentTab] and tabs[currentTab].module then NS.ResetModule(currentTab) end
+        end)
+        Tip(resetBtn, "Reset tab", "Puts every setting of the tab you're on back to its default.")
+        local reloadBtn = UI.MakeButton(footer, "Reload UI", 86, 24)
+        reloadBtn:SetPoint("LEFT", resetBtn, "RIGHT", 6, 0)
+        reloadBtn:SetScript("OnClick", function() if ReloadUI then ReloadUI() end end)
+        UI._resetBtn, UI._reloadBtn = resetBtn, reloadBtn
+    end
     Tip(testBtn, "Test", "Try any feature that has a test: pick it from the list.")
     UI._testBtn = testBtn
     local testMenu
@@ -1997,21 +2338,21 @@ local function Create()
         local y = -10
         for _, e in ipairs(sideEntries) do
             if e.group then
-                y = y - 14
+                y = y - (UI.sharp and 10 or 14)
                 e.group:ClearAllPoints()
-                e.group:SetPoint("TOPLEFT", sideChild, "TOPLEFT", 14, y)
+                e.group:SetPoint("TOPLEFT", sideChild, "TOPLEFT", UI.sharp and 12 or 14, y)
                 if e.line then
                     e.line:ClearAllPoints()
                     e.line:SetPoint("LEFT", e.group, "RIGHT", 8, 0)
                     e.line:SetPoint("RIGHT", sideChild, "RIGHT", -12, 0)
                 end
-                y = y - 20
+                y = y - (UI.sharp and 18 or 20)
             else
                 local t = e.tab
                 t.btn:ClearAllPoints()
                 t.btn:SetPoint("TOPLEFT", sideChild, "TOPLEFT", 6, y)
                 t.btn:SetPoint("TOPRIGHT", sideChild, "TOPRIGHT", -7, y)
-                y = y - 30
+                y = y - (UI.sharp and 25 or 30)
                 if t.arrow then t.arrow:SetText(t.expanded and "-" or "+") end
                 for i, sub in ipairs(t.subs or {}) do
                     if t.expanded then
@@ -2038,6 +2379,10 @@ local function Create()
         if mod and mod.group and mod.group ~= lastGroup2 then
             lastGroup2 = mod.group
             local g = UI.Text(sideChild, GROUP_LABEL[mod.group] or string.upper(mod.group), -2, 0.50, 0.50, 0.56)
+            if UI.sharp then
+                UI._groupLabels = UI._groupLabels or {}
+                table.insert(UI._groupLabels, g)
+            end
             local line = sideChild:CreateTexture(nil, "ARTWORK")
             line:SetHeight(1)
             line:SetColorTexture(1, 1, 1, 0.07)
@@ -2045,7 +2390,7 @@ local function Create()
         end
 
         local btn = CreateFrame("Button", nil, sideChild)
-        btn:SetHeight(28)
+        btn:SetHeight(UI.sharp and 24 or 28)
 
         local sel = btn:CreateTexture(nil, "BACKGROUND")
         sel:SetAllPoints()
@@ -2065,7 +2410,7 @@ local function Create()
         -- A "(...)" note at the end of a name is drawn smaller and grey so long names fit
         local main, note = label:match("^(.-)%s*(%b())$")
         if not main or main == "" then main, note = label, nil end
-        local fs = UI.Text(btn, main)
+        local fs = UI.Text(btn, main, UI.sharp and -1 or 0)
         fs:SetWordWrap(false)
         local noteFs
         if note then
@@ -2077,7 +2422,12 @@ local function Create()
             if noteFs then noteFs:SetPoint("RIGHT", anchor, rel, x, 0)
             else fs:SetPoint("RIGHT", anchor, rel, x, 0) end
         end
-        if mod then
+        local power
+        if mod and UI.sharp then
+            fs:SetPoint("LEFT", btn, "LEFT", 12, 0)
+            power = UI.MakePower(btn, key, label)
+            power:SetPoint("RIGHT", btn, "RIGHT", -6, 0)
+        elseif mod then
             dot = UI.Round(btn, "ARTWORK", 7)
             dot:SetPoint("LEFT", btn, "LEFT", 12, 0)
             fs:SetPoint("LEFT", dot, "RIGHT", 9, 0)
@@ -2101,7 +2451,7 @@ local function Create()
         local header, sw = BuildHeader(content, label, mod and mod.desc or "Window look, module switches and maintenance.",
             mod and key or nil)
         local holder = CreateFrame("Frame", nil, content)
-        holder:SetPoint("TOPLEFT", content, "TOPLEFT", 6, -HEADER_H - 6)
+        holder:SetPoint("TOPLEFT", header, "BOTTOMLEFT", 6, -6)
         holder:SetPoint("BOTTOMRIGHT", content, "BOTTOMRIGHT", -2, 4)
         local page = UI.NewPage(holder)
         if mod then page.moduleKey, page.moduleName = key, label end
@@ -2112,13 +2462,22 @@ local function Create()
         page:Reflow()
 
         local t = { key = key, label = label, btn = btn, page = page, sel = sel, selBar = selBar,
-            header = header, switch = sw, dot = dot, module = mod and true or false }
+            header = header, switch = sw, dot = dot, module = mod and true or false,
+            power = power, labelFs = fs }
         tabs[key] = t
         table.insert(tabList, t)
         sideEntries[#sideEntries + 1] = { tab = t }
 
+        if UI.sharp and page.menuMode and page.areas then
+            -- areas are tabs along the top of the page, not a list in the side menu
+            header.AddTabs(page)
+            arrow:Hide()
+            fs:ClearAllPoints()
+            fs:SetPoint("LEFT", btn, "LEFT", 12, 0)
+            if noteFs then noteFs:ClearAllPoints(); noteFs:SetPoint("LEFT", fs, "RIGHT", 4, 0) end
+            LabelRight(power or btn, power and "LEFT" or "RIGHT", -6)
         -- the dropdown: one row per area of this tab
-        if page.menuMode and page.areas then
+        elseif page.menuMode and page.areas then
             arrow:Show()
             t.arrow = arrow
             t.subs = {}
@@ -2160,9 +2519,9 @@ local function Create()
         else
             arrow:Hide()
             fs:ClearAllPoints()
-            fs:SetPoint("LEFT", btn, "LEFT", dot and 28 or 14, 0)
+            fs:SetPoint("LEFT", btn, "LEFT", UI.sharp and 12 or (dot and 28 or 14), 0)
             if noteFs then noteFs:ClearAllPoints(); noteFs:SetPoint("LEFT", fs, "RIGHT", 4, 0) end
-            LabelRight(btn, "RIGHT", -6)
+            LabelRight(power or btn, power and "LEFT" or "RIGHT", -6)
         end
     end
 
