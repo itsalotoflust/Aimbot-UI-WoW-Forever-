@@ -2,6 +2,15 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.26.0
+
+- **New module: Spell Coefficients** (QoL group, `Modules/SpellCoeffs.lua`). New file in the TOC: needs a full game restart.
+  - Adds "Spell power coefficient" and "+N damage from your X <school> spell power" to spell tooltips (spellbook, action bars, links), through `TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Spell)`, with `OnTooltipSetSpell` as a backup. A spell is never added twice to one tooltip.
+  - Spells are matched by name plus the rank the game reports (`C_Spell.GetSpellSubtext`), so no spell IDs are needed. If the rank isn't reported, the range across ranks is shown.
+  - Data: 16 damaging Mage spells, every rank, from the WoW Forever client (beta build 1.60.1) as published by RankedBoost. For spells with damage over time (Fireball, Pyroblast, Frostfire Bolt) the figure covers the whole cast; channels are for the whole channel; area spells are per target. Frostfire Bolt uses the higher of your Fire and Frost spell power. Ice Lance (~0.10, fitted from beta logs by the ElliotWood/Forever simulator; the client has no value) and Arcane Blast (may predate the 15 Oct 40% cut) are marked "not certain". Shields have no published value yet. Forever's low-rank penalty is not applied (its size isn't known).
+  - Secret spell IDs, names or spell power are skipped. `/aimbot diag`: hook in use, tooltips added, last spell shown.
+  - CREDITS.txt names the data sources.
+
 ## 2.25.0
 
 - **New module: Disenchant Helper** (QoL group, `Modules/Disenchant.lua`). New file in the TOC: needs a full game restart.

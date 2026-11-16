@@ -1,4 +1,4 @@
-AIMBOT UI  v2.25.0  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.26.0  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,18 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.26.0
+  - NEW: Spell Coefficients (QoL tab). Needs a full game restart (new file), not just /reload.
+    * Mouse over a spell (spellbook, action bar, chat link) to see its spell power coefficient
+      and how much damage your spell power adds, e.g. "81.4%" and "+163 damage from your
+      200 Frost spell power".
+    * Every damaging Mage spell, rank by rank: Fireball, Frostbolt, Frostfire Bolt, Fire Blast,
+      Scorch, Pyroblast, Flamestrike, Blast Wave, Arcane Missiles, Arcane Explosion, Arcane
+      Blast, Arcane Wrath, Blizzard, Cone of Cold, Frost Nova, Ice Lance.
+    * Data from the WoW Forever client (beta build 1.60.1). Ice Lance (the client has no value;
+      ~0.10 measured from combat logs) and Arcane Blast (cut 40% in October, may be lower) are
+      marked "not certain" in the tooltip.
 
 NEW IN 2.25.0
   - NEW: Disenchant Helper (QoL tab). Needs a full game restart (new file), not just /reload.

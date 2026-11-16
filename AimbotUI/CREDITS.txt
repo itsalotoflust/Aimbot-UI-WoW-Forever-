@@ -22,3 +22,8 @@ AutoShotTimer Forever by Antigravity and Gornax_ (GPL-3.0) - the idea of the Aut
 (a bar to the next Auto Shot with a wind-up marker, held while moving or casting, and a hybrid
 melee mode) and how Forever reports shots, swings and swing range. The Aimbot UI version is new
 code; no code, textures or files from AutoShotTimer Forever were copied.
+
+Spell Coefficients data: the spell power coefficients for Mage spells come from the WoW Forever
+client (beta build 1.60.1) as published by RankedBoost (rankedboost.com/world-of-warcraft/forever).
+The Ice Lance value (~0.10) is the estimate fitted from beta combat logs by the ElliotWood/Forever
+simulator project. Only the numbers were used; the tooltip code is new.
