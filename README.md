@@ -2,13 +2,13 @@
 
 An all-in-one interface addon suite for **World of Warcraft Forever** (interface 16001).
 
-**Current version: 2.28.0**
+**Current version: 2.28.1**
 
 Open it in game with `/aimbot` (or `/aui`). Every module has its own tab and its own on/off switch, and if one module hits a problem it reports in chat and the rest keep running.
 
-## What's new in 2.28.0
+## What's new in 2.28.1
 
-- **New: Fast Loot.** Instant looting without the loot window flashing up, and automatic Greed (or Disenchant) on green items in group loot. Needs a full game restart.
+- **Disenchant Helper:** disenchantable items are highlighted in vibrant green.
 
 See [CHANGELOG.md](CHANGELOG.md) for every version.
 

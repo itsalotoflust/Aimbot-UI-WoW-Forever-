@@ -33,7 +33,7 @@ local M = {
         highlight   = true,
         border      = true,
         icon        = true,
-        color       = { 0.70, 0.35, 1.00, 1 },
+        color       = { 0.15, 1.00, 0.25, 1 },   -- vibrant green (2.28.1; was purple)
         boe         = false,      -- include Bind on Equip items (they could be sold)
         rare        = false,      -- include blue items
         epic        = false,      -- include purple items
@@ -477,8 +477,27 @@ local function OnError(_, _, msg)
     end
 end
 
+-- 2.28.1: the default highlight went from purple to vibrant green. Saved settings hold the colour,
+-- so a saved colour that is still the old purple default is switched once; a colour you picked
+-- yourself is kept. (colorV is not in the defaults, so it's only set here.)
+local OLD_PURPLE = { 0.70, 0.35, 1.00 }
+local function MigrateColor()
+    local s = S()
+    if s.colorV then return end
+    s.colorV = 1
+    local c = s.color
+    if type(c) ~= "table" then s.color = { 0.15, 1.00, 0.25, 1 }; return end
+    local same = true
+    for i = 1, 3 do
+        if type(c[i]) ~= "number" or math.abs(c[i] - OLD_PURPLE[i]) > 0.01 then same = false end
+    end
+    if same then c[1], c[2], c[3] = 0.15, 1.00, 0.25 end
+end
+M._t_MigrateColor = MigrateColor
+
 local hooked = false
 function M:Init()
+    MigrateColor()
     Ensure()
     HookButtons()
     if not hooked then

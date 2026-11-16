@@ -2,6 +2,10 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.28.1
+
+- **Disenchant Helper:** the default bag highlight is vibrant green (0.15, 1, 0.25) instead of purple. A saved colour that is still the old purple default is switched once on login (marked with `colorV`); a colour picked by hand is kept.
+
 ## 2.28.0
 
 - **New module: Fast Loot** (QoL group, `Modules/FastLoot.lua`). New file in the TOC: needs a full game restart.
