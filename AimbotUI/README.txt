@@ -1,4 +1,4 @@
-AIMBOT UI  v2.24.0  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.25.0  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,20 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.25.0
+  - NEW: Disenchant Helper (QoL tab). Needs a full game restart (new file), not just /reload.
+    * Highlights items in your bags you can disenchant: a coloured border and a small Disenchant
+      icon. Works in Bagnon and in the default bags. Only shows once you know Disenchant.
+    * A Disenchant button: each click disenchants the next highlighted item. The game allows one
+      cast per click or key press, so it can't empty your bags by itself. For a key: Key Bindings >
+      AddOns > Aimbot UI > "Disenchant next item". Turn on Auto Loot.
+    * Safe by default: only soulbound green weapons and armour (rings, necks, trinkets, cloaks
+      too). Bind on Equip, blue and purple items each have their own switch. Shirts, tabards
+      and cosmetic items never count.
+    * Right-click the button to skip the next item this session; Shift+right-click to never
+      disenchant it. If the game refuses (skill too low, can't be disenchanted) the button moves
+      on to the next item by itself.
 
 NEW IN 2.24.0
   - Sharp style: the settings window has rounded corners to match the rounded side menu buttons.

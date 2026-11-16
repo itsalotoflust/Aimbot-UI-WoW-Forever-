@@ -5,4 +5,5 @@
 	<Binding name="AIMBOTUI_BRB" category="ADDONS">
 		if AimbotUI and AimbotUI.Privacy then AimbotUI.Privacy.ToggleBRB() end
 	</Binding>
+	<Binding name="CLICK AimbotUIDisenchantButton:LeftButton" category="ADDONS"/>
 </Bindings>

@@ -2,6 +2,14 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.25.0
+
+- **New module: Disenchant Helper** (QoL group, `Modules/Disenchant.lua`). New file in the TOC: needs a full game restart.
+  - **Highlights** disenchantable items in your bags with a coloured border and a small Disenchant icon. Uses one post-hook on `SetItemButtonQuality`, which both Bagnon and the default bags call, and only acts on buttons that report a bag and slot (Bagnon `GetBag`/`GetID`, default `GetBagID`/`GetID`). Bank bags and Bagnon's cached (other character) views are skipped. The marks are our own textures; no fields are written on the buttons.
+  - **Disenchant button:** a secure action button (`AimbotUIDisenchantButton`) whose macro is `/cast Disenchant` + `/use bag slot` for the next eligible item. One cast per click or key press, as the game requires. It registers for key-down or key-up clicks to match `ActionButtonUseKeyDown`, so a bound key casts once. Its target is only changed out of combat; changes during combat wait for combat to end. A "Disenchant next item" key binding (`CLICK AimbotUIDisenchantButton:LeftButton` in Bindings.xml) is under Key Bindings > AddOns > Aimbot UI.
+  - **Rules:** quality green (blue and purple behind switches), weapon or armour class, a real equip slot (no shirts, tabards, bags, ammo), not cosmetic, soulbound unless Bind on Equip is switched on, not on the never list, not locked. Right-click skips an item for the session, Shift+right-click adds it to the never list (clearable in the settings). When the game refuses with "skill too low" or "can't be disenchanted", that item is skipped automatically.
+  - `/aimbot diag`: knows Disenchant, eligible count, next item, the button's macro, hook status, buttons seen in Bagnon / the default bags, click mode, combat wait.
+
 ## 2.24.0
 
 - **Settings window, Sharp style:** rounded window corners (radius 10) to go with the rounded side menu buttons.
