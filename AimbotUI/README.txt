@@ -1,4 +1,4 @@
-AIMBOT UI  v2.27.0  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.28.0  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,15 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.28.0
+  - NEW: Fast Loot (QoL tab). Needs a full game restart (new file), not just /reload.
+    * Fast loot: with auto loot on, every item is taken the moment a corpse opens, and the loot
+      window doesn't flash up. It still shows when something is left: a Bind on Pickup item to
+      confirm, full bags, or a slot locked by a group roll or master loot.
+    * Auto greed: rolls Greed for you on green items in group loot (an option adds blue). Can
+      roll Disenchant instead when it's offered. Bind on Pickup items are left to you unless
+      switched on. Never rolls Need; purple items are always left to you. Each roll goes to chat.
 
 NEW IN 2.27.0
   - Aura Timers: enemies show every debuff. Aimbot UI's own enemy icons are timed from your

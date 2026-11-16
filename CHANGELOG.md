@@ -2,6 +2,13 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.28.0
+
+- **New module: Fast Loot** (QoL group, `Modules/FastLoot.lua`). New file in the TOC: needs a full game restart.
+  - **Fast loot:** on `LOOT_READY` (and `LOOT_OPENED`, once per corpse) with auto loot on (the event's flag, or `autoLootDefault` flipped by the auto loot modifier), every slot is taken with `LootSlot`. The loot window is kept at alpha 0 meanwhile (a method call; nothing else on it changes) and made visible again on a locked or refused slot, `LOOT_BIND_CONFIRM`, or a UI error while it's hidden (full bags, unique items). Alpha goes back to 1 on `LOOT_CLOSED`.
+  - **Auto greed:** on `START_LOOT_ROLL`, green items (blue with the option) get `RollOnLoot` Greed, or Disenchant when offered and preferred. Bind on Pickup is skipped unless switched on; then only the confirmations for rolls Fast Loot made itself are accepted. Never Need; purple and above and below green are left to you. Rolls are written to chat.
+  - Secret values (quality, locked flags, ids) are treated as unknown: the item is left to you. `/aimbot diag`: corpses, items taken and left, window shown again, rolls made and skipped, last roll.
+
 ## 2.27.0
 
 - **Aura Timers: every debuff on enemies.** Winter's Chill (and any debuff you don't cast yourself: talent procs, other players' debuffs) never appeared. Enemy icons are built from your own casts (`UNIT_SPELLCAST_SUCCEEDED`), because aura lookups return nothing for enemies on this client, and the game's icons, which do list them, were hidden as soon as one cast-timed icon existed.
