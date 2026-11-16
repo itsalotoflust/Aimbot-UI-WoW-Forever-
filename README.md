@@ -2,13 +2,13 @@
 
 An all-in-one interface addon suite for **World of Warcraft Forever** (interface 16001).
 
-**Current version: 2.26.0**
+**Current version: 2.27.0**
 
 Open it in game with `/aimbot` (or `/aui`). Every module has its own tab and its own on/off switch, and if one module hits a problem it reports in chat and the rest keep running.
 
-## What's new in 2.26.0
+## What's new in 2.27.0
 
-- **New: Spell Coefficients.** Spell tooltips show the spell power coefficient and how much damage your spell power adds, for every damaging Mage spell, rank by rank (data from the Forever client). Needs a full game restart.
+- **Aura Timers:** enemies show every debuff, including talent procs such as Winter's Chill, by using the game's own icons (new option, on by default).
 
 See [CHANGELOG.md](CHANGELOG.md) for every version.
 

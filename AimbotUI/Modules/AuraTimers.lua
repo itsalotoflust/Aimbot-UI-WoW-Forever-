@@ -32,6 +32,7 @@ local M = {
         own = {                     -- our own aura icons for target and focus (this client hides its own from addons)
             enabled  = true,
             hideGame = true,        -- hide the game's aura icons so they don't show twice
+            allEnemyDebuffs = true, -- enemies: the game's icons (every debuff, procs too) instead of ours (2.27.0)
             buffs    = true,
             debuffs  = true,
             onlyMine = false,       -- debuffs: only the ones you cast
@@ -1469,6 +1470,10 @@ local function DoOwn(unit)
     --    plus the game's hidden icons made their buffs invisible. Ours are hidden so debuffs don't
     --    show twice. (Your casts are only timed on enemies, so nothing of ours is lost here.)
     --  * the game won't say (a hidden answer): the enemy rule, so cast timers are never dropped.
+    --  * enemy with "show every debuff" on (2.27.0, default): always the game's icons. Ours are
+    --    timed from your casts, so a debuff you don't cast yourself (a talent proc such as
+    --    Winter's Chill, someone else's debuff) never got one, and the game's icons, which do
+    --    show it, were hidden. The game's icons get countdown numbers where the game runs a timer.
     local okC, atk = pcall(UnitCanAttack, "player", unit)
     local kind = "unknown"
     if okC and not IsSecret(atk) and type(atk) == "boolean" then kind = atk and "enemy" or "friendly" end
@@ -1478,6 +1483,8 @@ local function DoOwn(unit)
     if o.hideGame then
         if kind == "friendly" then
             if o.buffs and nb == 0 then why = "not an enemy, no buffs readable" end
+        elseif kind == "enemy" and o.allEnemyDebuffs then
+            why = "enemy, every debuff (game's icons)"
         elseif nb + nd == 0 then
             why = kind .. ", nothing readable"
         end
@@ -1486,7 +1493,7 @@ local function DoOwn(unit)
     M.stats.fallbackWhy[unit] = why or kind
     if why then
         HideGame(unit, false)
-        if kind == "friendly" then
+        if kind == "friendly" or (kind == "enemy" and o.allEnemyDebuffs) then
             set.holder:Hide()
             M.stats.ownShown[unit] = 0
         end
@@ -1967,6 +1974,12 @@ function M.Build(page)
         function(v) O().enabled = v; A() end)
     page:Check("Hide the game's aura icons", function() return O().hideGame end,
         function(v) O().hideGame = v; A() end)
+    page:Check("Enemies: show every debuff (the game's icons, incl. procs like Winter's Chill)",
+        function() return O().allEnemyDebuffs end, function(v) O().allEnemyDebuffs = v; A() end)
+    page:Note("Aimbot UI's own icons on enemies are timed from your casts, so a debuff you don't cast yourself "
+        .. "(a talent proc such as Winter's Chill, or another player's debuff) can't get one. With this on, "
+        .. "enemies show the game's own icons instead, which list every debuff; countdown numbers are added "
+        .. "wherever the game runs a timer. Turn it off for the cast-timed icons only.")
     page:Check("Show buffs", function() return O().buffs end, function(v) O().buffs = v; A() end)
     page:Check("Show debuffs", function() return O().debuffs end, function(v) O().debuffs = v; A() end)
     page:Check("Debuffs: only the ones I cast", function() return O().onlyMine end,

@@ -1,4 +1,4 @@
-AIMBOT UI  v2.26.0  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.27.0  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,14 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.27.0
+  - Aura Timers: enemies show every debuff. Aimbot UI's own enemy icons are timed from your
+    casts, so a debuff you don't cast yourself (a talent proc such as Winter's Chill, or another
+    player's debuff) never got an icon, and the game's icons that do show it were hidden. New
+    option, on by default: "Enemies: show every debuff". Enemies now show the game's own icons,
+    with countdown numbers added wherever the game runs a timer. Turn it off to go back to the
+    cast-timed icons only. Friendly targets are unchanged. /reload is enough.
 
 NEW IN 2.26.0
   - NEW: Spell Coefficients (QoL tab). Needs a full game restart (new file), not just /reload.
