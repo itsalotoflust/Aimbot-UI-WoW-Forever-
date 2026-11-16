@@ -122,6 +122,61 @@ function UI.Round(parent, layer, size)
     return t
 end
 
+-- A box with rounded corners (2.24.0, Sharp style window). Nine flat pieces that never overlap,
+-- so a see-through colour stays even: four quarter circles in the corners (or plain squares for
+-- corners that stay square), a strip along the top and bottom between them, and the middle.
+-- corners = { tl = true, tr = true, bl = true, br = true }. Layout() can move it in and change
+-- the radius later; SetColorTexture() matches a plain texture so callers needn't care.
+function UI.RoundBox(parent, layer, sub, corners)
+    local box = { parts = {} }
+    local function Piece()
+        local t = parent:CreateTexture(nil, layer, nil, sub)
+        table.insert(box.parts, t)
+        return t
+    end
+    local function Corner(key, l, r, top, bottom)
+        local t
+        if corners[key] then
+            t = UI.Round(parent, layer)
+            t:SetDrawLayer(layer, sub)
+            pcall(t.SetTexCoord, t, l, r, top, bottom)
+            table.insert(box.parts, t)
+        else
+            t = Piece()
+        end
+        return t
+    end
+    local TL = Corner("tl", 0, 0.5, 0, 0.5)
+    local TR = Corner("tr", 0.5, 1, 0, 0.5)
+    local BL = Corner("bl", 0, 0.5, 0.5, 1)
+    local BR = Corner("br", 0.5, 1, 0.5, 1)
+    local top, bottom, mid = Piece(), Piece(), Piece()
+    function box.Layout(inset, radius)
+        inset, radius = inset or 0, math.max(1, radius or 8)
+        for _, t in ipairs(box.parts) do t:ClearAllPoints() end
+        TL:SetPoint("TOPLEFT", parent, "TOPLEFT", inset, -inset)
+        TR:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -inset, -inset)
+        BL:SetPoint("BOTTOMLEFT", parent, "BOTTOMLEFT", inset, inset)
+        BR:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", -inset, inset)
+        for _, t in ipairs({ TL, TR, BL, BR }) do t:SetSize(radius, radius) end
+        top:SetPoint("TOPLEFT", TL, "TOPRIGHT", 0, 0)
+        top:SetPoint("BOTTOMRIGHT", TR, "BOTTOMLEFT", 0, 0)
+        bottom:SetPoint("TOPLEFT", BL, "TOPRIGHT", 0, 0)
+        bottom:SetPoint("BOTTOMRIGHT", BR, "BOTTOMLEFT", 0, 0)
+        mid:SetPoint("TOPLEFT", TL, "BOTTOMLEFT", 0, 0)
+        mid:SetPoint("BOTTOMRIGHT", BR, "TOPRIGHT", 0, 0)
+    end
+    function box.SetColorTexture(_, r, g, b, a)
+        for _, t in ipairs(box.parts) do
+            if rounds[t] then t:SetVertexColor(r, g, b, a or 1) else t:SetColorTexture(r, g, b, a or 1) end
+        end
+    end
+    function box.SetShown(_, v) for _, t in ipairs(box.parts) do t:SetShown(v) end end
+    box.Layout(0, 8)
+    return box
+end
+UI.WIN_RADIUS = 10       -- corner radius of the Sharp style window
+
 -- Classic WoW style (set once when the window is built; switching style needs a /reload).
 UI.classic = false
 -- Sharp style (2.20.0): a compact modern look. Settings in two columns, a module's areas as tabs
@@ -1825,6 +1880,11 @@ function UI.ApplyStyle()
         e:SetColorTexture(w.border[1], w.border[2], w.border[3], UI.classic and 0 or w.border[4])
         if edgeVertical[e] then e:SetWidth(bs) else e:SetHeight(bs) end
     end
+    if UI._borderCorners then
+        for _, t in ipairs(UI._borderCorners) do Paint(t, w.border[1], w.border[2], w.border[3], w.border[4]) end
+        -- the background moves in by the border thickness so the curved border stays as thick
+        if bgTex.Layout then bgTex.Layout(bs, UI.WIN_RADIUS - bs) end
+    end
     RestyleAccents()
     RestyleTexts()
     -- title bar: title colour, version text, accent mark and line
@@ -2303,8 +2363,14 @@ local function Create()
     end
     table.insert(UISpecialFrames, "AimbotUIWindow")
 
-    bgTex = win:CreateTexture(nil, "BACKGROUND")
-    bgTex:SetAllPoints()
+    if UI.sharp then
+        -- rounded window (2.24.0): the background sits inside the border, its corners curve
+        bgTex = UI.RoundBox(win, "BACKGROUND", 0, { tl = true, tr = true, bl = true, br = true })
+        bgTex.Layout(1, UI.WIN_RADIUS - 1)
+    else
+        bgTex = win:CreateTexture(nil, "BACKGROUND")
+        bgTex:SetAllPoints()
+    end
 
     -- Classic style: a Blizzard dialog border and background around the window.
     if UI.classic then
@@ -2320,24 +2386,53 @@ local function Create()
         if height then t:SetHeight(height) end
         table.insert(borderEdges, t)
     end
-    Edge("TOPLEFT", "TOPRIGHT", nil, 1)
-    Edge("BOTTOMLEFT", "BOTTOMRIGHT", nil, 1)
-    Edge("TOPLEFT", "BOTTOMLEFT", 1, nil)
-    Edge("TOPRIGHT", "BOTTOMRIGHT", 1, nil)
+    if UI.sharp then
+        -- straight edges stop where the corners start; each corner is a quarter circle in the
+        -- border colour drawn just under the background's own (smaller) quarter circle, so a
+        -- curved line of border shows round the corner
+        local R = UI.WIN_RADIUS
+        local function EdgeR(p1, x1, y1, p2, x2, y2, width, height)
+            local t = win:CreateTexture(nil, "BORDER")
+            t:SetPoint(p1, win, p1, x1, y1); t:SetPoint(p2, win, p2, x2, y2)
+            if width then t:SetWidth(width); edgeVertical[t] = true end
+            if height then t:SetHeight(height) end
+            table.insert(borderEdges, t)
+        end
+        EdgeR("TOPLEFT", R, 0, "TOPRIGHT", -R, 0, nil, 1)
+        EdgeR("BOTTOMLEFT", R, 0, "BOTTOMRIGHT", -R, 0, nil, 1)
+        EdgeR("TOPLEFT", 0, -R, "BOTTOMLEFT", 0, R, 1, nil)
+        EdgeR("TOPRIGHT", 0, -R, "BOTTOMRIGHT", 0, R, 1, nil)
+        UI._borderCorners = {}
+        for _, c in ipairs({ { "TOPLEFT", 0, 0.5, 0, 0.5 }, { "TOPRIGHT", 0.5, 1, 0, 0.5 },
+            { "BOTTOMLEFT", 0, 0.5, 0.5, 1 }, { "BOTTOMRIGHT", 0.5, 1, 0.5, 1 } }) do
+            local t = UI.Round(win, "BACKGROUND")
+            t:SetDrawLayer("BACKGROUND", -1)
+            t:SetPoint(c[1], win, c[1], 0, 0)
+            t:SetSize(R, R)
+            pcall(t.SetTexCoord, t, c[2], c[3], c[4], c[5])
+            table.insert(UI._borderCorners, t)
+        end
+    else
+        Edge("TOPLEFT", "TOPRIGHT", nil, 1)
+        Edge("BOTTOMLEFT", "BOTTOMRIGHT", nil, 1)
+        Edge("TOPLEFT", "BOTTOMLEFT", 1, nil)
+        Edge("TOPRIGHT", "BOTTOMRIGHT", 1, nil)
+    end
 
     -- Soft drop shadow: three faint rings just outside the window edge (modern style).
     for i, a in ipairs(UI.classic and {} or { 0.30, 0.16, 0.07 }) do
         local o, prev = i * 2, (i - 1) * 2
+        local c = UI.sharp and UI.WIN_RADIUS or 0    -- Sharp: the bands stop before the rounded corners
         local function S(p1, x1, y1, p2, x2, y2)
             local t = win:CreateTexture(nil, "BACKGROUND", nil, -8)
             t:SetColorTexture(0, 0, 0, a)
             t:SetPoint(p1, win, p1, x1, y1)
             t:SetPoint(p2, win, p2, x2, y2)
         end
-        S("TOPLEFT", -o, o, "TOPRIGHT", o, prev)              -- top band
-        S("BOTTOMLEFT", -o, -prev, "BOTTOMRIGHT", o, -o)       -- bottom band
-        S("TOPLEFT", -o, prev, "BOTTOMLEFT", -prev, -prev)     -- left band
-        S("TOPRIGHT", prev, prev, "BOTTOMRIGHT", o, -prev)     -- right band
+        S("TOPLEFT", -o + (c > 0 and o + c or 0), o, "TOPRIGHT", o - (c > 0 and o + c or 0), prev)          -- top band
+        S("BOTTOMLEFT", -o + (c > 0 and o + c or 0), -prev, "BOTTOMRIGHT", o - (c > 0 and o + c or 0), -o)   -- bottom band
+        S("TOPLEFT", -o, prev - c, "BOTTOMLEFT", -prev, -prev + c)     -- left band
+        S("TOPRIGHT", prev, prev - c, "BOTTOMRIGHT", o, -prev + c)     -- right band
     end
 
     -- Title bar
@@ -2347,8 +2442,13 @@ local function Create()
     tb:SetHeight(TB_H)
     tb:EnableMouse(true)
     tb:RegisterForDrag("LeftButton")
-    titleBG = tb:CreateTexture(nil, "BACKGROUND")
-    titleBG:SetAllPoints()
+    if UI.sharp then
+        titleBG = UI.RoundBox(tb, "BACKGROUND", 0, { tl = true, tr = true })
+        titleBG.Layout(0, UI.WIN_RADIUS - 1)
+    else
+        titleBG = tb:CreateTexture(nil, "BACKGROUND")
+        titleBG:SetAllPoints()
+    end
     titleBar = tb
     tb:SetScript("OnDragStart", function() if not W().locked then win:StartMoving() end end)
     tb:SetScript("OnDragStop", function() win:StopMovingOrSizing(); SavePosition() end)
@@ -2414,8 +2514,13 @@ local function Create()
     sidebar:SetPoint("TOPLEFT", 1, -(TB_H + 1))
     sidebar:SetPoint("BOTTOMLEFT", 1, 1)
     sidebar:SetWidth(SIDEBAR_W)
-    sideBG = sidebar:CreateTexture(nil, "BACKGROUND")
-    sideBG:SetAllPoints()
+    if UI.sharp then
+        sideBG = UI.RoundBox(sidebar, "BACKGROUND", 0, { bl = true })
+        sideBG.Layout(0, UI.WIN_RADIUS - 1)
+    else
+        sideBG = sidebar:CreateTexture(nil, "BACKGROUND")
+        sideBG:SetAllPoints()
+    end
     local sline = sidebar:CreateTexture(nil, "ARTWORK")
     sline:SetPoint("TOPRIGHT", sidebar, "TOPRIGHT", 0, 0)
     sline:SetPoint("BOTTOMRIGHT", sidebar, "BOTTOMRIGHT", 0, 0)
@@ -2685,7 +2790,7 @@ local function Create()
     -- Resize grip + footer
     grip = CreateFrame("Button", nil, win)
     grip:SetSize(16, 16)
-    grip:SetPoint("BOTTOMRIGHT", -2, 2)
+    grip:SetPoint("BOTTOMRIGHT", UI.sharp and -6 or -2, UI.sharp and 6 or 2)
     for i, size in ipairs({ 12, 8, 4 }) do
         local g = grip:CreateTexture(nil, "OVERLAY")
         g:SetPoint("BOTTOMRIGHT", 0, (i - 1) * 5)

@@ -2,6 +2,13 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.24.0
+
+- **Settings window, Sharp style:** rounded window corners (radius 10) to go with the rounded side menu buttons.
+  - The background, title bar (top corners) and side menu (bottom-left corner) are built from flat pieces plus quarter circles that never overlap, so see-through colours stay even. The border's straight edges stop at the curve, and a quarter circle in the border colour sits under each background corner. The background moves in by the border thickness, so a thicker border keeps an even curve.
+  - The drop shadow stops before the corners, and the resize grip sits a few pixels further in.
+  - No new files: the existing circle image is reused, so `/reload` is enough. The Modern and Classic styles are unchanged.
+
 ## 2.23.0
 
 - **Settings window, Sharp style:** rounded side menu buttons.

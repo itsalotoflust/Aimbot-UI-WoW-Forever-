@@ -1,4 +1,4 @@
-AIMBOT UI  v2.23.0  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.24.0  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,12 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.24.0
+  - Sharp style: the settings window has rounded corners to match the rounded side menu buttons.
+    The border, title bar, side menu and shadow all follow the curve, and the resize grip sits a
+    little further in so it stays inside the corner. A thicker border keeps the curve even.
+    The Modern and Classic styles are unchanged.
 
 NEW IN 2.23.0
   - Sharp style: the side menu buttons are rounded. The selected one is filled with your theme's
