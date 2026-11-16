@@ -2,6 +2,13 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.23.0
+
+- **Settings window, Sharp style:** rounded side menu buttons.
+  - Each category is a rounded button with a thin outline. The selected one is filled with the theme's accent colour, outlined in it and has white text; hovering lightens the others.
+  - Drawn with the addon's existing circle image (half on each end plus a flat middle), so no new files and no game restart are needed. The colours follow the theme and update when it changes; the on/off power button's centre matches the button behind it.
+  - A little more space between the buttons. The Modern and Classic styles are unchanged.
+
 ## 2.22.1
 
 - **Mana Costs:** macros show their cost again. Newer clients report a macro that shows a spell with that spell's own ID (subtype "spell"); we treated it as the macro index. Both styles are handled, with the macro name as a last resort. Range Alert shares the lookup.

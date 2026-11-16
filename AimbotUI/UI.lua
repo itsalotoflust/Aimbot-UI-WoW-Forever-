@@ -37,6 +37,8 @@ local borderEdges = {}
 local edgeVertical = {}     -- border edge texture -> true for the left / right edges
 local underlines = {}       -- the short accent lines under each tab title
 local currentTab
+UI._t_tabs = tabs        -- for the offline tests
+UI._t_current = function() return currentTab end
 
 local function W() return NS.db.window end
 
@@ -1672,7 +1674,9 @@ function UI.MakePower(parent, key, name)
         if on then local c = W().accent; r, g, bl = c[1], c[2], c[3] end
         Paint(ring, r, g, bl, 1)
         bar:SetColorTexture(r, g, bl, 1)
-        local sr, sg, sb = SideColor()
+        local sr, sg, sb
+        if b.behind then sr, sg, sb = b.behind() end
+        if not sr then sr, sg, sb = SideColor() end
         Paint(hole, sr, sg, sb, 1)
         gap:SetColorTexture(sr, sg, sb, 1)
         b.on = on and true or false
@@ -1694,6 +1698,40 @@ function UI.MakePower(parent, key, name)
     b:SetScript("OnLeave", function() GameTooltip:Hide() end)
     b.Refresh()
     return b
+end
+
+-- Sharp style (2.23.0): a rounded "pill" shape for the side menu buttons, built from the round
+-- image cut in half for the two ends plus a flat middle, so nothing overlaps (no doubled alpha).
+-- inset pulls it in from the button's edges; h is the button's height.
+local function MakePill(parent, layer, sub, inset, h)
+    local half = math.max(1, (h - 2 * inset) / 2)
+    local L = UI.Round(parent, layer)
+    L:SetDrawLayer(layer, sub)
+    L:SetPoint("TOPLEFT", parent, "TOPLEFT", inset, -inset)
+    L:SetPoint("BOTTOMLEFT", parent, "BOTTOMLEFT", inset, inset)
+    L:SetWidth(half)
+    pcall(L.SetTexCoord, L, 0, 0.5, 0, 1)
+    local R = UI.Round(parent, layer)
+    R:SetDrawLayer(layer, sub)
+    R:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -inset, -inset)
+    R:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", -inset, inset)
+    R:SetWidth(half)
+    pcall(R.SetTexCoord, R, 0.5, 1, 0, 1)
+    local M = parent:CreateTexture(nil, layer, nil, sub)
+    M:SetPoint("TOPLEFT", L, "TOPRIGHT", 0, 0)
+    M:SetPoint("BOTTOMRIGHT", R, "BOTTOMLEFT", 0, 0)
+    local pill = { L = L, M = M, R = R }
+    function pill.SetColor(r, g, b, a)
+        Paint(L, r, g, b, a); Paint(R, r, g, b, a)
+        M:SetColorTexture(r, g, b, a or 1)
+    end
+    return pill
+end
+UI.MakePill = MakePill
+
+-- Mix two colours: f = 0 gives the first, 1 the second.
+local function Mix(r1, g1, b1, r2, g2, b2, f)
+    return r1 + (r2 - r1) * f, g1 + (g2 - g1) * f, b1 + (b2 - b1) * f
 end
 
 -- Side menu order: groups in a fixed order, modules A-Z inside each group.
@@ -1725,9 +1763,11 @@ local function RefreshTabDots()
             if t.power then t.power.Refresh() end
             if t.labelFs then
                 local c = on and W().text or W().muted
+                if t.pill and t.key == currentTab then c = { 1, 1, 1 } end
                 t.labelFs:SetTextColor(c[1], c[2], c[3])
-                t.labelFs:SetAlpha(on and 1 or 0.7)
+                t.labelFs:SetAlpha((on or (t.pill and t.key == currentTab)) and 1 or 0.7)
             end
+            if t.PaintPill then t.PaintPill() end
         elseif t.module then
             local on = NS.Mod(t.key) and NS.Mod(t.key).enabled
             if on and t.dot then
@@ -1741,6 +1781,9 @@ local function RefreshTabDots()
 end
 
 function UI.RefreshAll()
+    for _, t in ipairs(tabList) do
+        if t.PaintPill and not t.module then t.PaintPill() end
+    end
     for _, p in ipairs(pages) do
         for _, fn in ipairs(p.refreshers) do fn() end
     end
@@ -1850,6 +1893,10 @@ local function SelectTab(key)
         pcall(UI._resetBtn.SetEnabled, UI._resetBtn, mod and true or false)
     end
     if UI.LayoutSidebar then UI.LayoutSidebar(true) end
+    RefreshTabDots()
+    for _, t in pairs(tabs) do
+        if t.PaintPill and not t.module then t.PaintPill() end
+    end
 end
 
 -- Pinned header: title, description, and (for modules) the enable switch + reset.
@@ -2776,9 +2823,9 @@ local function Create()
             else
                 local t = e.tab
                 t.btn:ClearAllPoints()
-                t.btn:SetPoint("TOPLEFT", sideChild, "TOPLEFT", 6, y)
-                t.btn:SetPoint("TOPRIGHT", sideChild, "TOPRIGHT", -7, y)
-                y = y - (UI.sharp and 25 or 30)
+                t.btn:SetPoint("TOPLEFT", sideChild, "TOPLEFT", UI.sharp and 8 or 6, y)
+                t.btn:SetPoint("TOPRIGHT", sideChild, "TOPRIGHT", UI.sharp and -9 or -7, y)
+                y = y - (UI.sharp and 28 or 30)
                 if t.arrow then t.arrow:SetText(t.expanded and "-" or "+") end
                 for i, sub in ipairs(t.subs or {}) do
                     if t.expanded then
@@ -2838,9 +2885,19 @@ local function Create()
         selBar:SetWidth(3)
         UI.Accent(selBar, 1)
         selBar:Hide()
-        local hl = btn:CreateTexture(nil, "HIGHLIGHT")
-        hl:SetAllPoints()
-        hl:SetColorTexture(1, 1, 1, 0.05)
+        local pill, pillEdge
+        if UI.sharp then
+            -- rounded button: a thin outline (the outer pill) with the fill drawn 1px inside it.
+            -- The old square selection art stays hidden in this style.
+            sel:SetAlpha(0); selBar:SetAlpha(0)
+            if selGlow then selGlow:SetAlpha(0) end
+            pillEdge = MakePill(btn, "BACKGROUND", 2, 0, 24)
+            pill = MakePill(btn, "BACKGROUND", 3, 1, 24)
+        else
+            local hl = btn:CreateTexture(nil, "HIGHLIGHT")
+            hl:SetAllPoints()
+            hl:SetColorTexture(1, 1, 1, 0.05)
+        end
 
         local dot
         -- A "(...)" note at the end of a name is drawn smaller and grey so long names fit
@@ -2937,6 +2994,40 @@ local function Create()
         tabs[key] = t
         table.insert(tabList, t)
         sideEntries[#sideEntries + 1] = { tab = t }
+
+        if pill then
+            t.pill = pill
+            -- the fill is a solid colour worked out from the side menu, so the outline reads as an
+            -- outline: dark and a touch lighter than the menu normally, lighter on hover, and
+            -- tinted with the theme's accent (with an accent outline) when selected
+            local function Fill()
+                local sr, sg, sb = SideColor()
+                local c = W().accent
+                if currentTab == key then return Mix(sr, sg, sb, c[1], c[2], c[3], 0.32) end
+                if t.hover then return Mix(sr, sg, sb, 1, 1, 1, 0.12) end
+                return Mix(sr, sg, sb, 1, 1, 1, 0.05)
+            end
+            function t.PaintPill()
+                local r, g, b = Fill()
+                pill.SetColor(r, g, b, 1)
+                if currentTab == key then
+                    local c = W().accent
+                    pillEdge.SetColor(c[1], c[2], c[3], 0.95)
+                else
+                    pillEdge.SetColor(1, 1, 1, t.hover and 0.22 or 0.10)
+                end
+                if power then power.Refresh() end
+            end
+            if power then power.behind = Fill end
+            btn:SetScript("OnEnter", function() t.hover = true; t.PaintPill() end)
+            btn:SetScript("OnLeave", function() t.hover = false; t.PaintPill() end)
+            if power then
+                -- the power button sits on top of the pill: keep the hover look while over it
+                power:HookScript("OnEnter", function() t.hover = true; t.PaintPill() end)
+                power:HookScript("OnLeave", function() t.hover = false; t.PaintPill() end)
+            end
+            t.PaintPill()
+        end
 
         if UI.sharp and page.menuMode and page.areas then
             -- areas are tabs along the top of the page, not a list in the side menu

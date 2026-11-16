@@ -1,4 +1,4 @@
-AIMBOT UI  v2.22.1  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.23.0  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,12 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.23.0
+  - Sharp style: the side menu buttons are rounded. The selected one is filled with your theme's
+    accent colour and outlined in it, with white text, so you can see at a glance where you are.
+    The others have a thin outline and light up when you hover over them. The buttons also have
+    a little more space between them. The Modern and Classic styles are unchanged.
 
 NEW IN 2.22.1
   - Mana Costs: macros now show their cost. Newer clients report a macro that shows a spell
