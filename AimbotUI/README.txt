@@ -1,4 +1,4 @@
-AIMBOT UI  v2.28.1  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.28.2  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,9 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.28.2
+  - Settings window: the side menu group "LOOK" is now called "STYLE". /reload is enough.
 
 NEW IN 2.28.1
   - Disenchant Helper: disenchantable items in your bags are now highlighted in vibrant green

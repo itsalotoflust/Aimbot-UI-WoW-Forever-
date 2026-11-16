@@ -1791,7 +1791,7 @@ end
 
 -- Side menu order: groups in a fixed order, modules A-Z inside each group.
 local GROUP_ORDER = { Style = 1, Combat = 2, Tools = 3, QoL = 4 }
-local GROUP_LABEL = { Style = "LOOK", Combat = "COMBAT", Tools = "TOOLS", QoL = "QUALITY OF LIFE" }
+local GROUP_LABEL = { Style = "STYLE", Combat = "COMBAT", Tools = "TOOLS", QoL = "QUALITY OF LIFE" }
 local function SortedModules()
     local list = {}
     for i, key in ipairs(NS.moduleOrder) do list[#list + 1] = { key = key, i = i } end

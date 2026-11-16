@@ -2,6 +2,10 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.28.2
+
+- **Settings window:** the side menu header for the Style group reads "STYLE" instead of "LOOK".
+
 ## 2.28.1
 
 - **Disenchant Helper:** the default bag highlight is vibrant green (0.15, 1, 0.25) instead of purple. A saved colour that is still the old purple default is switched once on login (marked with `colorV`); a colour picked by hand is kept.
