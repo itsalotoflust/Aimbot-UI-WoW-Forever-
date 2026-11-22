@@ -6,9 +6,13 @@ An all-in-one interface addon suite for **World of Warcraft Forever** (interface
 
 Open it in game with `/aimbot` (or `/aui`). Every module has its own tab and its own on/off switch, and if one module hits a problem it reports in chat and the rest keep running.
 
-## What's new in 2.28.2
+## What's new in 2.29.0
 
-- **Settings window:** the "LOOK" group in the side menu is now "STYLE".
+- **New: Buff Bar** (Quality of Life tab). A bar of buttons for the buff items in your bags: food, elixirs, flasks, scrolls, weapon oils and stones. Click to use; weapon oils and stones go on the main hand with a click and the off hand with a right-click.
+  - Fills itself from your bags, starts at the top centre of the screen, and can be dragged anywhere until you lock it.
+  - Buttons dim and show the time left when the buff is already on you (or hide instead). Low stacks turn red.
+  - Shift+right-click hides an item, Ctrl+right-click pins it.
+  - New file: needs a full game restart, not just `/reload`.
 
 See [CHANGELOG.md](CHANGELOG.md) for every version.
 
@@ -46,6 +50,7 @@ Download **[AimbotUI.zip](https://github.com/itsalotoflust/Aimbot-UI-WoW-Forever
 | **Interrupt Ready** | Your interrupt next to enemy cast bars: green when it's ready, grey with a timer when it isn't. |
 | **Double Press (Wannabe AHK)** | Optional. Every action bar key presses twice, on key down and key up. Off by default. |
 | **Memory Cleaner** | A Clear Cache button that runs a garbage collection without freezing the game. |
+| **Buff Bar** | Clickable buttons for the food, elixirs, flasks, scrolls and weapon oils in your bags. Dims buffs you already have, shows time left, red count when low. Movable, starts at the top centre. |
 
 ## Slash commands
 

@@ -1,4 +1,4 @@
-AIMBOT UI  v2.28.2  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.29.0  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,22 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.29.0
+  - NEW: Buff Bar (QoL tab). Needs a full game restart (new file), not just /reload.
+    * A bar of buttons for the buff items in your bags: food and drink, elixirs, flasks,
+      scrolls, weapon oils, sharpening stones and weightstones. Click one to use it.
+      Potions and other buff items (Juju, firewater and the like) have their own switches.
+    * Weapon oils and stones: click for the main hand, right-click for the off hand.
+    * Fills itself from your bags and starts at the top centre of the screen. While it's
+      unlocked, drag it anywhere; lock it in the settings.
+    * A button whose buff is already on you is dimmed and shows the time left (or hide those
+      buttons, or leave them alone). Counts at or under 3 turn red (you can change the number).
+    * Shift+right-click a button to hide that item. Ctrl+right-click pins it: it stays on the
+      bar, first, even when you run out. You can also pin an item by name or ID in the settings.
+    * Size, spacing, buttons per row, vertical, fade until mouseover. Test it from Test...
+    * The game doesn't let addons change clickable buttons in combat: the buttons work in
+      combat, but new or used-up items are added or removed once combat ends.
 
 NEW IN 2.28.2
   - Settings window: the side menu group "LOOK" is now called "STYLE". /reload is enough.

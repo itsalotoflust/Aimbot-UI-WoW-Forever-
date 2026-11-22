@@ -2,6 +2,18 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.29.0
+
+- **New module: Buff Bar** (QoL group, `Modules/BuffBar.lua`). New file in the TOC: needs a full game restart.
+  - One secure action button (`AimbotUIBuffBarButton1`..`24`, parent `AimbotUIBuffBar`) per buff consumable found in bags 0 to 4, one button per item ID. Categories from `GetItemInfoInstant` (class 0): food & drink (5); elixirs, flasks, scrolls (2, 3, 4); item enhancement (6) plus a short list of oil/stone item IDs filed under Trade Goods; potions (1, off by default); other (0, 8) only with a "Use:" spell. Bandages and quest items never.
+  - Normal items: `type1=item`, `item1=item:<id>`. Weapon oils and stones: macro `/use item:<id>` + `/use 16` on left-click, `/use 17` on right-click; Shift/Ctrl+right-click set to a no-op type so they don't use the item.
+  - Default position top centre (`TOP`, 0, -40), draggable while unlocked. Settings: categories, pin by name or ID, clear pins, show hidden items, active-buff mode (dim / hide / normal), time left, low-stock threshold (default 3), size, spacing, buttons per row, max buttons (16), vertical, fade until mouseover, lock, move back. Test entry shows 6 sample icons for 15 seconds.
+  - Buff detection: `C_UnitAuras.GetPlayerAuraBySpellID` on the item's spell, `GetAuraDataBySpellName` as a fallback; food also checks "Well Fed" (not for drinks); weapon items use `GetWeaponEnchantInfo` (main hand). Secret values count as unknown and never dim a button.
+  - Combat: no attribute, show/hide or position changes in combat; a changed item list waits for `PLAYER_REGEN_ENABLED`. Counts, dimming, time left and item cooldowns update any time.
+  - Shift+right-click hides an item (`ignore`), Ctrl+right-click pins / unpins (`pinned`, shown first even at 0).
+  - **Button Flash:** new `NS.SparkleOwnButton(btn)` so Buff Bar clicks flash like action buttons (respects on/off, mouse and combat-only settings).
+  - `/aimbot diag`: items found per category, pinned, scans, layouts, waiting for combat, clicks, how auras were read, secret reads.
+
 ## 2.28.2
 
 - **Settings window:** the side menu header for the Style group reads "STYLE" instead of "LOOK".

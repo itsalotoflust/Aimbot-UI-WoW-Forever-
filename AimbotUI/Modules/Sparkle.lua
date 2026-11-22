@@ -549,6 +549,20 @@ function NS.SparkleKey(btn, down)
     end
 end
 
+-- Called by Aimbot UI's own clickable buttons (Buff Bar) after a click. They are not action
+-- buttons, so the "skip empty buttons" check is left out; on/off, mouse and combat-only still apply.
+function NS.SparkleOwnButton(btn)
+    local cfg = S()
+    if not cfg.enabled or not cfg.mouse then return end
+    if cfg.onlyCombat and not UnitAffectingCombat("player") then return end
+    M.stats.byKind.mouse = (M.stats.byKind.mouse or 0) + 1
+    local ok, err = pcall(Play, btn, "own")
+    if not ok then
+        M.stats.errors = (M.stats.errors or 0) + 1
+        M.stats.lastError = tostring(err)
+    end
+end
+
 local function HookAll()
     NS.ForEachButton(function(btn) HookButton(btn, false) end)
     if S().thirdParty then
