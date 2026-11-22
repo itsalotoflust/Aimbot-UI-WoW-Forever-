@@ -6,6 +6,11 @@ An all-in-one interface addon suite for **World of Warcraft Forever** (interface
 
 Open it in game with `/aimbot` (or `/aui`). Every module has its own tab and its own on/off switch, and if one module hits a problem it reports in chat and the rest keep running.
 
+## What's new in 2.29.2
+
+- **Buff Bar:** items such as the Basic Campfire Kit, whose text mentions a time only as a condition ("nearby for 1 min will gain benefits"), are no longer shown.
+- **Buff Bar:** a switch for each kind: Food & Drink, Elixirs & Flasks, Potions, Scrolls, Weapon Oils & Stones, Bandages, Other Usable, with "Reset kinds" and "Show hidden items again". `/reload` is enough.
+
 ## What's new in 2.29.1
 
 - **Buff Bar:** only shows items that actually give a buff. Each item's "Use:" text must say how long the effect lasts ("for 30 min", "well fed"), so plain food and water, healing and mana potions are left out. Pinned items always show. `/reload` is enough.

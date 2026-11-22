@@ -1,4 +1,4 @@
-AIMBOT UI  v2.29.1  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.29.2  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,17 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.29.2
+  - Buff Bar: items like the Basic Campfire Kit no longer show. Its text says "nearby for 1 min
+    will gain benefits", which looked like a buff duration. A duration now only counts when it
+    ends the sentence, the way real buffs read ("for 1 hour.", "Lasts for 30 minutes.").
+  - Buff Bar: a switch for each kind of consumable, at the top of the tab under "Kinds":
+    Food & Drink, Elixirs & Flasks, Potions, Scrolls, Weapon Oils & Stones, Bandages and
+    Other Usable, plus "Reset kinds" and "Show hidden items again". Scrolls and Bandages are
+    new kinds. Potions and Bandages show when you switch them on, even though they aren't
+    buffs. New default for Other Usable is off; if you already had it on, it stays on.
+    /reload is enough.
 
 NEW IN 2.29.1
   - Buff Bar: only items that give a buff. It reads each item's "Use:" text and keeps it only

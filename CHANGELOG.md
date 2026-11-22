@@ -2,6 +2,13 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.29.2
+
+- **Buff Bar:** the buff-only filter no longer counts a duration that is part of a condition (Basic Campfire Kit: "Players sitting or crafting nearby for 1 min will gain benefits"). "for N sec/min/hour/hr" now counts only when the unit is followed by punctuation (`. , ; ) !`) or ends the text. "Well fed" still counts anywhere.
+- **Buff Bar: kind switches.** "Kinds" section: Food & Drink, Elixirs & Flasks, Potions, Scrolls, Weapon Oils & Stones, Bandages, Other Usable, "Reset kinds" (kind switches only; hidden and pinned items stay) and "Show hidden items again".
+  - New kinds: `scrolls` (consumable sub-class 4, was part of elixirs; on) and `bandages` (sub-class 7, was never shown; off). Default for `other` is now off (saved settings keep their value).
+  - The buff-only filter applies to food, elixirs, scrolls and other. Potions and bandages skip it when switched on; oils and stones always state a duration.
+
 ## 2.29.1
 
 - **Buff Bar: only items that give a buff.** New option `onlyBuffs` (on by default). The item's "Use:" lines from `C_TooltipInfo.GetItemByID` (fallback: `C_Spell.GetSpellDescription` on the item's spell) must contain a duration: "for N sec/min/hour/hr" or "well fed". "Restores N health", "over N sec" effects and "for N health" don't count. English text only.

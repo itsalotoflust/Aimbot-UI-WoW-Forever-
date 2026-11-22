@@ -1,7 +1,7 @@
 --[[
-  Aimbot UI - Buff Bar (2.29.0)
+  Aimbot UI - Buff Bar (2.29.0, buff-only filter 2.29.2)
   A row of clickable buttons, one per buff consumable in your bags: food, elixirs, flasks,
-  scrolls, weapon oils and sharpening stones (potions and other buff items optional).
+  scrolls, weapon oils and sharpening stones (potions, bandages and other items optional).
   Click a button to use the item. Weapon oils and stones: left-click puts it on the main hand,
   right-click on the off hand.
 
@@ -41,10 +41,13 @@ local M = {
         vertical   = false,
         maxButtons = 16,
         food       = true,
-        elixirs    = true,          -- elixirs, flasks and scrolls
+        -- kinds (2.29.2: scrolls and bandages got their own switches)
+        elixirs    = true,          -- elixirs and flasks
+        scrolls    = true,
         weapon     = true,          -- weapon oils, sharpening stones, weightstones
         potions    = false,         -- most potions are heals, not buffs
-        other      = true,          -- other consumables with a "Use:" effect
+        bandages   = false,
+        other      = false,         -- other consumables with a "Use:" effect
         onlyBuffs  = true,          -- 2.29.1: only items whose effect lasts (reads the tooltip)
         activeMode = "dim",         -- buff already on you: "dim", "hide" or "normal"
         timeLeft   = true,
@@ -86,17 +89,25 @@ local WEAPON_IDS = {
 }
 M._t_WEAPON_IDS = WEAPON_IDS
 
-local CAT_ORDER = { food = 1, elixirs = 2, weapon = 3, potions = 4, other = 5 }
+local CAT_ORDER = { food = 1, elixirs = 2, scrolls = 3, weapon = 4, potions = 5, bandages = 6, other = 7 }
+local KINDS = { "food", "elixirs", "potions", "scrolls", "weapon", "bandages", "other" }
+-- Kinds checked by the "only items that give a buff" filter. Potions and bandages are heals by
+-- nature: switching them on means you want them, so they skip the filter. Oils and stones
+-- always say how long they last.
+local BUFF_FILTERED = { food = true, elixirs = true, scrolls = true, other = true }
+M._t_KINDS = KINDS
 
 -- Consumable (class 0) sub-classes: 1 potion, 2 elixir, 3 flask, 4 scroll, 5 food & drink,
--- 6 item enhancement, 7 bandage, 8 other, 0 generic. Returns the category or nil.
+-- 6 item enhancement, 7 bandage, 8 other, 0 generic. Returns the kind or nil.
 local function Classify(classID, subClassID, itemID, hasSpell)
     if itemID and WEAPON_IDS[itemID] then return "weapon" end
     if classID ~= 0 then return nil end
     if subClassID == 5 then return "food" end
-    if subClassID == 2 or subClassID == 3 or subClassID == 4 then return "elixirs" end
+    if subClassID == 2 or subClassID == 3 then return "elixirs" end
+    if subClassID == 4 then return "scrolls" end
     if subClassID == 6 then return "weapon" end
     if subClassID == 1 then return "potions" end
+    if subClassID == 7 then return "bandages" end
     if (subClassID == 0 or subClassID == 8) and hasSpell then return "other" end
     return nil
 end
@@ -157,15 +168,17 @@ end
 -- effects over time ("Restores 500 health", "Restores 1344 mana over 18 sec.") don't count.
 -- English text only.
 ----------------------------------------------------------------------
-local BUFF_PATTERNS = {
-    "for %d[%d%.,]* ?sec", "for %d[%d%.,]* ?min", "for %d[%d%.,]* ?hour", "for %d[%d%.,]* ?hr",
-    "well fed",
-}
+-- 2.29.2: the duration must close its sentence ("for 1 hour.", "Lasts for 30 minutes."). A
+-- duration that is only part of a condition ("Players sitting nearby for 1 min will gain ...",
+-- a campfire) doesn't count.
+local UNITS = { sec = true, secs = true, second = true, seconds = true, min = true, mins = true,
+    minute = true, minutes = true, hour = true, hours = true, hr = true, hrs = true }
 local function GivesBuff(text)
     if type(text) ~= "string" then return nil end
     local t = text:lower()
-    for _, pat in ipairs(BUFF_PATTERNS) do
-        if t:find(pat) then return true end
+    if t:find("well fed", 1, true) then return true end
+    for unit, gap, nextLetter in t:gmatch("for %d[%d%.,]* ?(%a+)([^%a]*)(%a?)") do
+        if UNITS[unit] and (nextLetter == "" or gap:find("[%.;,%)!]")) then return true end
     end
     return false
 end
@@ -237,7 +250,7 @@ local function BuildList()
                 local spellName, spellID = ItemSpell(itemID)
                 local cat = Classify(classID, subClassID, itemID, spellName ~= nil)
                 local buff = true
-                if cat and s[cat] and not s.ignore[itemID] and s.onlyBuffs then
+                if cat and s[cat] and not s.ignore[itemID] and s.onlyBuffs and BUFF_FILTERED[cat] then
                     buff = ItemGivesBuff(itemID, spellID)
                     if buff == nil then
                         M.stats.unknown = M.stats.unknown + 1
@@ -371,7 +384,8 @@ function IsActive(e)
     if not a and e.cat == "food" and e.spellName ~= DrinkName() then
         a = PlayerAura(nil, WellFedName())
     end
-    if not a and (e.cat == "elixirs" or e.cat == "other" or e.cat == "potions") and e.spellName then
+    if not a and (e.cat == "elixirs" or e.cat == "scrolls" or e.cat == "other" or e.cat == "potions")
+        and e.spellName then
         a = PlayerAura(nil, e.spellName)
     end
     if a then return true, AuraLeft(a) end
@@ -801,6 +815,12 @@ function M:Apply()
     Refresh()
 end
 
+-- Kind switches back to their defaults (hidden and pinned items are left alone).
+function M.ResetKinds()
+    local s = S()
+    for _, k in ipairs(KINDS) do s[k] = M.defaults[k] end
+end
+
 function M.Test()
     if InCombat() then NS.Print("Buff Bar: the test can't run in combat."); return end
     testUntil = Now() + 15
@@ -828,23 +848,31 @@ M._t_ParseItem = ParseItem
 local function Changed() Refresh() end
 
 function M.Build(page)
-    page:Section("Items", "What goes on the bar")
+    page:Section("Kinds", "Which consumables go on the bar")
     page:Note("The bar fills itself from your bags. Click a button to use the item. Weapon oils and "
-        .. "stones: click for the main hand, right-click for the off hand. Shift+right-click hides an "
+        .. "stones: click for the main hand, right-click for the off hand. Shift+right-click hides one "
         .. "item; Ctrl+right-click pins it (always shown first, even at 0).")
-    page:Check("Food and drink", function() return S().food end, function(v) S().food = v; Changed() end)
-    page:Check("Elixirs, flasks and scrolls", function() return S().elixirs end,
-        function(v) S().elixirs = v; Changed() end)
-    page:Check("Weapon oils, sharpening stones and weightstones", function() return S().weapon end,
-        function(v) S().weapon = v; Changed() end)
-    page:Check("Potions (most are heals, so off by default)", function() return S().potions end,
-        function(v) S().potions = v; Changed() end)
-    page:Check("Other usable consumables (Juju, firewater and the like)", function() return S().other end,
-        function(v) S().other = v; Changed() end)
+    page:Check("Food & Drink", function() return S().food end, function(v) S().food = v; Changed() end)
+    page:Check("Elixirs & Flasks", function() return S().elixirs end, function(v) S().elixirs = v; Changed() end)
+    page:Check("Potions", function() return S().potions end, function(v) S().potions = v; Changed() end)
+    page:Check("Scrolls", function() return S().scrolls end, function(v) S().scrolls = v; Changed() end)
+    page:Check("Weapon Oils & Stones", function() return S().weapon end, function(v) S().weapon = v; Changed() end)
+    page:Check("Bandages", function() return S().bandages end, function(v) S().bandages = v; Changed() end)
+    page:Check("Other Usable", function() return S().other end, function(v) S().other = v; Changed() end)
+    page:Button("Reset kinds", function() M.ResetKinds(); Changed() end)
+    page:Button("Show hidden items again", function()
+        local n = 0
+        for k in pairs(S().ignore) do S().ignore[k] = nil; n = n + 1 end
+        NS.Print("Buff Bar: " .. n .. " hidden item(s) shown again.")
+        Changed()
+    end)
+
+    page:Section("Items", "Buff check and pinned items")
     page:Check("Only items that give a buff (reads the item's tooltip)", function() return S().onlyBuffs end,
         function(v) S().onlyBuffs = v; Changed() end)
-    page:Note("An item counts when its \"Use:\" text says how long the effect lasts (\"for 30 min\", "
-        .. "\"well fed\"). Instant heals and plain food and drink are left out. Pin anything it misses.")
+    page:Note("For Food, Elixirs, Scrolls and Other: an item counts when its \"Use:\" text says how long "
+        .. "the effect lasts (\"for 30 min\", \"well fed\"). Plain food and drink are left out. Potions and "
+        .. "Bandages you switch on always show. Pin anything it misses.")
     page:Input("Pin an item: name or item ID", function(text)
         local id = ParseItem(text)
         if not id then NS.Print("Buff Bar: couldn't find that item. Try its item ID."); return false end
@@ -855,12 +883,6 @@ function M.Build(page)
     page:Button("Clear pinned items", function()
         local p = S().pinned
         for k = #p, 1, -1 do p[k] = nil end
-        Changed()
-    end)
-    page:Button("Show hidden items again", function()
-        local n = 0
-        for k in pairs(S().ignore) do S().ignore[k] = nil; n = n + 1 end
-        NS.Print("Buff Bar: " .. n .. " hidden item(s) shown again.")
         Changed()
     end)
 
@@ -898,8 +920,9 @@ end
 function M:Diagnose()
     local st = M.stats
     local c = st.cats or {}
-    NS.Print(string.format("  on bar %d   found: food %d, elixirs %d, weapon %d, potions %d, other %d   pinned %d",
-        st.found, c.food or 0, c.elixirs or 0, c.weapon or 0, c.potions or 0, c.other or 0, #S().pinned))
+    NS.Print(string.format("  on bar %d   found: food %d, elixirs %d, scrolls %d, weapon %d, potions %d, bandages %d, other %d   pinned %d",
+        st.found, c.food or 0, c.elixirs or 0, c.scrolls or 0, c.weapon or 0, c.potions or 0, c.bandages or 0,
+        c.other or 0, #S().pinned))
     NS.Print(string.format("  only buffs %s   left out (no buff) %d   text not loaded yet %d   text from %s   client gives no text %s",
         tostring(S().onlyBuffs), st.noBuff or 0, st.unknown or 0, tostring(st.textHow), tostring(st.noText)))
     NS.Print(string.format("  scans %d   layouts %d   waiting for combat to end %s   clicks %d   aura read by %s   secret reads %d   last error %s",
