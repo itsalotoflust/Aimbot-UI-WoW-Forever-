@@ -2,6 +2,12 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.29.1
+
+- **Buff Bar: only items that give a buff.** New option `onlyBuffs` (on by default). The item's "Use:" lines from `C_TooltipInfo.GetItemByID` (fallback: `C_Spell.GetSpellDescription` on the item's spell) must contain a duration: "for N sec/min/hour/hr" or "well fed". "Restores N health", "over N sec" effects and "for N health" don't count. English text only.
+  - Text not loaded yet (or secret) leaves the item out for now and retries every 2 seconds, up to 5 times, then on the next bag change; results are cached per item ID. If the client has neither API, items are shown as before.
+  - Pinned items always show. `/aimbot diag`: left out (no buff), text not loaded yet, where the text came from.
+
 ## 2.29.0
 
 - **New module: Buff Bar** (QoL group, `Modules/BuffBar.lua`). New file in the TOC: needs a full game restart.

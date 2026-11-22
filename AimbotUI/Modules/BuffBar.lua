@@ -45,6 +45,7 @@ local M = {
         weapon     = true,          -- weapon oils, sharpening stones, weightstones
         potions    = false,         -- most potions are heals, not buffs
         other      = true,          -- other consumables with a "Use:" effect
+        onlyBuffs  = true,          -- 2.29.1: only items whose effect lasts (reads the tooltip)
         activeMode = "dim",         -- buff already on you: "dim", "hide" or "normal"
         timeLeft   = true,
         lowStock   = 3,             -- count at or under this turns red (0 = off)
@@ -59,7 +60,7 @@ local function S() return NS.db.mod.buffbar end
 local IsSecret = NS.IsSecret
 
 M.stats = { scans = 0, found = 0, layouts = 0, pending = false, secret = 0, clicks = 0,
-    cats = {}, auraHow = "-", lastError = nil }
+    cats = {}, auraHow = "-", lastError = nil, noBuff = 0, unknown = 0, textHow = "-", noText = false }
 
 local function InCombat() return InCombatLockdown and InCombatLockdown() and true or false end
 
@@ -149,6 +150,73 @@ local function MakeEntry(itemID, cat, icon)
     return { itemID = itemID, cat = cat, icon = icon, spellName = spellName, spellID = spellID }
 end
 
+----------------------------------------------------------------------
+-- Does the item give a buff? (2.29.1)
+-- Read from the item's "Use:" tooltip line (or its spell's description): a buff lasts a while,
+-- so its text says "for 30 min", "for 1 hour", "for 15 sec" or "well fed". Instant effects and
+-- effects over time ("Restores 500 health", "Restores 1344 mana over 18 sec.") don't count.
+-- English text only.
+----------------------------------------------------------------------
+local BUFF_PATTERNS = {
+    "for %d[%d%.,]* ?sec", "for %d[%d%.,]* ?min", "for %d[%d%.,]* ?hour", "for %d[%d%.,]* ?hr",
+    "well fed",
+}
+local function GivesBuff(text)
+    if type(text) ~= "string" then return nil end
+    local t = text:lower()
+    for _, pat in ipairs(BUFF_PATTERNS) do
+        if t:find(pat) then return true end
+    end
+    return false
+end
+M._t_GivesBuff = GivesBuff
+
+-- The item's "Use:" text, and where it came from; nil while the game hasn't loaded it.
+local function UseText(itemID, spellID)
+    local haveAPI = false
+    if C_TooltipInfo and C_TooltipInfo.GetItemByID then
+        haveAPI = true
+        local ok, data = pcall(C_TooltipInfo.GetItemByID, itemID)
+        if ok and type(data) == "table" and not IsSecret(data) and type(data.lines) == "table" then
+            local trig = ITEM_SPELL_TRIGGER_ONUSE or "Use:"
+            if type(trig) ~= "string" or IsSecret(trig) then trig = "Use:" end
+            local parts = {}
+            for _, line in ipairs(data.lines) do
+                local t = type(line) == "table" and Clean(line.leftText) or nil
+                if type(t) == "string" and t:find(trig, 1, true) then parts[#parts + 1] = t end
+            end
+            if #parts > 0 then return table.concat(parts, " "), "tooltip", true end
+        end
+    end
+    local desc = (C_Spell and C_Spell.GetSpellDescription) or GetSpellDescription
+    if spellID and desc then
+        haveAPI = true
+        local ok, d = pcall(desc, spellID)
+        d = ok and Clean(d) or nil
+        if type(d) == "string" and d ~= "" then return d, "spell description", true end
+    end
+    return nil, nil, haveAPI
+end
+
+local buffCache = {}         -- itemID -> true / false once the text was read
+-- true / false, or nil while the text isn't loaded yet
+local function ItemGivesBuff(itemID, spellID)
+    local c = buffCache[itemID]
+    if c ~= nil then return c end
+    local text, how, haveAPI = UseText(itemID, spellID)
+    if not haveAPI then
+        M.stats.noText = true
+        return true              -- this client can't tell us: show it rather than nothing
+    end
+    if not text then return nil end
+    M.stats.textHow = how
+    local v = GivesBuff(text)
+    buffCache[itemID] = v
+    return v
+end
+M._t_ItemGivesBuff = ItemGivesBuff
+M._t_ClearBuffCache = function() for k in pairs(buffCache) do buffCache[k] = nil end end
+
 -- Forward declaration: is the item's buff on the player? true / false / nil (can't tell).
 local IsActive
 
@@ -156,6 +224,7 @@ local IsActive
 local function BuildList()
     local s = S()
     M.stats.scans = M.stats.scans + 1
+    M.stats.noBuff, M.stats.unknown = 0, 0
     local found, cats = {}, {}
     local last = NUM_TOTAL_EQUIPPED_BAG_SLOTS or NUM_BAG_SLOTS or 4
     for bag = 0, last do
@@ -165,9 +234,18 @@ local function BuildList()
             if type(itemID) == "number" and found[itemID] == nil then
                 found[itemID] = false
                 local icon, classID, subClassID = ItemBasics(itemID)
-                local spellName = ItemSpell(itemID)
+                local spellName, spellID = ItemSpell(itemID)
                 local cat = Classify(classID, subClassID, itemID, spellName ~= nil)
-                if cat and s[cat] and not s.ignore[itemID] then
+                local buff = true
+                if cat and s[cat] and not s.ignore[itemID] and s.onlyBuffs then
+                    buff = ItemGivesBuff(itemID, spellID)
+                    if buff == nil then
+                        M.stats.unknown = M.stats.unknown + 1
+                    elseif buff == false then
+                        M.stats.noBuff = M.stats.noBuff + 1
+                    end
+                end
+                if cat and s[cat] and not s.ignore[itemID] and buff == true then
                     found[itemID] = MakeEntry(itemID, cat, Clean(info.iconFileID) or icon)
                     cats[cat] = (cats[cat] or 0) + 1
                 end
@@ -391,7 +469,7 @@ local function LortiOn()
     return l and l.enabled and l.buttons and true or false
 end
 
-local Refresh, UpdateVisuals
+local Refresh, UpdateVisuals, RetryUnknown
 
 local function IsPinned(id)
     for _, v in ipairs(S().pinned) do if v == id then return true end end
@@ -628,6 +706,16 @@ function UpdateVisuals()
 end
 M._t_UpdateVisuals = UpdateVisuals
 
+-- Item text that wasn't loaded yet: look again shortly (a few times, then wait for bag changes).
+local retries = 0
+local QueueRefresh
+function RetryUnknown()
+    if (M.stats.unknown or 0) == 0 then retries = 0; return end
+    if retries >= 5 or not (C_Timer and C_Timer.After) then return end
+    retries = retries + 1
+    C_Timer.After(2, function() if QueueRefresh then QueueRefresh() end end)
+end
+
 local TEST_ICONS = {
     "Interface\\Icons\\INV_Misc_Fish_02", "Interface\\Icons\\INV_Potion_32", "Interface\\Icons\\INV_Potion_61",
     "Interface\\Icons\\INV_Stone_02", "Interface\\Icons\\INV_Scroll_03", "Interface\\Icons\\INV_Drink_07",
@@ -649,6 +737,7 @@ function Refresh()
     else
         testUntil = nil
         list = BuildList()
+        RetryUnknown()
     end
     if InCombat() then
         -- the buttons can't change in combat: keep them, update what we can, finish after combat
@@ -668,7 +757,7 @@ M._t_Bar = function() return bar end
 -- Events
 ----------------------------------------------------------------------
 local queued = false
-local function QueueRefresh()
+function QueueRefresh()
     if queued then return end
     queued = true
     C_Timer.After(0.2, function()
@@ -752,6 +841,10 @@ function M.Build(page)
         function(v) S().potions = v; Changed() end)
     page:Check("Other usable consumables (Juju, firewater and the like)", function() return S().other end,
         function(v) S().other = v; Changed() end)
+    page:Check("Only items that give a buff (reads the item's tooltip)", function() return S().onlyBuffs end,
+        function(v) S().onlyBuffs = v; Changed() end)
+    page:Note("An item counts when its \"Use:\" text says how long the effect lasts (\"for 30 min\", "
+        .. "\"well fed\"). Instant heals and plain food and drink are left out. Pin anything it misses.")
     page:Input("Pin an item: name or item ID", function(text)
         local id = ParseItem(text)
         if not id then NS.Print("Buff Bar: couldn't find that item. Try its item ID."); return false end
@@ -807,6 +900,8 @@ function M:Diagnose()
     local c = st.cats or {}
     NS.Print(string.format("  on bar %d   found: food %d, elixirs %d, weapon %d, potions %d, other %d   pinned %d",
         st.found, c.food or 0, c.elixirs or 0, c.weapon or 0, c.potions or 0, c.other or 0, #S().pinned))
+    NS.Print(string.format("  only buffs %s   left out (no buff) %d   text not loaded yet %d   text from %s   client gives no text %s",
+        tostring(S().onlyBuffs), st.noBuff or 0, st.unknown or 0, tostring(st.textHow), tostring(st.noText)))
     NS.Print(string.format("  scans %d   layouts %d   waiting for combat to end %s   clicks %d   aura read by %s   secret reads %d   last error %s",
         st.scans, st.layouts, tostring(pending), st.clicks, tostring(st.auraHow), st.secret,
         tostring(st.lastError or "-")))

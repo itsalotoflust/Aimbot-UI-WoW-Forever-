@@ -1,4 +1,4 @@
-AIMBOT UI  v2.29.0  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.29.1  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,12 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.29.1
+  - Buff Bar: only items that give a buff. It reads each item's "Use:" text and keeps it only
+    when the effect lasts a while ("for 30 min", "for 1 hour", "well fed"). Plain food and
+    water, healing and mana potions and other instant items are left out. Switch: "Only items
+    that give a buff" (on). Pinned items always show. /reload is enough.
 
 NEW IN 2.29.0
   - NEW: Buff Bar (QoL tab). Needs a full game restart (new file), not just /reload.
