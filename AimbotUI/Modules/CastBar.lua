@@ -32,6 +32,7 @@ local M = {
         showLatency  = false,
         showSpark    = true,
         fontSize     = 12,
+        textNudge    = 0,            -- 2.31.1: extra pixels up (+) or down (-) for the text
         colors = {
             cast    = { 1.0, 0.7, 0.0 },
             channel = { 0.0, 1.0, 0.0 },
@@ -129,6 +130,13 @@ local function ArtGeometry(w, h)
 end
 M._t_ArtGeometry = ArtGeometry
 
+-- 2.31.1: how far above the bar's centre the text sits. Letters sit low in their font box, so
+-- centred text looks low; the classic bar lifts its text 3.5 px at 13 px high. Scales with the bar.
+local function TextOffset(h, nudge)
+    return h * 3.5 / 13 + (nudge or 0)
+end
+M._t_TextOffset = TextOffset
+
 local function Layout()
     if not bar then return end
     local s = S()
@@ -152,6 +160,11 @@ local function Layout()
     if not ok then text:SetFontObject(GameFontHighlight) end
     pcall(timer.SetFont, timer, STANDARD_TEXT_FONT, math.max(8, (s.fontSize or 12) - 2), "OUTLINE")
     icon:SetSize(s.height + 6, s.height + 6)
+    local ty = TextOffset(s.height, s.textNudge)
+    text:ClearAllPoints()
+    text:SetPoint("CENTER", bar, "CENTER", 0, ty)
+    timer:ClearAllPoints()
+    timer:SetPoint("RIGHT", bar, "RIGHT", -3, ty)
     label:SetShown(not s.locked)
 end
 
@@ -540,6 +553,8 @@ function M.Build(page)
     page:Slider("Width", 120, 400, 5, function() return S().width end, function(v) S().width = v; Re() end)
     page:Slider("Height", 8, 30, 1, function() return S().height end, function(v) S().height = v; Re() end)
     page:Slider("Text size", 8, 20, 1, function() return S().fontSize end, function(v) S().fontSize = v; Re() end)
+    page:Slider("Text up / down (pixels)", -6, 6, 1, function() return S().textNudge end,
+        function(v) S().textNudge = v; Re() end)
     page:Check("Show the spell icon", function() return S().showIcon end, function(v) S().showIcon = v end)
     page:Check("Show the seconds left", function() return S().showTimer end, function(v) S().showTimer = v end)
     page:Check("Show the spark", function() return S().showSpark end, function(v) S().showSpark = v end)

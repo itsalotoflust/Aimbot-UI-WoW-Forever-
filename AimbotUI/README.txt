@@ -1,4 +1,4 @@
-AIMBOT UI  v2.31.0  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.31.1  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,10 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.31.1
+  - Cast Bar: the spell name and seconds left sit in the middle of the bar instead of low.
+    New slider "Text up / down (pixels)" to fine-tune it. /reload is enough.
 
 NEW IN 2.31.0
   - NEW: Cast Bar (Combat tab). Needs a full game restart (new file), not just /reload.

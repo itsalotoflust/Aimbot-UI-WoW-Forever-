@@ -2,6 +2,10 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.31.1
+
+- **Cast Bar: text centred.** The spell name and timer are lifted `height * 3.5 / 13` px above the bar's centre (3.5 px at the classic 13 px, as the classic bar does), since letters sit low in their font box. New option `textNudge` ("Text up / down (pixels)", -6 to 6).
+
 ## 2.31.0
 
 - **New module: Cast Bar** (Combat group, `Modules/CastBar.lua`). New file in the TOC: needs a full game restart.
