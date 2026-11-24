@@ -95,6 +95,9 @@ local M = {
 NS.RegisterModule("lorti", M)
 
 local function S() return NS.db.mod.lorti end
+-- 2.32.0: true when the Frame Style module restyles this unit's frame (Lorti then leaves its
+-- bars, portrait and name strip alone)
+local function Owned(unit) return NS.FrameStyleOwns and NS.FrameStyleOwns(unit) end
 
 ----------------------------------------------------------------------
 -- Helpers
@@ -386,7 +389,8 @@ local function ApplyNameBg()
     local a = (s.enabled and s.hideNameBg) and 0 or 1
     for _, p in ipairs(NAME_BG) do
         local t = NS.Resolve(p)
-        if t and t.SetAlpha then pcall(t.SetAlpha, t, a) end
+        local unit = p:find("^Target") and "target" or (p:find("^Player") and "player") or nil
+        if t and t.SetAlpha and not (unit and Owned(unit)) then pcall(t.SetAlpha, t, a) end
     end
 end
 
@@ -461,6 +465,7 @@ end
 local function Recolor(bar, info)
     local s = S()
     if not s.enabled then return end
+    if Owned(info.unit) then return end     -- 2.32.0: Frame Style colours this frame
     if info.kind == "health" then
         if s.customHealth then
             local c = s.healthColor
@@ -500,7 +505,7 @@ local function ApplyBarList(list, kind)
                     if info then pcall(Recolor, bar, info) end
                 end)
             end
-            if s.enabled and s.flatBars then SetFlat(bar, true) end
+            if s.enabled and s.flatBars and not Owned(entry.unit) then SetFlat(bar, true) end
             Recolor(bar, barInfo[bar])
         end
     end
@@ -537,7 +542,7 @@ local function ApplyPortraits()
     local s = S()
     for _, entry in ipairs(PORTRAITS) do
         local tex = NS.ResolveFirst(entry.paths)
-        if tex then
+        if tex and not Owned(entry.unit) then
             if s.enabled and s.classPortraits then
                 ClassPortrait(tex, entry.unit)
             elseif SetPortraitTexture and UnitExists(entry.unit) then
@@ -812,7 +817,7 @@ function M:Init()
             if not (s.enabled and s.classPortraits) then return end
             local unit = frame and frame.unit
             if unit == "player" or unit == "pet" then return end
-            if frame.portrait and unit then pcall(ClassPortrait, frame.portrait, unit) end
+            if frame.portrait and unit and not Owned(unit) then pcall(ClassPortrait, frame.portrait, unit) end
         end)
     end
 

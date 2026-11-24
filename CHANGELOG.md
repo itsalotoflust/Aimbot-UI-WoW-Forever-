@@ -2,6 +2,17 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.32.0
+
+- **New module: Frame Style** (Style group, `Modules/FrameStyle.lua`). New file in the TOC: needs a full game restart. Original code; the look follows a screenshot (Easy Frames has no license, so its code and textures were not opened).
+  - Restyles the game's `PlayerFrame`, `TargetFrame` and `TargetFrameToT` (modern names first, classic names as fallback). Frame art, flash, portrait mask and the name strip get `SetAlpha(0)`; health bar (default 130 x 24) and power bar (8 high) moved under the name, with a black background texture and our own black border (2 px) and text on a child frame; round portrait (54) to the right with a black ring behind it (red while `UnitAffectingCombat`), class icons for players. Target of target: small portrait left, short bars right, name under.
+  - Bar masks are removed from the moved bars' fill textures so they aren't clipped. The game's own bar texts get alpha 0. Health colour: class colour for players, grey for tap-denied, reaction red / yellow / green.
+  - Health text: number, percent, both or none; "Dead" when dead. Secret health is handed straight to `SetText` (no maths, no comparison); percent mode shows nothing then. Texts update from an `OnValueChanged` hook on the game's bars.
+  - Layout put back (next frame) after `PlayerFrame_UpdateArt`, `PlayerFrame_ToPlayerArt`, `PlayerFrame_ToVehicleArt`, `TargetFrame_CheckClassification`, `TargetFrame_Update`, `UnitFrame_Update`, the frames' `CheckClassification` / `Update` / `UpdateArt` methods, target changes and combat start / end. In combat, protected parts (`IsProtected`) aren't moved; combat end puts them in place.
+  - Method calls and post-hooks only; no fields written on game frames (tested).
+  - **Lorti:** new `NS.FrameStyleOwns(unit)`; Lorti's bar colouring, flat-bar masks, class portraits and name-strip alpha skip frames Frame Style restyles.
+  - `/aimbot diag`: which parts were found per frame, layouts, secret health shown raw, errors.
+
 ## 2.31.2
 
 - **Cast Bar: the game's bar stays hidden on interrupts.** `SetAlpha(0)` wasn't enough: its interrupt / fade alpha animations override the frame alpha. While hiding, the game's bars (`PlayerCastingBarFrame`, `OverlayPlayerCastingBarFrame`, `CastingBarFrame` when present) now get `UnregisterAllEvents()`, `Hide()`, `SetAlpha(0)` and every animation group `Stop()`ped. Post-hooks on `Show` / `OnShow` hide it again; a post-hook on its `SetUnit` (the game re-linking it, e.g. Edit Mode) unregisters again. Turning the option or the module off calls `SetUnit("player", true, true)` (or `CastingBarFrame_SetUnit`) to give it its events back; if neither exists, `/aimbot diag` says to `/reload`. Method calls only.

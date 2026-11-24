@@ -1,4 +1,4 @@
-AIMBOT UI  v2.31.2  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.32.0  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,19 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.32.0
+  - NEW: Frame Style (Style tab). Needs a full game restart (new file), not just /reload.
+    * Restyles the game's own player, target and target-of-target frames: the name above a
+      big health bar with the health number in the middle, a thin power bar under it, both
+      with a black border, and a round portrait beside them. The frame art is hidden.
+    * Players' health bars in class colour (NPCs: red / yellow / green), players' portraits
+      as class icons, and the portrait ring turns red while that unit is in combat.
+    * Still the game's frames: right-click menus, focus and clicking to target keep working.
+    * Options: each frame on or off, health text (number, percent, both, none), power
+      number, level, border thickness, bar sizes, portrait size, text size.
+    * While a frame is restyled, the Lorti skin leaves its bars, portrait and name strip
+      alone. Turning a frame off puts most of it back at once; a /reload restores it fully.
 
 NEW IN 2.31.2
   - Cast Bar: the game's own cast bar no longer pops up with its red "Interrupted" when you
