@@ -16,9 +16,9 @@
   on the bar waits until combat ends. Counts, dimming, timers and cooldowns update any time.
 
   2.30.0: grouped by kind. One button per kind (food, elixirs, scrolls, oils ...) uses your chosen
-  item of that kind; the arrow tab on its top edge opens a pop-up list (upwards by default) with
-  the other items of that kind. Picking one uses it and makes it that kind's main button. The
-  list opens through a secure handler, so it works in combat too; the main button itself can
+  item of that kind; hovering it opens a pop-up list (upwards by default) with the other items of
+  that kind (2.30.1: on mouseover, was an arrow tab). Picking one uses it and makes it that kind's
+  main button. The list opens through a secure handler, so it works in combat too; the main button itself can
   only swap items out of combat (the game's rule), so a pick made in combat swaps after combat.
 
   Every value read from the game is checked with NS.IsSecret; a secret value counts as unknown
@@ -564,7 +564,11 @@ M._t_TogglePin = TogglePin
 local function ShowTip(b)
     local e = b.entry
     if not e then return end
-    GameTooltip:SetOwner(b, "ANCHOR_BOTTOM")
+    -- keep the tooltip off the pop-up list: lists open up (tooltip below) or down (tooltip above)
+    local anchor = "ANCHOR_BOTTOM"
+    if b.isFly then anchor = "ANCHOR_RIGHT"
+    elseif b.fly and b.fly.dir == "down" then anchor = "ANCHOR_TOP" end
+    GameTooltip:SetOwner(b, anchor)
     if e.test then
         GameTooltip:AddLine("Buff Bar test icon", 1, 1, 1)
     else
@@ -578,7 +582,7 @@ local function ShowTip(b)
         if b.isFly then
             GameTooltip:AddLine("Picking it also makes it this kind's main button", 0.6, 0.9, 0.6)
         elseif e.flyout and #e.flyout > 0 then
-            GameTooltip:AddLine(string.format("Arrow on top: %d more of this kind", #e.flyout), 0.6, 0.9, 0.6)
+            GameTooltip:AddLine(string.format("%d more of this kind in the list", #e.flyout), 0.6, 0.9, 0.6)
         end
         GameTooltip:AddLine("Shift+right-click: hide this item", 0.6, 0.6, 0.6)
         GameTooltip:AddLine(e.pinned and "Ctrl+right-click: unpin" or "Ctrl+right-click: pin (always shown first)",
@@ -596,8 +600,11 @@ local function StopDrag()
     SavePosition()
 end
 
+-- Main buttons also carry the secure enter/leave handler: hovering one opens its pop-up list,
+-- in combat too (2.30.1).
+local MAIN_TEMPLATE = "SecureActionButtonTemplate,SecureHandlerEnterLeaveTemplate"
 local function MakeItemButton(name, parent, isFly)
-    local b = CreateFrame("Button", name, parent, "SecureActionButtonTemplate")
+    local b = CreateFrame("Button", name, parent, isFly and "SecureActionButtonTemplate" or MAIN_TEMPLATE)
     b.isFly = isFly
     if not isFly then
         b:RegisterForDrag("LeftButton")
@@ -661,8 +668,14 @@ local function MakeItemButton(name, parent, isFly)
         end
         if GameTooltip:IsOwned(self) then ShowTip(self) end
     end)
-    b:SetScript("OnEnter", ShowTip)
-    b:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    if isFly then
+        b:SetScript("OnEnter", ShowTip)
+        b:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    else
+        -- the template's OnEnter / OnLeave run the secure snippets; the tooltip is hooked after
+        b:HookScript("OnEnter", ShowTip)
+        b:HookScript("OnLeave", function() GameTooltip:Hide() end)
+    end
     b:Hide()
     return b
 end
@@ -673,21 +686,19 @@ local function MakeButton(i)
     return b
 end
 
--- The arrow tab and the pop-up list of a main button. The tab is a secure handler button, so
--- its snippet can show the list in combat; the list hides itself 1.5 s after the mouse leaves it
--- and its main button.
-local TOGGLE_SNIPPET = [[
+-- The pop-up list of a main button. Hovering the main button runs ENTER_SNIPPET (secure, so it
+-- works in combat): it shows the list when the button has one ("hasfly"), and the list hides
+-- itself 0.4 s after the mouse is over neither the list nor the main button.
+local ENTER_SNIPPET = [[
+    if not self:GetAttribute("hasfly") then return end
     local fly = self:GetFrameRef("fly")
-    if fly:IsShown() then
-        fly:Hide()
-    else
+    if fly and not fly:IsShown() then
         fly:Show()
-        fly:RegisterAutoHide(1.5)
+        fly:RegisterAutoHide(0.4)
         fly:AddToAutoHide(self)
-        fly:AddToAutoHide(self:GetParent())
     end
 ]]
-M._t_TOGGLE_SNIPPET = TOGGLE_SNIPPET
+M._t_ENTER_SNIPPET = ENTER_SNIPPET
 
 local function EnsureFly(b, i)
     if b.fly then return end
@@ -700,29 +711,11 @@ local function EnsureFly(b, i)
     fly.back:SetPoint("BOTTOMRIGHT", 3, -3)
     fly.back:SetColorTexture(0, 0, 0, 0.6)
     b.fly, b.flyButtons = fly, {}
-
-    local arrow = CreateFrame("Button", BUTTON_PREFIX .. i .. "Arrow", b, "SecureHandlerClickTemplate")
-    arrow:SetFrameLevel(b:GetFrameLevel() + 5)
-    arrow.back = arrow:CreateTexture(nil, "BACKGROUND")
-    arrow.back:SetAllPoints()
-    arrow.back:SetColorTexture(0, 0, 0, 0.85)
-    arrow.tex = arrow:CreateTexture(nil, "ARTWORK")
-    arrow.tex:SetPoint("CENTER")
-    local hl = arrow:CreateTexture(nil, "HIGHLIGHT")
-    hl:SetAllPoints()
-    hl:SetColorTexture(1, 1, 1, 0.2)
-    arrow:SetFrameRef("fly", fly)
-    arrow:SetAttribute("_onclick", TOGGLE_SNIPPET)
-    SetClicks(arrow)
-    arrow:SetScript("OnEnter", function(self)
-        local e = b.entry
-        GameTooltip:SetOwner(self, "ANCHOR_TOP")
-        GameTooltip:AddLine(string.format("%d more of this kind", e and e.flyout and #e.flyout or 0), 1, 1, 1)
-        GameTooltip:AddLine("Click to open or close the list", 0.6, 0.9, 0.6)
-        GameTooltip:Show()
-    end)
-    arrow:SetScript("OnLeave", function() GameTooltip:Hide() end)
-    b.arrow = arrow
+    b:SetFrameRef("fly", fly)
+    b:SetAttribute("_onenter", ENTER_SNIPPET)
+    -- small arrow mark on the edge the list opens from: "this button has more"
+    b.more = b:CreateTexture(nil, "OVERLAY", nil, 2)
+    b.more:SetSize(12, 12)
 end
 
 -- "up" or "down" for the pop-up lists
@@ -753,29 +746,30 @@ local function LayoutFly(b, i, e, s, dir)
     local list = e and e.flyout or {}
     if #list == 0 then
         if b.fly then
+            b:SetAttribute("hasfly", nil)
             b.fly:Hide()
-            b.arrow:Hide()
+            b.more:Hide()
             for _, fb in ipairs(b.flyButtons) do fb.entry = nil; SetSecure(fb, nil); fb:Hide() end
         end
         return
     end
     EnsureFly(b, i)
-    local fly, arrow = b.fly, b.arrow
+    local fly = b.fly
     fly:Hide()
-    arrow:ClearAllPoints()
-    arrow:SetSize(math.max(14, math.floor(s.size * 0.6)), 12)
+    fly.dir = dir
+    b:SetAttribute("hasfly", true)
     fly:ClearAllPoints()
+    b.more:ClearAllPoints()
     if dir == "down" then
-        arrow:SetPoint("CENTER", b, "BOTTOM", 0, 0)
-        arrow.tex:SetTexture(ARROW_DOWN)
-        fly:SetPoint("TOP", arrow, "BOTTOM", 0, -4)
+        fly:SetPoint("TOP", b, "BOTTOM", 0, -4)
+        b.more:SetPoint("BOTTOM", b, "BOTTOM", 0, 1)
+        b.more:SetTexture(ARROW_DOWN)
     else
-        arrow:SetPoint("CENTER", b, "TOP", 0, 0)
-        arrow.tex:SetTexture(ARROW_UP)
-        fly:SetPoint("BOTTOM", arrow, "TOP", 0, 4)
+        fly:SetPoint("BOTTOM", b, "TOP", 0, 4)
+        b.more:SetPoint("TOP", b, "TOP", 0, -1)
+        b.more:SetTexture(ARROW_UP)
     end
-    arrow.tex:SetSize(12, 12)
-    arrow:Show()
+    b.more:Show()
     fly:SetSize(s.size, #list * s.size + (#list - 1) * s.spacing)
     for j = 1, math.max(#b.flyButtons, #list) do
         local fb = b.flyButtons[j]
@@ -1026,7 +1020,6 @@ function M:Init()
             if InCombat() then return end
             for _, b in ipairs(buttons) do
                 SetClicks(b)
-                if b.arrow then SetClicks(b.arrow) end
                 for _, fb in ipairs(b.flyButtons or {}) do SetClicks(fb) end
             end
         end)
@@ -1122,8 +1115,8 @@ function M.Build(page)
     page:Cycle("Pop-up lists open", {
         { "up", "Upwards" }, { "down", "Downwards" }, { "auto", "Away from the screen edge" },
     }, function() return S().flyDir end, function(v) S().flyDir = v; Changed() end)
-    page:Note("Click the arrow tab on a button to open its list; it closes 1.5 seconds after the mouse "
-        .. "leaves. Picking an item uses it and makes it that kind's main button (after combat, if you "
+    page:Note("Hover a button to open its list (a small arrow on the button means it has one); it "
+        .. "closes when the mouse leaves. Picking an item uses it and makes it that kind's main button (after combat, if you "
         .. "pick it in combat). Pinned items keep their own buttons. If the bar sits at the top of the "
         .. "screen, choose Downwards or Away from the screen edge.")
 

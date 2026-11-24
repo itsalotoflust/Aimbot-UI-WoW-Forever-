@@ -1,4 +1,4 @@
-AIMBOT UI  v2.30.0  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.30.1  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,11 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.30.1
+  - Buff Bar: the pop-up list opens when you hover the button. No arrow to click any more.
+    It closes when the mouse leaves the button and the list. It works in combat too. A small
+    arrow mark on a button means it has a list. /reload is enough.
 
 NEW IN 2.30.0
   - Buff Bar: grouped by kind, with pop-up lists. One button per kind (food, elixirs & flasks,

@@ -2,6 +2,10 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.30.1
+
+- **Buff Bar: pop-up lists open on mouseover.** The arrow tab is gone. Main buttons are now `SecureActionButtonTemplate,SecureHandlerEnterLeaveTemplate`; their `_onenter` snippet shows the list when the button has one (`hasfly` attribute, set out of combat) and registers `RegisterAutoHide(0.4)` with the main button, so it opens and closes in combat too. Tooltips are hooked (`HookScript`) so the template's enter/leave handlers stay in place. A small arrow texture on the edge the list opens from marks buttons that have a list. The tooltip moves to the other side of the button so it doesn't cover the list.
+
 ## 2.30.0
 
 - **Buff Bar: grouped by kind, with pop-up lists.** New options `grouped` (on), `flyDir` (`up` default, `down`, `auto`) and `preferred` (kind -> item ID on the main button).
