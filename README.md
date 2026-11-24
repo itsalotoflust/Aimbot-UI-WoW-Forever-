@@ -6,6 +6,10 @@ An all-in-one interface addon suite for **World of Warcraft Forever** (interface
 
 Open it in game with `/aimbot` (or `/aui`). Every module has its own tab and its own on/off switch, and if one module hits a problem it reports in chat and the rest keep running.
 
+## What's new in 2.31.2
+
+- **Cast Bar:** the game's own cast bar no longer shows its red "Interrupted" when a cast is stopped or interrupted. `/reload` is enough.
+
 ## What's new in 2.31.1
 
 - **Cast Bar:** spell name and timer centred in the bar, with a "Text up / down" slider to fine-tune. `/reload` is enough.

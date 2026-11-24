@@ -2,6 +2,10 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.31.2
+
+- **Cast Bar: the game's bar stays hidden on interrupts.** `SetAlpha(0)` wasn't enough: its interrupt / fade alpha animations override the frame alpha. While hiding, the game's bars (`PlayerCastingBarFrame`, `OverlayPlayerCastingBarFrame`, `CastingBarFrame` when present) now get `UnregisterAllEvents()`, `Hide()`, `SetAlpha(0)` and every animation group `Stop()`ped. Post-hooks on `Show` / `OnShow` hide it again; a post-hook on its `SetUnit` (the game re-linking it, e.g. Edit Mode) unregisters again. Turning the option or the module off calls `SetUnit("player", true, true)` (or `CastingBarFrame_SetUnit`) to give it its events back; if neither exists, `/aimbot diag` says to `/reload`. Method calls only.
+
 ## 2.31.1
 
 - **Cast Bar: text centred.** The spell name and timer are lifted `height * 3.5 / 13` px above the bar's centre (3.5 px at the classic 13 px, as the classic bar does), since letters sit low in their font box. New option `textNudge` ("Text up / down (pixels)", -6 to 6).

@@ -1,4 +1,4 @@
-AIMBOT UI  v2.31.1  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.31.2  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,12 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.31.2
+  - Cast Bar: the game's own cast bar no longer pops up with its red "Interrupted" when you
+    stop a cast or get interrupted. It played its own animation, which ignored the way it was
+    hidden before. Now it's switched off properly while Cast Bar hides it, and switching the
+    option off gives it back. /reload is enough.
 
 NEW IN 2.31.1
   - Cast Bar: the spell name and seconds left sit in the middle of the bar instead of low.

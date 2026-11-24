@@ -402,17 +402,57 @@ end
 -- The game's own player cast bar: hidden with method calls only
 ----------------------------------------------------------------------
 local hookedFrames = {}
+local silenced = {}          -- game bars whose events we unregistered (so we can give them back)
 local function GameBars()
     local t = {}
-    if _G.PlayerCastingBarFrame then t[#t + 1] = _G.PlayerCastingBarFrame end
-    if _G.CastingBarFrame and _G.CastingBarFrame ~= _G.PlayerCastingBarFrame then t[#t + 1] = _G.CastingBarFrame end
+    for _, n in ipairs({ "PlayerCastingBarFrame", "OverlayPlayerCastingBarFrame", "CastingBarFrame" }) do
+        local f = _G[n]
+        local dup = false
+        for _, g in ipairs(t) do if g == f then dup = true end end
+        if f and not dup then t[#t + 1] = f end
+    end
     return t
 end
 
 local function HideOn() local s = S(); return s.enabled and s.hideBlizzard end
 
-local function ApplyGameAlpha(f)
-    pcall(f.SetAlpha, f, HideOn() and 0 or 1)
+-- 2.31.2: SetAlpha(0) alone wasn't enough: the game's bar plays its own interrupt / fade
+-- animations, and an alpha animation overrides the frame's alpha. Now the bar's events are
+-- unregistered (it never starts a cast or an interrupt), it is hidden, and its animations are
+-- stopped. Method calls only.
+local function StopAnims(f)
+    if not f.GetAnimationGroups then return end
+    local ok, groups = pcall(function() return { f:GetAnimationGroups() } end)
+    if ok and type(groups) == "table" then
+        for _, g in ipairs(groups) do pcall(g.Stop, g) end
+    end
+end
+
+local function SilenceGame(f)
+    if f.UnregisterAllEvents and pcall(f.UnregisterAllEvents, f) then silenced[f] = true end
+    StopAnims(f)
+    pcall(f.SetAlpha, f, 0)
+    pcall(f.Hide, f)
+end
+M._t_SilenceGame = SilenceGame
+
+local function RestoreGame(f)
+    pcall(f.SetAlpha, f, 1)
+    if silenced[f] then
+        silenced[f] = nil
+        -- link it to the player again so it gets its events back
+        local okU = false
+        if type(f.SetUnit) == "function" then
+            okU = pcall(f.SetUnit, f, "player", true, true)
+        elseif type(CastingBarFrame_SetUnit) == "function" then
+            okU = pcall(CastingBarFrame_SetUnit, f, "player", true, true)
+        end
+        if not okU then M.stats.restoreNote = "type /reload to get the game's cast bar back" end
+    end
+end
+
+local function ApplyGame(f)
+    if HideOn() then SilenceGame(f) else RestoreGame(f) end
 end
 
 local function HookGameBars()
@@ -420,11 +460,23 @@ local function HookGameBars()
     for _, f in ipairs(GameBars()) do
         if not hookedFrames[f] then
             hookedFrames[f] = true
-            -- the game resets its alpha when it shows the bar, so set it again each time
-            pcall(hooksecurefunc, f, "Show", function(self) ApplyGameAlpha(self) end)
-            if f.HookScript then pcall(f.HookScript, f, "OnShow", function(self) ApplyGameAlpha(self) end) end
+            -- if the game shows it anyway, hide it again straight away
+            pcall(hooksecurefunc, f, "Show", function(self)
+                if HideOn() then pcall(self.SetAlpha, self, 0); pcall(self.Hide, self) end
+            end)
+            if f.HookScript then
+                pcall(f.HookScript, f, "OnShow", function(self)
+                    if HideOn() then pcall(self.SetAlpha, self, 0); pcall(self.Hide, self) end
+                end)
+            end
+            -- the game links the bar to the player again (Edit Mode, settings): unregister again
+            if type(f.SetUnit) == "function" then
+                pcall(hooksecurefunc, f, "SetUnit", function(self)
+                    if HideOn() then SilenceGame(self) end
+                end)
+            end
         end
-        ApplyGameAlpha(f)
+        ApplyGame(f)
         local okN, n = pcall(f.GetName, f)
         names[#names + 1] = okN and tostring(n) or "?"
     end
@@ -578,4 +630,5 @@ function M:Diagnose()
         st2.casts, st2.channels, st2.done, st2.failed, st2.secret))
     NS.Print(string.format("  state %s   game bar hidden: %s (%s)   last error %s",
         tostring(st.mode or "idle"), tostring(HideOn()), tostring(st2.hidden), tostring(st2.lastError or "-")))
+    if st2.restoreNote then NS.Print("  " .. st2.restoreNote) end
 end
