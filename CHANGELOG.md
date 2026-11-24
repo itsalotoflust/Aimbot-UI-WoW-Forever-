@@ -2,6 +2,10 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.32.3
+
+- **Frame Style:** player frame mirrored: portrait on the left (x 24), bars to its right (x 24 + portrait + 8). Target frame unchanged (bars left, portrait right). `Geometry(s, small, mirror)`; `UNITS.player.mirror = true`.
+
 ## 2.32.2
 
 - **Frame Style rework.**

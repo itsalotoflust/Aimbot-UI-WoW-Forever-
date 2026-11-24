@@ -1,5 +1,5 @@
 --[[
-  Aimbot UI - Frame Style (2.32.0, rebuilt in 2.32.2)
+  Aimbot UI - Frame Style (2.32.0, rebuilt in 2.32.2, player mirrored in 2.32.3)
   Restyles the game's own player, target and target-of-target frames into a compact look:
   the name above a big health bar with the health number in the middle, a thin power bar
   under it, both with a black border, and a round portrait beside them (class icon for
@@ -88,6 +88,7 @@ local CLASS_FILES = {
 local UNITS = {
     player = {
         unit = "player", key = "player", small = false,
+        mirror = true,      -- 2.32.3: portrait on the left of the bars (the target's is on the right)
         frame    = { "PlayerFrame" },
         health   = { "PlayerFrame.PlayerFrameContent.PlayerFrameContentMain.HealthBarsContainer.HealthBar",
                      "PlayerFrameHealthBar" },
@@ -500,15 +501,19 @@ end
 ----------------------------------------------------------------------
 -- Big frames: bars on the left, round portrait on the right, name above the health bar.
 -- Small (target of target): portrait on the left, short bars to its right, name under them.
-local function Geometry(s, small)
+-- mirror (player): portrait on the left, bars to its right.
+local function Geometry(s, small, mirror)
     if small then
         return { hx = 40, hy = -8, hw = 64, hh = 10, ph = 4, px = 4, py = -2, ps = 34, gap = 2 }
     end
     local hw, hh, ph, ps = s.healthWidth, s.healthHeight, s.powerHeight, s.portraitSize
-    local hx, hy = 24, -30
+    local left, hy = 24, -30
     local block = hh + 3 + ph
-    return { hx = hx, hy = hy, hw = hw, hh = hh, ph = ph, gap = 3,
-             px = hx + hw + 8, py = hy + (ps - block) / 2, ps = ps }
+    local py = hy + (ps - block) / 2
+    if mirror then
+        return { hx = left + ps + 8, hy = hy, hw = hw, hh = hh, ph = ph, gap = 3, px = left, py = py, ps = ps }
+    end
+    return { hx = left, hy = hy, hw = hw, hh = hh, ph = ph, gap = 3, px = left + hw + 8, py = py, ps = ps }
 end
 M._t_Geometry = Geometry
 
@@ -573,7 +578,7 @@ local function ApplyUnit(key)
         return
     end
     M.stats.layouts = M.stats.layouts + 1
-    local g = Geometry(s, d.small)
+    local g = Geometry(s, d.small, d.mirror)
     local f = p.frame
     if p.health then
         local hd = Decorate(p.health, "health", d.unit, d.small)

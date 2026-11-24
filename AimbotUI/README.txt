@@ -1,4 +1,4 @@
-AIMBOT UI  v2.32.2  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.32.3  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,11 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.32.3
+  - Frame Style: your own portrait (class icon) sits on the left of your bars now, so the
+    player frame mirrors the target frame (whose portrait stays on the right). /reload is
+    enough.
 
 NEW IN 2.32.2
   - Frame Style, reworked to look like the reference:
