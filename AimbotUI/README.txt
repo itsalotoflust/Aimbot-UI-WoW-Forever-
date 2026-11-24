@@ -1,4 +1,4 @@
-AIMBOT UI  v2.32.0  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.32.1  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,11 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.32.1
+  - Cast Bar: new "Scale" slider (50% to 300%) that makes the whole bar bigger, border and
+    text included, without stretching the classic border out of shape. The Height slider
+    now goes up to 40. /reload is enough.
 
 NEW IN 2.32.0
   - NEW: Frame Style (Style tab). Needs a full game restart (new file), not just /reload.

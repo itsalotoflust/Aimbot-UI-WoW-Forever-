@@ -2,6 +2,10 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.32.1
+
+- **Cast Bar: scale.** New option `scale` ("Scale (whole bar, keeps its shape)", 0.5 to 3, default 1) applied with `SetScale`, so the classic border art grows in proportion. Height slider range 8 to 40 (was 30).
+
 ## 2.32.0
 
 - **New module: Frame Style** (Style group, `Modules/FrameStyle.lua`). New file in the TOC: needs a full game restart. Original code; the look follows a screenshot (Easy Frames has no license, so its code and textures were not opened).

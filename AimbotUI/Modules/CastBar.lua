@@ -25,6 +25,7 @@ local M = {
         locked       = true,
         point        = { "BOTTOM", "BOTTOM", 0, 175 },
         width        = 195,          -- classic size
+        scale        = 1,            -- 2.32.1: whole bar bigger / smaller, in proportion
         height       = 13,
         border       = "classic",    -- "classic" (the game's classic art) or "simple" (1 px line)
         showIcon     = false,
@@ -144,6 +145,7 @@ local function Layout()
     bar:ClearAllPoints()
     bar:SetPoint(p[1], UIParent, p[2], p[3], p[4])
     bar:SetSize(s.width, s.height)
+    pcall(bar.SetScale, bar, math.max(0.5, math.min(3, s.scale or 1)))
     bar:EnableMouse(not s.locked)
     local bw, bh, by = ArtGeometry(s.width, s.height)
     local classic = s.border ~= "simple"
@@ -602,8 +604,10 @@ function M.Build(page)
     end, 260)
     page:Cycle("Border", { { "classic", "Classic (the game's classic art)" }, { "simple", "Simple line" } },
         function() return S().border end, function(v) S().border = v; Re() end)
+    page:Slider("Scale (whole bar, keeps its shape)", 0.5, 3, 0.05, function() return S().scale end,
+        function(v) S().scale = v; Re() end, function(v) return string.format("%d%%", math.floor(v * 100 + 0.5)) end)
     page:Slider("Width", 120, 400, 5, function() return S().width end, function(v) S().width = v; Re() end)
-    page:Slider("Height", 8, 30, 1, function() return S().height end, function(v) S().height = v; Re() end)
+    page:Slider("Height", 8, 40, 1, function() return S().height end, function(v) S().height = v; Re() end)
     page:Slider("Text size", 8, 20, 1, function() return S().fontSize end, function(v) S().fontSize = v; Re() end)
     page:Slider("Text up / down (pixels)", -6, 6, 1, function() return S().textNudge end,
         function(v) S().textNudge = v; Re() end)
