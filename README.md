@@ -6,6 +6,10 @@ An all-in-one interface addon suite for **World of Warcraft Forever** (interface
 
 Open it in game with `/aimbot` (or `/aui`). Every module has its own tab and its own on/off switch, and if one module hits a problem it reports in chat and the rest keep running.
 
+## What's new in 2.32.4
+
+- **Frame Style:** round portraits connect to the frames (overlapping the bars, thick black ring, red in combat) and the bars have rounded corners with a rounded black border. New image files: needs a full game restart.
+
 ## What's new in 2.32.3
 
 - **Frame Style:** your portrait sits on the left of your bars, mirroring the target frame. `/reload` is enough.

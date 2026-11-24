@@ -2,6 +2,13 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.32.4
+
+- **Frame Style: connected portraits and rounded bars.** New files: `media/ui/round_bar.tga` (256 x 64) and `media/ui/round_thin.tga` (256 x 16), white rounded rectangles with an anti-aliased alpha shape (original assets). Needs a full game restart.
+  - Our own portrait per frame: a frame on the unit frame at +12 levels (above the bars) with a black disc ring (`media/ui/circle`, 1.5 x border thickness, red in combat) and a round-masked texture: class icon for players, `SetPortraitTexture` otherwise. Repainted on `UNIT_PORTRAIT_UPDATE`, `UNIT_FLAGS`, target changes and `UnitFramePortrait_Update`. The game's portrait is no longer moved or masked; the sweep hides it (and puts it back when off).
+  - The portrait overlaps the bars' end by 30% of its size (player: left end, target: right end; ToT likewise).
+  - New option `rounded` (on): each bar gets a black rounded border shape (`BACKGROUND -8`, border px outside), a dark rounded inner background, and a mask with the same shape on the fill texture (re-added after the game's masks are removed). Thin shape for bars 10:1 or longer. Square borders when off.
+
 ## 2.32.3
 
 - **Frame Style:** player frame mirrored: portrait on the left (x 24), bars to its right (x 24 + portrait + 8). Target frame unchanged (bars left, portrait right). `Geometry(s, small, mirror)`; `UNITS.player.mirror = true`.

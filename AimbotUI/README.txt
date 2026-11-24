@@ -1,4 +1,4 @@
-AIMBOT UI  v2.32.3  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.32.4  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,14 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.32.4
+  - Frame Style, closer to the reference: needs a full game restart (new image files).
+    * The round portrait now connects to the frame: it overlaps the end of the bars and sits
+      on top of them, with a thick black ring around it (red while that unit is in combat).
+    * Rounded bars: the health and power bars have rounded corners and a rounded black
+      border. Switch: "Rounded bars" (on).
+    * Works the same on player (portrait left), target (portrait right) and target of target.
 
 NEW IN 2.32.3
   - Frame Style: your own portrait (class icon) sits on the left of your bars now, so the

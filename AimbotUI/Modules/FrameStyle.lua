@@ -1,5 +1,5 @@
 --[[
-  Aimbot UI - Frame Style (2.32.0, rebuilt in 2.32.2, player mirrored in 2.32.3)
+  Aimbot UI - Frame Style (2.32.0, rebuilt in 2.32.2, player mirrored in 2.32.3, rounded in 2.32.4)
   Restyles the game's own player, target and target-of-target frames into a compact look:
   the name above a big health bar with the health number in the middle, a thin power bar
   under it, both with a black border, and a round portrait beside them (class icon for
@@ -21,6 +21,10 @@
   there by post-hooks on the bars' SetStatusBarTexture / SetStatusBarColor. The portrait gets
   its own round mask. A short report of the frames' real structure is saved in the settings
   (AimbotUIDB.frameDump) so the layout can be matched to this client exactly.
+
+  2.32.4: rounded bars (our own rounded-rectangle shape as the bars' mask and black border) and
+  a connected portrait: our own round portrait (class icon or the unit's portrait) on a layer
+  above the bars, overlapping their end, with a thick black ring. The game's portrait is hidden.
 
   Values the client hides (other players' health can be a secret value) are never compared or
   used in arithmetic: secret health is handed straight to SetText, or the text is left empty.
@@ -52,6 +56,7 @@ local M = {
         powerHeight  = 8,
         portraitSize = 54,
         fontSize     = 16,
+        rounded      = true,      -- 2.32.4: rounded bars
     },
 }
 NS.RegisterModule("framestyle", M)
@@ -81,6 +86,15 @@ local CLASS_FILES = {
     DEATHKNIGHT = true, DRUID = true, HUNTER = true, MAGE = true, PALADIN = true,
     PRIEST = true, ROGUE = true, SHAMAN = true, WARLOCK = true, WARRIOR = true,
 }
+
+local SHAPE_WIDE = MEDIA .. "ui\\round_bar"    -- 256 x 64 rounded rectangle (our own asset)
+local SHAPE_THIN = MEDIA .. "ui\\round_thin"   -- 256 x 16, for thin bars
+local DISC = MEDIA .. "ui\\circle"
+local function ShapeFor(w, h)
+    if type(w) == "number" and type(h) == "number" and h > 0 and w / h >= 10 then return SHAPE_THIN end
+    return SHAPE_WIDE
+end
+M._t_ShapeFor = ShapeFor
 
 ----------------------------------------------------------------------
 -- Where the parts of each frame live (modern names first, classic names as fallback)
@@ -157,7 +171,6 @@ local BAR_TEXTS = { "TextString", "LeftText", "RightText" }
 ----------------------------------------------------------------------
 local parts = {}            -- key -> { frame, health, power, portrait, name, level, ... our textures }
 local deco = {}             -- game statusbar -> { bg, edges, text, kind, unit }
-local ringOf = {}           -- game portrait texture -> { ring, mask }
 local hookedBar, hookedPortraitFn, hookedLayoutFns = {}, false, false
 
 local function SetAlphaSafe(obj, a) if obj and obj.SetAlpha then pcall(obj.SetAlpha, obj, a) end end
@@ -192,7 +205,7 @@ end
 local function Sweep(key, p, want, s)
     local d = UNITS[key]
     local keep = {}
-    for _, obj in ipairs({ p.portrait, p.name, p.health, p.power }) do if obj then keep[obj] = true end end
+    for _, obj in ipairs({ p.name, p.health, p.power }) do if obj then keep[obj] = true end end
     if s.showLevel and p.level then keep[p.level] = true end
     for _, path in ipairs(d.keep) do local o = NS.Resolve(path); if o then keep[o] = true end end
     -- our own textures on the game's frames (ring, bar background) are never swept
@@ -332,6 +345,12 @@ local function Decorate(bar, kind, unit, small)
             bg:SetAllPoints(bar)
             bg:SetColorTexture(0, 0, 0, 0.75)
         end
+        local okS, shape = pcall(bar.CreateTexture, bar, nil, "BACKGROUND", nil, -8)
+        if okS and shape then d.shape = shape end
+        if bar.CreateMaskTexture then
+            local okM, mask = pcall(bar.CreateMaskTexture, bar)
+            if okM and mask then d.mask = mask end
+        end
         local holder = CreateFrame("Frame", nil, bar)
         holder:SetAllPoints(bar)
         holder:SetFrameLevel((bar.GetFrameLevel and bar:GetFrameLevel() or 1) + 4)
@@ -349,12 +368,36 @@ local function Decorate(bar, kind, unit, small)
     return d
 end
 
-local function LayoutDeco(d, s)
+local function LayoutDeco(d, s, w, hgt)
     local b = math.max(0, math.floor(s.border or 2))
     local e = d.edges
     local h = d.holder
-    for i = 1, 4 do e[i]:ClearAllPoints(); e[i]:SetShown(b > 0) end
-    if b > 0 then
+    local round = s.rounded and true or false
+    d.rounded = round
+    local shapeTex = ShapeFor(w, hgt)
+    for i = 1, 4 do e[i]:ClearAllPoints(); e[i]:SetShown(b > 0 and not round) end
+    if d.shape then
+        d.shape:ClearAllPoints()
+        d.shape:SetPoint("TOPLEFT", h, "TOPLEFT", -b, b)
+        d.shape:SetPoint("BOTTOMRIGHT", h, "BOTTOMRIGHT", b, -b)
+        d.shape:SetTexture(shapeTex)
+        d.shape:SetVertexColor(0, 0, 0, 1)
+        d.shape:SetShown(round and b > 0)
+    end
+    if d.mask then
+        pcall(d.mask.SetTexture, d.mask, shapeTex, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+        pcall(d.mask.ClearAllPoints, d.mask)
+        pcall(d.mask.SetAllPoints, d.mask, h)
+    end
+    if d.bg then
+        if round then
+            d.bg:SetTexture(shapeTex)
+            d.bg:SetVertexColor(0.07, 0.07, 0.07, 0.9)
+        else
+            d.bg:SetColorTexture(0, 0, 0, 0.75)
+        end
+    end
+    if b > 0 and not round then
         e[1]:SetPoint("TOPLEFT", h, "TOPLEFT", -b, b); e[1]:SetPoint("TOPRIGHT", h, "TOPRIGHT", b, b); e[1]:SetHeight(b)
         e[2]:SetPoint("BOTTOMLEFT", h, "BOTTOMLEFT", -b, -b); e[2]:SetPoint("BOTTOMRIGHT", h, "BOTTOMRIGHT", b, -b); e[2]:SetHeight(b)
         e[3]:SetPoint("TOPLEFT", h, "TOPLEFT", -b, 0); e[3]:SetPoint("BOTTOMLEFT", h, "BOTTOMLEFT", -b, 0); e[3]:SetWidth(b)
@@ -369,6 +412,7 @@ end
 local function ShowDeco(d, on)
     if d.holder then d.holder:SetShown(on) end
     if d.bg then d.bg:SetShown(on) end
+    if d.shape then d.shape:SetShown(on and d.rounded and true or false) end
 end
 
 local function UpdateText(bar)
@@ -419,7 +463,9 @@ local function SkinTexture(bar)
     pcall(bar.SetStatusBarTexture, bar, BAR_TEX)
     if bar.SetStatusBarDesaturated then pcall(bar.SetStatusBarDesaturated, bar, false) end
     forcing = false
-    RemoveMasks(bar.GetStatusBarTexture and bar:GetStatusBarTexture())
+    local fill = bar.GetStatusBarTexture and bar:GetStatusBarTexture()
+    RemoveMasks(fill)
+    if d.mask and d.rounded and fill and fill.AddMaskTexture then pcall(fill.AddMaskTexture, fill, d.mask) end
 end
 
 local function HookBar(bar)
@@ -458,43 +504,64 @@ local function ClassIcon(tex, unit)
 end
 M._t_ClassIcon = ClassIcon
 
-local function DecoratePortrait(tex)
-    local r = ringOf[tex]
-    if r then return r end
-    r = {}
-    ringOf[tex] = r
-    local parent = tex.GetParent and tex:GetParent()
-    -- 2.32.2: our own round mask (the game's mask stays where the old portrait was)
-    if parent and parent.CreateMaskTexture then
-        local okM, mask = pcall(parent.CreateMaskTexture, parent)
+-- 2.32.4: our own portrait, drawn above the bars so it can overlap them
+local ownPortrait = {}       -- key -> { frame, ring, tex, mask }
+local function EnsurePortrait(key, parent)
+    local o = ownPortrait[key]
+    if o then return o end
+    o = {}
+    o.frame = CreateFrame("Frame", nil, parent)
+    o.frame:SetFrameLevel((parent.GetFrameLevel and parent:GetFrameLevel() or 1) + 12)
+    o.ring = o.frame:CreateTexture(nil, "BACKGROUND")
+    o.ring:SetTexture(DISC)
+    o.ring:SetVertexColor(0, 0, 0, 1)
+    o.tex = o.frame:CreateTexture(nil, "ARTWORK")
+    if o.frame.CreateMaskTexture then
+        local okM, mask = pcall(o.frame.CreateMaskTexture, o.frame)
         if okM and mask then
-            pcall(mask.SetTexture, mask, "Interface\\CharacterFrame\\TempPortraitAlphaMask",
-                "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
-            pcall(mask.SetAllPoints, mask, tex)
-            r.mask = mask
+            o.mask = mask
+            pcall(mask.SetTexture, mask, DISC, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+            pcall(mask.SetAllPoints, mask, o.tex)
+            pcall(o.tex.AddMaskTexture, o.tex, mask)
         end
     end
-    if parent and parent.CreateTexture then
-        -- a black disc a little larger than the portrait, behind it: reads as a ring
-        local okR, ring = pcall(parent.CreateTexture, parent, nil, "BACKGROUND", nil, -8)
-        if okR and ring then
-            ring:SetTexture(MEDIA .. "ui\\circle")
-            ring:SetVertexColor(0, 0, 0, 1)
-            r.ring = ring
-        end
-    end
-    return r
+    ownPortrait[key] = o
+    return o
 end
+M._t_OwnPortrait = function(key) return ownPortrait[key] end
 
-local function RingColor(r, unit)
-    if not r.ring then return end
+local function PaintPortrait(key)
+    local o = ownPortrait[key]
+    local d = UNITS[key]
+    if not o or not o.frame:IsShown() then return end
+    local unit = d.unit
+    local okE, exists = pcall(UnitExists, unit)
+    if not (okE and Clean(exists)) then o.tex:SetTexture(nil); return end
+    local done = false
+    if S().classIcons then
+        local okP, isPlayer = pcall(UnitIsPlayer, unit)
+        if okP and Clean(isPlayer) then
+            local okC, _, class = pcall(UnitClass, unit)
+            class = okC and Clean(class) or nil
+            if class and CLASS_FILES[class] then
+                o.tex:SetTexture(MEDIA .. "classes\\" .. class)
+                pcall(o.tex.SetTexCoord, o.tex, 0, 1, 0, 1)
+                done = true
+            end
+        end
+    end
+    if not done and SetPortraitTexture then
+        pcall(SetPortraitTexture, o.tex, unit)
+        pcall(o.tex.SetTexCoord, o.tex, 0.08, 0.92, 0.08, 0.92)
+    end
     local red = false
     if S().combatRing and UnitAffectingCombat then
         local okA, inCombat = pcall(UnitAffectingCombat, unit)
         red = okA and Clean(inCombat) and true or false
     end
-    if red then r.ring:SetVertexColor(0.8, 0.05, 0.05, 1) else r.ring:SetVertexColor(0, 0, 0, 1) end
+    if red then o.ring:SetVertexColor(0.8, 0.05, 0.05, 1) else o.ring:SetVertexColor(0, 0, 0, 1) end
 end
+M._t_PaintPortrait = PaintPortrait
 
 ----------------------------------------------------------------------
 -- Layout (offsets from the frame's top-left corner)
@@ -502,18 +569,23 @@ end
 -- Big frames: bars on the left, round portrait on the right, name above the health bar.
 -- Small (target of target): portrait on the left, short bars to its right, name under them.
 -- mirror (player): portrait on the left, bars to its right.
+-- 2.32.4: the portrait overlaps the end of the bars by 30% of its size (connected look).
+local OVERLAP = 0.3
 local function Geometry(s, small, mirror)
     if small then
-        return { hx = 40, hy = -8, hw = 64, hh = 10, ph = 4, px = 4, py = -2, ps = 34, gap = 2 }
+        local ps = 34
+        return { hx = 4 + ps - math.floor(ps * OVERLAP), hy = -10, hw = 64, hh = 10, ph = 4, px = 4, py = -2,
+                 ps = ps, gap = 2 }
     end
     local hw, hh, ph, ps = s.healthWidth, s.healthHeight, s.powerHeight, s.portraitSize
     local left, hy = 24, -30
     local block = hh + 3 + ph
     local py = hy + (ps - block) / 2
+    local lap = math.floor(ps * OVERLAP)
     if mirror then
-        return { hx = left + ps + 8, hy = hy, hw = hw, hh = hh, ph = ph, gap = 3, px = left, py = py, ps = ps }
+        return { hx = left + ps - lap, hy = hy, hw = hw, hh = hh, ph = ph, gap = 3, px = left, py = py, ps = ps }
     end
-    return { hx = left, hy = hy, hw = hw, hh = hh, ph = ph, gap = 3, px = left + hw + 8, py = py, ps = ps }
+    return { hx = left, hy = hy, hw = hw, hh = hh, ph = ph, gap = 3, px = left + hw - lap, py = py, ps = ps }
 end
 M._t_Geometry = Geometry
 
@@ -552,7 +624,6 @@ local function ApplyUnit(key)
     p.ours = p.ours or {}
     if p.health and deco[p.health] and deco[p.health].bg then p.ours.hbg = deco[p.health].bg end
     if p.power and deco[p.power] and deco[p.power].bg then p.ours.pbg = deco[p.power].bg end
-    if p.portrait and ringOf[p.portrait] and ringOf[p.portrait].ring then p.ours.ring = ringOf[p.portrait].ring end
     Sweep(key, p, want, s)
     for _, path in ipairs(d.art) do
         local a = NS.Resolve(path)
@@ -568,13 +639,14 @@ local function ApplyUnit(key)
     end
     if not want then
         for _, bar in ipairs({ p.health, p.power }) do
-            if bar and deco[bar] then ShowDeco(deco[bar], false); deco[bar].styled = false end
+            if bar and deco[bar] then
+                local dd = deco[bar]
+                ShowDeco(dd, false); dd.styled = false
+                local fill = bar.GetStatusBarTexture and bar:GetStatusBarTexture()
+                if dd.mask and fill and fill.RemoveMaskTexture then pcall(fill.RemoveMaskTexture, fill, dd.mask) end
+            end
         end
-        local r = p.portrait and ringOf[p.portrait]
-        if r then
-            if r.ring then r.ring:Hide() end
-            if r.mask and r.masked then pcall(p.portrait.RemoveMaskTexture, p.portrait, r.mask); r.masked = false end
-        end
+        if ownPortrait[key] then ownPortrait[key].frame:Hide() end
         return
     end
     M.stats.layouts = M.stats.layouts + 1
@@ -582,7 +654,7 @@ local function ApplyUnit(key)
     local f = p.frame
     if p.health then
         local hd = Decorate(p.health, "health", d.unit, d.small)
-        LayoutDeco(hd, s); ShowDeco(hd, true)
+        LayoutDeco(hd, s, g.hw, g.hh); ShowDeco(hd, true)
         PlaceRegion(p.health, "TOPLEFT", f, "TOPLEFT", g.hx, g.hy)
         SizeRegion(p.health, g.hw, g.hh)
         hd.styled = true
@@ -592,7 +664,7 @@ local function ApplyUnit(key)
     end
     if p.power then
         local pd = Decorate(p.power, "power", d.unit, d.small)
-        LayoutDeco(pd, s); ShowDeco(pd, true)
+        LayoutDeco(pd, s, g.hw, g.ph); ShowDeco(pd, true)
         if p.health then
             PlaceRegion(p.power, "TOPLEFT", p.health, "BOTTOMLEFT", 0, -(g.gap + (s.border or 2)))
         else
@@ -605,24 +677,20 @@ local function ApplyUnit(key)
         Recolor(p.power)
         UpdateText(p.power)
     end
-    if p.portrait then
-        local r = DecoratePortrait(p.portrait)
-        PlaceRegion(p.portrait, "TOPLEFT", f, "TOPLEFT", g.px, g.py)
-        SizeRegion(p.portrait, g.ps, g.ps)
-        RemoveMasks(p.portrait)
-        if r.mask then
-            pcall(r.mask.ClearAllPoints, r.mask)
-            pcall(r.mask.SetAllPoints, r.mask, p.portrait)
-            if pcall(p.portrait.AddMaskTexture, p.portrait, r.mask) then r.masked = true end
-        end
-        if r.ring then
-            r.ring:ClearAllPoints()
-            r.ring:SetPoint("CENTER", p.portrait, "CENTER", 0, 0)
-            r.ring:SetSize(g.ps + 2 * math.max(2, s.border or 2), g.ps + 2 * math.max(2, s.border or 2))
-            r.ring:Show()
-            RingColor(r, d.unit)
-        end
-        if s.classIcons then ClassIcon(p.portrait, d.unit) end
+    -- our own portrait above the bars; the game's portrait is hidden by the sweep
+    do
+        local o = EnsurePortrait(key, f)
+        local rb = math.max(2, math.floor((s.border or 2) * 1.5))
+        o.frame:ClearAllPoints()
+        o.frame:SetPoint("TOPLEFT", f, "TOPLEFT", g.px, g.py)
+        o.frame:SetSize(g.ps, g.ps)
+        o.tex:ClearAllPoints()
+        o.tex:SetAllPoints(o.frame)
+        o.ring:ClearAllPoints()
+        o.ring:SetPoint("CENTER", o.frame, "CENTER", 0, 0)
+        o.ring:SetSize(g.ps + 2 * rb, g.ps + 2 * rb)
+        o.frame:Show()
+        PaintPortrait(key)
     end
     if p.name and p.health then
         if d.small then
@@ -674,10 +742,10 @@ local function HookGame()
     if type(_G.UnitFramePortrait_Update) == "function" and not hookedPortraitFn then
         hookedPortraitFn = true
         hooksecurefunc("UnitFramePortrait_Update", function(frame)
-            if not (On() and S().classIcons) then return end
-            for key, d in pairs(UNITS) do
+            if not On() then return end
+            for key in pairs(UNITS) do
                 local p = parts[key]
-                if p and p.frame == frame and S()[key] and p.portrait then pcall(ClassIcon, p.portrait, d.unit) end
+                if p and p.frame == frame and S()[key] then pcall(PaintPortrait, key) end
             end
         end)
     end
@@ -770,12 +838,13 @@ function M:Init()
     end)
     NS.On("PLAYER_TARGET_CHANGED", Reapply)
     NS.On("UNIT_TARGET", function(_, unit) if unit == "target" then Reapply() end end)
-    NS.On("UNIT_FLAGS", function(_, unit)
+    local function Repaint(_, unit)
         for key, d in pairs(UNITS) do
-            local p = parts[key]
-            if d.unit == unit and p and p.portrait and ringOf[p.portrait] then RingColor(ringOf[p.portrait], unit) end
+            if d.unit == unit or (unit == "target" and key == "tot") then pcall(PaintPortrait, key) end
         end
-    end)
+    end
+    NS.On("UNIT_FLAGS", Repaint)
+    NS.On("UNIT_PORTRAIT_UPDATE", Repaint)
     for _, ev in ipairs({ "PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "UNIT_DISPLAYPOWER" }) do
         NS.On(ev, Reapply)
     end
@@ -816,6 +885,7 @@ function M.Build(page)
     page:Check("Power number on the power bar", function() return S().powerText end,
         function(v) S().powerText = v; Re() end)
     page:Check("Show level", function() return S().showLevel end, function(v) S().showLevel = v; Re() end)
+    page:Check("Rounded bars", function() return S().rounded end, function(v) S().rounded = v; Re() end)
     page:Slider("Border thickness", 0, 4, 1, function() return S().border end, function(v) S().border = v; Re() end)
     page:Slider("Health bar width", 90, 180, 2, function() return S().healthWidth end,
         function(v) S().healthWidth = v; Re() end)
