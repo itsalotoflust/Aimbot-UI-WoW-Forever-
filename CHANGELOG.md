@@ -2,6 +2,11 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.30.3
+
+- **Buff Bar: elixirs no longer dropped by the buff check.** `BUFF_FILTERED` is now food and other only; elixirs, flasks and scrolls always count (they were left out when their "Use:" text had no matching duration or hadn't loaded yet).
+- **Buff potions with the elixirs:** a potion (sub-class 1) whose tooltip text names a duration is filed under `elixirs`. Only when the text was actually read: if the client has no tooltip API the potion stays under Potions. Healing and mana potions stay under Potions.
+
 ## 2.30.2
 
 - **Buff Bar: more elixirs found.** `Classify` now takes the item name (from the bag slot's hyperlink, else `C_Item.GetItemNameByID` / `GetItemInfo`). A class 0 item whose name contains "elixir" or "flask" is an elixir whatever its sub-class (some are filed as generic consumable, other or potion); "Scroll of ..." is a scroll. English names.

@@ -1,4 +1,4 @@
-AIMBOT UI  v2.30.2  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.30.3  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,14 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.30.3
+  - Buff Bar: all your elixirs show. Elixirs, flasks and scrolls no longer have to pass the
+    "says how long it lasts" tooltip check (they are buffs by nature); it was dropping
+    elixirs whose text didn't match or hadn't loaded. The check now only applies to
+    Food & Drink and Other Usable.
+  - Buff Bar: potions that give a buff (protection, swiftness ...) go with Elixirs & Flasks.
+    Healing and mana potions stay under Potions (off by default). /reload is enough.
 
 NEW IN 2.30.2
   - Buff Bar: finds more elixirs and flasks. Some are filed by the game as "Consumable",

@@ -104,7 +104,9 @@ local KINDS = { "food", "elixirs", "potions", "scrolls", "weapon", "bandages", "
 -- Kinds checked by the "only items that give a buff" filter. Potions and bandages are heals by
 -- nature: switching them on means you want them, so they skip the filter. Oils and stones
 -- always say how long they last.
-local BUFF_FILTERED = { food = true, elixirs = true, scrolls = true, other = true }
+-- 2.30.3: elixirs, flasks and scrolls are buffs by nature and skip the check; only food & drink
+-- and "other" are checked.
+local BUFF_FILTERED = { food = true, other = true }
 M._t_KINDS = KINDS
 
 -- Consumable (class 0) sub-classes: 1 potion, 2 elixir, 3 flask, 4 scroll, 5 food & drink,
@@ -259,7 +261,7 @@ local function ItemGivesBuff(itemID, spellID)
     local text, how, haveAPI = UseText(itemID, spellID)
     if not haveAPI then
         M.stats.noText = true
-        return true              -- this client can't tell us: show it rather than nothing
+        return true, true        -- this client can't tell us: show it rather than nothing (guess)
     end
     if not text then return nil end
     M.stats.textHow = how
@@ -292,6 +294,12 @@ local function BuildList()
                 local spellName, spellID = ItemSpell(itemID)
                 local name = ItemName(itemID, info.hyperlink)
                 local cat = Classify(classID, subClassID, itemID, spellName ~= nil, name)
+                -- 2.30.3: a potion that gives a buff (protection, swiftness ...) goes with the
+                -- elixirs; healing and mana potions stay under Potions
+                if cat == "potions" then
+                    local pb, guessed = ItemGivesBuff(itemID, spellID)
+                    if pb == true and not guessed then cat = "elixirs" end
+                end
                 local buff = true
                 if cat and s[cat] and not s.ignore[itemID] and s.onlyBuffs and BUFF_FILTERED[cat] then
                     buff = ItemGivesBuff(itemID, spellID)
@@ -1165,9 +1173,10 @@ function M.Build(page)
     page:Section("Items", "Buff check and pinned items")
     page:Check("Only items that give a buff (reads the item's tooltip)", function() return S().onlyBuffs end,
         function(v) S().onlyBuffs = v; Changed() end)
-    page:Note("For Food, Elixirs, Scrolls and Other: an item counts when its \"Use:\" text says how long "
-        .. "the effect lasts (\"for 30 min\", \"well fed\"). Plain food and drink are left out. Potions and "
-        .. "Bandages you switch on always show. Pin anything it misses.")
+    page:Note("Checks Food & Drink and Other Usable: an item counts when its \"Use:\" text says how long "
+        .. "the effect lasts (\"for 30 min\", \"well fed\"), so plain food and drink are left out. Elixirs, "
+        .. "flasks, scrolls and oils always count. Potions that give a buff go with the elixirs; healing "
+        .. "and mana potions stay under Potions. Pin anything it misses.")
     page:Input("Pin an item: name or item ID", function(text)
         local id = ParseItem(text)
         if not id then NS.Print("Buff Bar: couldn't find that item. Try its item ID."); return false end
