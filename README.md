@@ -6,6 +6,10 @@ An all-in-one interface addon suite for **World of Warcraft Forever** (interface
 
 Open it in game with `/aimbot` (or `/aui`). Every module has its own tab and its own on/off switch, and if one module hits a problem it reports in chat and the rest keep running.
 
+## What's new in 2.32.2
+
+- **Frame Style:** reworked toward the reference look: round portraits with their own mask (the player portrait is back), classic glossy bars in class / power colours, all leftover frame decoration hidden, name centred. Saves a short frame report to help match the layout exactly. `/reload` is enough.
+
 ## What's new in 2.32.1
 
 - **Cast Bar:** a Scale slider makes the whole bar bigger without stretching the classic border; Height now goes up to 40. `/reload` is enough.

@@ -1,5 +1,5 @@
 --[[
-  Aimbot UI - Frame Style (2.32.0)
+  Aimbot UI - Frame Style (2.32.0, rebuilt in 2.32.2)
   Restyles the game's own player, target and target-of-target frames into a compact look:
   the name above a big health bar with the health number in the middle, a thin power bar
   under it, both with a black border, and a round portrait beside them (class icon for
@@ -13,6 +13,14 @@
 
   The game moves its bars and portraits back when it redraws a frame (vehicle, classification,
   art changes), so the layout is put back from post-hooks on those, and on target changes.
+
+  2.32.2: instead of hiding a list of known art pieces, every decorative texture and text of the
+  frames' containers is hidden except a keep list (bars, portrait, name, level, raid marker);
+  masks are never hidden (a hidden mask hides what it covers). Bars get the classic glossy
+  texture with class / power colours (the client's own bar art has its colour baked in), held
+  there by post-hooks on the bars' SetStatusBarTexture / SetStatusBarColor. The portrait gets
+  its own round mask. A short report of the frames' real structure is saved in the settings
+  (AimbotUIDB.frameDump) so the layout can be matched to this client exactly.
 
   Values the client hides (other players' health can be a secret value) are never compared or
   used in arithmetic: secret health is handed straight to SetText, or the text is left empty.
@@ -88,9 +96,14 @@ local UNITS = {
         portrait = { "PlayerFrame.PlayerFrameContainer.PlayerPortrait", "PlayerPortrait" },
         name     = { "PlayerName", "PlayerFrame.name" },
         level    = { "PlayerLevelText", "PlayerFrame.PlayerFrameContent.PlayerFrameContentMain.LevelText" },
+        sweep    = { "PlayerFrame", "PlayerFrame.PlayerFrameContainer",
+                     "PlayerFrame.PlayerFrameContent.PlayerFrameContentMain",
+                     "PlayerFrame.PlayerFrameContent.PlayerFrameContentContextual",
+                     "PlayerFrame.PlayerFrameContent.PlayerFrameContentMain.HealthBarsContainer",
+                     "PlayerFrame.PlayerFrameContent.PlayerFrameContentMain.ManaBarArea" },
+        keep     = {},
         art      = { "PlayerFrame.PlayerFrameContainer.FrameTexture", "PlayerFrameTexture",
                      "PlayerFrame.PlayerFrameContainer.FrameFlash", "PlayerFrameFlash",
-                     "PlayerFrame.PlayerFrameContainer.PlayerPortraitMask",
                      "PlayerFrame.PlayerFrameContent.PlayerFrameContentContextual.PlayerPortraitCornerIcon",
                      "PlayerFrame.PlayerFrameContent.PlayerFrameContentMain.ReputationColor",
                      "PlayerFrameBackground" },
@@ -108,9 +121,14 @@ local UNITS = {
                      "TargetFrameTextureFrameName" },
         level    = { "TargetFrame.TargetFrameContent.TargetFrameContentMain.LevelText",
                      "TargetFrameTextureFrameLevelText" },
+        sweep    = { "TargetFrame", "TargetFrame.TargetFrameContainer", "TargetFrameTextureFrame",
+                     "TargetFrame.TargetFrameContent.TargetFrameContentMain",
+                     "TargetFrame.TargetFrameContent.TargetFrameContentContextual",
+                     "TargetFrame.TargetFrameContent.TargetFrameContentMain.HealthBarsContainer" },
+        keep     = { "TargetFrame.TargetFrameContent.TargetFrameContentContextual.RaidTargetIcon",
+                     "TargetFrameTextureFrameRaidTargetIcon" },
         art      = { "TargetFrame.TargetFrameContainer.FrameTexture", "TargetFrameTextureFrameTexture",
                      "TargetFrame.TargetFrameContainer.Flash", "TargetFrameFlash",
-                     "TargetFrame.TargetFrameContainer.PortraitMask",
                      "TargetFrame.TargetFrameContent.TargetFrameContentMain.ReputationColor",
                      "TargetFrameNameBackground", "TargetFrameBackground" },
     },
@@ -122,6 +140,8 @@ local UNITS = {
         portrait = { "TargetFrameToT.Portrait", "TargetFrame.totFrame.Portrait", "TargetFrameToTPortrait" },
         name     = { "TargetFrameToT.Name", "TargetFrame.totFrame.Name", "TargetFrameToTTextureFrameName" },
         level    = {},
+        sweep    = { "TargetFrameToT", "TargetFrameToTTextureFrame" },
+        keep     = {},
         art      = { "TargetFrameToT.FrameTexture", "TargetFrame.totFrame.FrameTexture",
                      "TargetFrameToTTextureFrameTexture", "TargetFrameToTBackground" },
     },
@@ -157,6 +177,50 @@ local function Find(key)
     return p
 end
 M._t_Find = Find
+
+----------------------------------------------------------------------
+-- 2.32.2: hide every decorative region of the frames' containers except a keep list
+----------------------------------------------------------------------
+local origAlpha = {}        -- game region -> its alpha before we hid it
+local function IsType(r, t)
+    if not (r and r.IsObjectType) then return false end
+    local ok, v = pcall(r.IsObjectType, r, t)
+    return ok and v and not IsSecret(v)
+end
+
+local function Sweep(key, p, want, s)
+    local d = UNITS[key]
+    local keep = {}
+    for _, obj in ipairs({ p.portrait, p.name, p.health, p.power }) do if obj then keep[obj] = true end end
+    if s.showLevel and p.level then keep[p.level] = true end
+    for _, path in ipairs(d.keep) do local o = NS.Resolve(path); if o then keep[o] = true end end
+    -- our own textures on the game's frames (ring, bar background) are never swept
+    for _, r in pairs(p.ours or {}) do keep[r] = true end
+    for _, path in ipairs(d.sweep) do
+        local c = NS.Resolve(path)
+        if c and c.GetRegions then
+            local okR, regions = pcall(function() return { c:GetRegions() } end)
+            if okR then
+                for _, r in ipairs(regions) do
+                    local deco = (IsType(r, "Texture") or IsType(r, "FontString")) and not IsType(r, "MaskTexture")
+                    if deco and not keep[r] then
+                        if want then
+                            if origAlpha[r] == nil then
+                                local okA, a = pcall(r.GetAlpha, r)
+                                origAlpha[r] = (okA and type(a) == "number" and not IsSecret(a)) and a or 1
+                            end
+                            SetAlphaSafe(r, 0)
+                        elseif origAlpha[r] ~= nil then
+                            SetAlphaSafe(r, origAlpha[r])
+                            origAlpha[r] = nil
+                        end
+                    end
+                end
+            end
+        end
+    end
+end
+M._t_Sweep = Sweep
 
 ----------------------------------------------------------------------
 -- Colours and text
@@ -322,16 +386,54 @@ local function UpdateText(bar)
 end
 M._t_UpdateText = UpdateText
 
+local BAR_TEX = "Interface\\TargetingFrame\\UI-StatusBar"     -- the classic glossy bar
+M._t_BAR_TEX = BAR_TEX
+
+local function PowerColor(unit)
+    local okT, _, token = pcall(UnitPowerType, unit)
+    token = okT and Clean(token) or nil
+    local c = token and PowerBarColor and PowerBarColor[token]
+    if c then return c.r, c.g, c.b end
+    return 0, 0, 1
+end
+M._t_PowerColor = PowerColor
+
+local forcing = false        -- our own Set* calls must not re-trigger the hooks below
 local function Recolor(bar)
     local d = deco[bar]
-    if not d or d.kind ~= "health" or not On() then return end
-    local r, g, b = HealthColor(d.unit)
-    if r then pcall(bar.SetStatusBarColor, bar, r, g, b) end
+    if not d or not d.styled or not On() then return end
+    local r, g, b
+    if d.kind == "health" then r, g, b = HealthColor(d.unit) else r, g, b = PowerColor(d.unit) end
+    if r then
+        forcing = true
+        pcall(bar.SetStatusBarColor, bar, r, g, b)
+        forcing = false
+    end
+end
+
+local function SkinTexture(bar)
+    local d = deco[bar]
+    if not d or not d.styled then return end
+    forcing = true
+    pcall(bar.SetStatusBarTexture, bar, BAR_TEX)
+    if bar.SetStatusBarDesaturated then pcall(bar.SetStatusBarDesaturated, bar, false) end
+    forcing = false
+    RemoveMasks(bar.GetStatusBarTexture and bar:GetStatusBarTexture())
 end
 
 local function HookBar(bar)
     if hookedBar[bar] or not bar.HookScript then return end
     hookedBar[bar] = true
+    -- the game puts its own bar art and colour back on updates: put ours back right after
+    pcall(hooksecurefunc, bar, "SetStatusBarTexture", function(self)
+        if forcing or not On() then return end
+        local ok, err = pcall(function() SkinTexture(self); Recolor(self) end)
+        if not ok then M.stats.errors = M.stats.errors + 1; M.stats.lastError = tostring(err) end
+    end)
+    pcall(hooksecurefunc, bar, "SetStatusBarColor", function(self)
+        if forcing or not On() then return end
+        pcall(Recolor, self)
+    end)
     -- the value argument may be secret; the handler re-reads the unit instead
     pcall(bar.HookScript, bar, "OnValueChanged", function(self)
         local ok, err = pcall(function() Recolor(self); UpdateText(self) end)
@@ -361,6 +463,16 @@ local function DecoratePortrait(tex)
     r = {}
     ringOf[tex] = r
     local parent = tex.GetParent and tex:GetParent()
+    -- 2.32.2: our own round mask (the game's mask stays where the old portrait was)
+    if parent and parent.CreateMaskTexture then
+        local okM, mask = pcall(parent.CreateMaskTexture, parent)
+        if okM and mask then
+            pcall(mask.SetTexture, mask, "Interface\\CharacterFrame\\TempPortraitAlphaMask",
+                "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+            pcall(mask.SetAllPoints, mask, tex)
+            r.mask = mask
+        end
+    end
     if parent and parent.CreateTexture then
         -- a black disc a little larger than the portrait, behind it: reads as a ring
         local okR, ring = pcall(parent.CreateTexture, parent, nil, "BACKGROUND", nil, -8)
@@ -431,7 +543,12 @@ local function ApplyUnit(key)
     local p = Find(key)
     local want = s.enabled and s[key]
     if not p.frame then return end
-    -- art and the name strip
+    -- everything decorative (sweep, which remembers the original alpha), then the known art
+    p.ours = p.ours or {}
+    if p.health and deco[p.health] and deco[p.health].bg then p.ours.hbg = deco[p.health].bg end
+    if p.power and deco[p.power] and deco[p.power].bg then p.ours.pbg = deco[p.power].bg end
+    if p.portrait and ringOf[p.portrait] and ringOf[p.portrait].ring then p.ours.ring = ringOf[p.portrait].ring end
+    Sweep(key, p, want, s)
     for _, path in ipairs(d.art) do
         local a = NS.Resolve(path)
         if a then SetAlphaSafe(a, want and 0 or 1) end
@@ -446,9 +563,13 @@ local function ApplyUnit(key)
     end
     if not want then
         for _, bar in ipairs({ p.health, p.power }) do
-            if bar and deco[bar] then ShowDeco(deco[bar], false) end
+            if bar and deco[bar] then ShowDeco(deco[bar], false); deco[bar].styled = false end
         end
-        if p.portrait and ringOf[p.portrait] and ringOf[p.portrait].ring then ringOf[p.portrait].ring:Hide() end
+        local r = p.portrait and ringOf[p.portrait]
+        if r then
+            if r.ring then r.ring:Hide() end
+            if r.mask and r.masked then pcall(p.portrait.RemoveMaskTexture, p.portrait, r.mask); r.masked = false end
+        end
         return
     end
     M.stats.layouts = M.stats.layouts + 1
@@ -459,8 +580,9 @@ local function ApplyUnit(key)
         LayoutDeco(hd, s); ShowDeco(hd, true)
         PlaceRegion(p.health, "TOPLEFT", f, "TOPLEFT", g.hx, g.hy)
         SizeRegion(p.health, g.hw, g.hh)
-        RemoveMasks(p.health.GetStatusBarTexture and p.health:GetStatusBarTexture())
+        hd.styled = true
         HookBar(p.health)
+        SkinTexture(p.health)
         Recolor(p.health); UpdateText(p.health)
     end
     if p.power then
@@ -472,14 +594,22 @@ local function ApplyUnit(key)
             PlaceRegion(p.power, "TOPLEFT", f, "TOPLEFT", g.hx, g.hy - g.hh - g.gap)
         end
         SizeRegion(p.power, g.hw, g.ph)
-        RemoveMasks(p.power.GetStatusBarTexture and p.power:GetStatusBarTexture())
+        pd.styled = true
         HookBar(p.power)
+        SkinTexture(p.power)
+        Recolor(p.power)
         UpdateText(p.power)
     end
     if p.portrait then
         local r = DecoratePortrait(p.portrait)
         PlaceRegion(p.portrait, "TOPLEFT", f, "TOPLEFT", g.px, g.py)
         SizeRegion(p.portrait, g.ps, g.ps)
+        RemoveMasks(p.portrait)
+        if r.mask then
+            pcall(r.mask.ClearAllPoints, r.mask)
+            pcall(r.mask.SetAllPoints, r.mask, p.portrait)
+            if pcall(p.portrait.AddMaskTexture, p.portrait, r.mask) then r.masked = true end
+        end
         if r.ring then
             r.ring:ClearAllPoints()
             r.ring:SetPoint("CENTER", p.portrait, "CENTER", 0, 0)
@@ -496,6 +626,7 @@ local function ApplyUnit(key)
             PlaceRegion(p.name, "BOTTOM", p.health, "TOP", 0, 3 + (s.border or 2))
         end
         if p.name.SetJustifyH then pcall(p.name.SetJustifyH, p.name, d.small and "LEFT" or "CENTER") end
+        if p.name.SetWidth then pcall(p.name.SetWidth, p.name, d.small and 90 or g.hw) end
         pcall(p.name.SetTextColor, p.name, 1, 0.82, 0)
     end
 end
@@ -547,8 +678,91 @@ local function HookGame()
     end
 end
 
+----------------------------------------------------------------------
+-- 2.32.2: structure report, saved in AimbotUIDB.frameDump (read after a /reload or logout)
+----------------------------------------------------------------------
+local function KeyIn(parent, child)
+    if type(parent) ~= "table" then return nil end
+    for k, v in pairs(parent) do
+        if v == child and type(k) == "string" then return k end
+    end
+end
+
+local function Describe(o)
+    local bits = {}
+    local okT, t = pcall(o.GetObjectType, o)
+    bits[#bits + 1] = okT and tostring(t) or "?"
+    local okS, w, h = pcall(o.GetSize, o)
+    if okS and type(w) == "number" and not IsSecret(w) and type(h) == "number" and not IsSecret(h) then
+        bits[#bits + 1] = string.format("%dx%d", math.floor(w + 0.5), math.floor(h + 0.5))
+    end
+    local okV, v = pcall(o.IsShown, o)
+    if okV and not IsSecret(v) then bits[#bits + 1] = v and "shown" or "hidden" end
+    local okA, a = pcall(o.GetAlpha, o)
+    if okA and type(a) == "number" and not IsSecret(a) and a < 1 then bits[#bits + 1] = string.format("a%.2f", a) end
+    if o.GetAtlas then
+        local okAt, at = pcall(o.GetAtlas, o)
+        if okAt and type(at) == "string" and not IsSecret(at) then bits[#bits + 1] = "atlas=" .. at end
+    end
+    if o.GetTexture then
+        local okX, tex = pcall(o.GetTexture, o)
+        if okX and tex ~= nil and not IsSecret(tex) then bits[#bits + 1] = "tex=" .. tostring(tex) end
+    end
+    if o.GetPoint then
+        local okP, pt, rel, rp, x, y = pcall(o.GetPoint, o, 1)
+        if okP and pt and type(x) == "number" and not IsSecret(x) and type(y) == "number" and not IsSecret(y) then
+            local rn = rel and rel.GetName and select(2, pcall(rel.GetName, rel)) or nil
+            bits[#bits + 1] = string.format("@%s>%s:%s %d,%d", tostring(pt), tostring(rn or "?"), tostring(rp),
+                math.floor(x + 0.5), math.floor(y + 0.5))
+        end
+    end
+    return table.concat(bits, " ")
+end
+
+local function Walk(o, path, depth, out, seen)
+    if not o or seen[o] or #out >= 600 or depth > 5 then return end
+    seen[o] = true
+    out[#out + 1] = string.rep("  ", depth) .. path .. "  " .. Describe(o)
+    if o.GetRegions then
+        local okR, regions = pcall(function() return { o:GetRegions() } end)
+        if okR then
+            for i, r in ipairs(regions) do
+                if not seen[r] and #out < 600 then
+                    seen[r] = true
+                    local name = (r.GetName and select(2, pcall(r.GetName, r))) or KeyIn(o, r) or ("region" .. i)
+                    out[#out + 1] = string.rep("  ", depth + 1) .. tostring(name) .. "  " .. Describe(r)
+                end
+            end
+        end
+    end
+    if o.GetChildren then
+        local okC, kids = pcall(function() return { o:GetChildren() } end)
+        if okC then
+            for i, c in ipairs(kids) do
+                local name = (c.GetName and select(2, pcall(c.GetName, c))) or KeyIn(o, c) or ("child" .. i)
+                Walk(c, tostring(name), depth + 1, out, seen)
+            end
+        end
+    end
+end
+
+function M.Dump()
+    if not NS.db then return end
+    local out = { "Frame Style report " .. tostring(NS.version) .. "  style on: " .. tostring(On()) }
+    for _, name in ipairs({ "PlayerFrame", "TargetFrame", "TargetFrameToT" }) do
+        local f = _G[name]
+        if f then Walk(f, name, 0, out, {}) else out[#out + 1] = name .. "  (not found)" end
+    end
+    NS.db.frameDump = out
+    return out
+end
+
 function M:Init()
-    NS.On("PLAYER_ENTERING_WORLD", function() HookGame(); Reapply() end)
+    NS.On("PLAYER_ENTERING_WORLD", function()
+        HookGame(); Reapply()
+        -- the report: a few seconds in, when the frames have settled
+        if C_Timer and C_Timer.After then C_Timer.After(5, function() pcall(M.Dump) end) end
+    end)
     NS.On("PLAYER_TARGET_CHANGED", Reapply)
     NS.On("UNIT_TARGET", function(_, unit) if unit == "target" then Reapply() end end)
     NS.On("UNIT_FLAGS", function(_, unit)
@@ -579,6 +793,11 @@ function M.Build(page)
     page:Check("Player", function() return S().player end, function(v) S().player = v; Re() end)
     page:Check("Target", function() return S().target end, function(v) S().target = v; Re() end)
     page:Check("Target of target", function() return S().tot end, function(v) S().tot = v; Re() end)
+
+    page:Button("Save a frame report (for fixing the layout)", function()
+        local out = M.Dump()
+        NS.Print("Frame Style: report saved (" .. tostring(out and #out or 0) .. " lines). It is written to disk on /reload or logout.")
+    end, 300)
 
     page:Section("Look", "Colours, text and size")
     page:Check("Class-coloured health for players", function() return S().classHealth end,

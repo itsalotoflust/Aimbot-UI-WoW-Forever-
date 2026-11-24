@@ -1,4 +1,4 @@
-AIMBOT UI  v2.32.1  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.32.2  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,19 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.32.2
+  - Frame Style, reworked to look like the reference:
+    * The player portrait is back (it was hidden by its own mask) and is round on both
+      frames, with its own mask.
+    * Bars use the classic glossy texture, so class colours (health) and power colours
+      (mana blue, energy yellow, rage red) show properly instead of the game's green.
+    * All leftover decoration on the frames is hidden (the gold circles, rest Zzz and
+      the like): everything except the bars, portrait, name, level and raid marker.
+    * The name is centred over the health bar.
+  - Frame Style: saves a short report of how the game's frames are built, so the layout can
+    be matched to this client exactly. It's written to disk on /reload or logout. There's
+    also a "Save a frame report" button. /reload is enough.
 
 NEW IN 2.32.1
   - Cast Bar: new "Scale" slider (50% to 300%) that makes the whole bar bigger, border and

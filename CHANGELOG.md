@@ -2,6 +2,15 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.32.2
+
+- **Frame Style rework.**
+  - Masks are never hidden any more (`SetAlpha(0)` on `PlayerPortraitMask` hid the player portrait). The game's masks are removed from the moved portrait and our own round mask (`TempPortraitAlphaMask`) is added; removed again when the frame is turned off.
+  - New sweep: every Texture / FontString region (not masks) of each frame's containers (`PlayerFrame`, its `PlayerFrameContainer`, `PlayerFrameContentMain`, `PlayerFrameContentContextual`, `HealthBarsContainer`, `ManaBarArea`; the target equivalents; `TargetFrameToT`) gets alpha 0 unless it's the portrait, name, bars, level (option), raid target icon or one of our own textures. Original alphas are remembered and put back when off. Runs before the named art list so the art comes back correctly when off.
+  - Bars get `Interface\TargetingFrame\UI-StatusBar` (the client's own bar atlases have their colour baked in, so tints didn't show). Post-hooks on each bar's `SetStatusBarTexture` / `SetStatusBarColor` put our texture and colour back when the game resets them (guarded against re-entry). Power bars coloured from `PowerBarColor[token]`.
+  - Name width set to the health bar's width so it centres over it.
+  - New structure report: `M.Dump()` walks `PlayerFrame`, `TargetFrame`, `TargetFrameToT` (depth 5, up to 600 lines: names / parent keys, type, size, shown, alpha, atlas, texture, first anchor) into `AimbotUIDB.frameDump`, 5 s after login and from a settings button.
+
 ## 2.32.1
 
 - **Cast Bar: scale.** New option `scale` ("Scale (whole bar, keeps its shape)", 0.5 to 3, default 1) applied with `SetScale`, so the classic border art grows in proportion. Height slider range 8 to 40 (was 30).
