@@ -2,6 +2,13 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.32.5
+
+- **Frame Style: one block.** A single black block per frame (own frame one level under the bars; rounded shape or square) from the health bar's top-left to the power bar's bottom-right, `border` px outside; the power bar sits 1 px under the health bar so a black line divides them. Per-bar borders removed. Each bar's fill and dark background are masked with the block's inner area, so only the block's outer corners are rounded.
+  - Defaults now follow the reference: border 3, health 120 x 22, power 7, portrait 50, health text 17. Saved size settings are reset to these once (see `sizeVersion`).
+  - Portrait no longer overlaps: it sits 4 px beside the block (player left, target right), centred on the block, ring = border thickness. Target of target: 60 x 9 health, 4 power, 32 portrait on the left, border up to 2.
+  - Name sits `2 + border` px above the block.
+
 ## 2.32.4
 
 - **Frame Style: connected portraits and rounded bars.** New files: `media/ui/round_bar.tga` (256 x 64) and `media/ui/round_thin.tga` (256 x 16), white rounded rectangles with an anti-aliased alpha shape (original assets). Needs a full game restart.

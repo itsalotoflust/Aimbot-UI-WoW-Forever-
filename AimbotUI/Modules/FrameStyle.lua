@@ -1,5 +1,5 @@
 --[[
-  Aimbot UI - Frame Style (2.32.0, rebuilt in 2.32.2, player mirrored in 2.32.3, rounded in 2.32.4)
+  Aimbot UI - Frame Style (2.32.0, rebuilt in 2.32.2, player mirrored in 2.32.3, rounded in 2.32.4, one block in 2.32.5)
   Restyles the game's own player, target and target-of-target frames into a compact look:
   the name above a big health bar with the health number in the middle, a thin power bar
   under it, both with a black border, and a round portrait beside them (class icon for
@@ -26,6 +26,10 @@
   a connected portrait: our own round portrait (class icon or the unit's portrait) on a layer
   above the bars, overlapping their end, with a thick black ring. The game's portrait is hidden.
 
+  2.32.5: health and power sit in ONE block: a single thick black (rounded) border behind both
+  bars, with a 1 px black line between them, like the reference. Bars are rounded only at the
+  block's outer corners. The portrait sits just beside the block (no overlap), centred on it.
+
   Values the client hides (other players' health can be a secret value) are never compared or
   used in arithmetic: secret health is handed straight to SetText, or the text is left empty.
   Bar masks removed while the style is on come back on the next /reload when it is turned off.
@@ -50,12 +54,12 @@ local M = {
         healthText   = "value",   -- "value", "percent", "both" or "none"
         powerText    = true,
         showLevel    = false,
-        border       = 2,         -- black border thickness in pixels
-        healthWidth  = 130,
-        healthHeight = 24,
-        powerHeight  = 8,
-        portraitSize = 54,
-        fontSize     = 16,
+        border       = 3,         -- black border thickness in pixels (2.32.5: 3, was 2)
+        healthWidth  = 120,       -- 2.32.5 sizes follow the reference (were 130 / 24 / 8 / 54 / 16)
+        healthHeight = 22,
+        powerHeight  = 7,
+        portraitSize = 50,
+        fontSize     = 17,
         rounded      = true,      -- 2.32.4: rounded bars
     },
 }
@@ -368,40 +372,27 @@ local function Decorate(bar, kind, unit, small)
     return d
 end
 
-local function LayoutDeco(d, s, w, hgt)
-    local b = math.max(0, math.floor(s.border or 2))
-    local e = d.edges
-    local h = d.holder
+-- 2.32.5: the border is drawn once per frame (the block, below); here each bar only gets its
+-- dark background and a mask covering the block's inner area (topRef's top-left to botRef's
+-- bottom-right), so only the block's outer corners are rounded.
+local function LayoutDeco(d, s, topRef, botRef, shapeTex)
     local round = s.rounded and true or false
     d.rounded = round
-    local shapeTex = ShapeFor(w, hgt)
-    for i = 1, 4 do e[i]:ClearAllPoints(); e[i]:SetShown(b > 0 and not round) end
-    if d.shape then
-        d.shape:ClearAllPoints()
-        d.shape:SetPoint("TOPLEFT", h, "TOPLEFT", -b, b)
-        d.shape:SetPoint("BOTTOMRIGHT", h, "BOTTOMRIGHT", b, -b)
-        d.shape:SetTexture(shapeTex)
-        d.shape:SetVertexColor(0, 0, 0, 1)
-        d.shape:SetShown(round and b > 0)
-    end
+    for i = 1, 4 do d.edges[i]:Hide() end
+    if d.shape then d.shape:Hide() end
     if d.mask then
         pcall(d.mask.SetTexture, d.mask, shapeTex, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
         pcall(d.mask.ClearAllPoints, d.mask)
-        pcall(d.mask.SetAllPoints, d.mask, h)
+        pcall(d.mask.SetPoint, d.mask, "TOPLEFT", topRef, "TOPLEFT", 0, 0)
+        pcall(d.mask.SetPoint, d.mask, "BOTTOMRIGHT", botRef, "BOTTOMRIGHT", 0, 0)
     end
     if d.bg then
-        if round then
-            d.bg:SetTexture(shapeTex)
-            d.bg:SetVertexColor(0.07, 0.07, 0.07, 0.9)
-        else
-            d.bg:SetColorTexture(0, 0, 0, 0.75)
+        d.bg:SetColorTexture(0.06, 0.06, 0.06, 0.95)
+        if d.mask and d.bg.AddMaskTexture and not d.bgMasked and round then
+            if pcall(d.bg.AddMaskTexture, d.bg, d.mask) then d.bgMasked = true end
+        elseif d.bgMasked and not round and d.bg.RemoveMaskTexture then
+            pcall(d.bg.RemoveMaskTexture, d.bg, d.mask); d.bgMasked = false
         end
-    end
-    if b > 0 and not round then
-        e[1]:SetPoint("TOPLEFT", h, "TOPLEFT", -b, b); e[1]:SetPoint("TOPRIGHT", h, "TOPRIGHT", b, b); e[1]:SetHeight(b)
-        e[2]:SetPoint("BOTTOMLEFT", h, "BOTTOMLEFT", -b, -b); e[2]:SetPoint("BOTTOMRIGHT", h, "BOTTOMRIGHT", b, -b); e[2]:SetHeight(b)
-        e[3]:SetPoint("TOPLEFT", h, "TOPLEFT", -b, 0); e[3]:SetPoint("BOTTOMLEFT", h, "BOTTOMLEFT", -b, 0); e[3]:SetWidth(b)
-        e[4]:SetPoint("TOPRIGHT", h, "TOPRIGHT", b, 0); e[4]:SetPoint("BOTTOMRIGHT", h, "BOTTOMRIGHT", b, 0); e[4]:SetWidth(b)
     end
     local size
     if d.kind == "health" then size = d.small and 9 or (s.fontSize or 16)
@@ -412,8 +403,40 @@ end
 local function ShowDeco(d, on)
     if d.holder then d.holder:SetShown(on) end
     if d.bg then d.bg:SetShown(on) end
-    if d.shape then d.shape:SetShown(on and d.rounded and true or false) end
+    if d.shape then d.shape:Hide() end
 end
+
+-- 2.32.5: one black block behind health + power (rounded or square), on its own frame just
+-- under the bars.
+local blocks = {}            -- key -> { frame, tex }
+local function LayoutBlock(key, p, s, on, shapeTex)
+    local blk = blocks[key]
+    if not on then if blk then blk.frame:Hide() end; return end
+    if not p.health then return end
+    if not blk then
+        blk = {}
+        blk.frame = CreateFrame("Frame", nil, p.frame)
+        blk.tex = blk.frame:CreateTexture(nil, "BACKGROUND")
+        blk.tex:SetAllPoints(blk.frame)
+        blocks[key] = blk
+    end
+    local lv = p.health.GetFrameLevel and p.health:GetFrameLevel() or 2
+    if p.power and p.power.GetFrameLevel then lv = math.min(lv, p.power:GetFrameLevel()) end
+    blk.frame:SetFrameLevel(math.max(0, lv - 1))
+    local b = math.max(0, math.floor(s.border or 3))
+    local bottom = p.power or p.health
+    blk.frame:ClearAllPoints()
+    blk.frame:SetPoint("TOPLEFT", p.health, "TOPLEFT", -b, b)
+    blk.frame:SetPoint("BOTTOMRIGHT", bottom, "BOTTOMRIGHT", b, -b)
+    if s.rounded then
+        blk.tex:SetTexture(shapeTex)
+        blk.tex:SetVertexColor(0, 0, 0, 1)
+    else
+        blk.tex:SetColorTexture(0, 0, 0, 1)
+    end
+    blk.frame:SetShown(b > 0)
+end
+M._t_Block = function(key) return blocks[key] end
 
 local function UpdateText(bar)
     local d = deco[bar]
@@ -569,23 +592,31 @@ M._t_PaintPortrait = PaintPortrait
 -- Big frames: bars on the left, round portrait on the right, name above the health bar.
 -- Small (target of target): portrait on the left, short bars to its right, name under them.
 -- mirror (player): portrait on the left, bars to its right.
--- 2.32.4: the portrait overlaps the end of the bars by 30% of its size (connected look).
-local OVERLAP = 0.3
+-- 2.32.5: health and power form one block (1 px black line between them, border around both);
+-- the portrait sits PORTRAIT_GAP px beside the block, centred on it.
+local PORTRAIT_GAP = 4
 local function Geometry(s, small, mirror)
+    local b = math.max(0, math.floor(s.border or 3))
+    local hw, hh, ph, ps, left, hy
     if small then
-        local ps = 34
-        return { hx = 4 + ps - math.floor(ps * OVERLAP), hy = -10, hw = 64, hh = 10, ph = 4, px = 4, py = -2,
-                 ps = ps, gap = 2 }
+        hw, hh, ph, ps, left, hy = 60, 9, 4, 32, 4, -12
+        b = math.min(b, 2)
+        mirror = true                     -- target of target: portrait on the left
+    else
+        hw, hh, ph, ps, left, hy = s.healthWidth, s.healthHeight, s.powerHeight, s.portraitSize, 20, -30
     end
-    local hw, hh, ph, ps = s.healthWidth, s.healthHeight, s.powerHeight, s.portraitSize
-    local left, hy = 24, -30
-    local block = hh + 3 + ph
-    local py = hy + (ps - block) / 2
-    local lap = math.floor(ps * OVERLAP)
+    local blockH = hh + 1 + ph + 2 * b
+    local blockTop = hy + b
+    local py = blockTop - blockH / 2 + ps / 2           -- portrait top, centred on the block
+    local g = { hw = hw, hh = hh, ph = ph, gap = 1, ps = ps, py = py, hy = hy, b = b, blockH = blockH }
     if mirror then
-        return { hx = left + ps - lap, hy = hy, hw = hw, hh = hh, ph = ph, gap = 3, px = left, py = py, ps = ps }
+        g.px = left
+        g.hx = left + ps + PORTRAIT_GAP + b
+    else
+        g.hx = left + b
+        g.px = g.hx + hw + b + PORTRAIT_GAP
     end
-    return { hx = left, hy = hy, hw = hw, hh = hh, ph = ph, gap = 3, px = left + hw - lap, py = py, ps = ps }
+    return g
 end
 M._t_Geometry = Geometry
 
@@ -647,14 +678,16 @@ local function ApplyUnit(key)
             end
         end
         if ownPortrait[key] then ownPortrait[key].frame:Hide() end
+        LayoutBlock(key, p, s, false)
         return
     end
     M.stats.layouts = M.stats.layouts + 1
     local g = Geometry(s, d.small, d.mirror)
     local f = p.frame
+    local shapeTex = ShapeFor(g.hw, g.hh + g.gap + g.ph)
     if p.health then
         local hd = Decorate(p.health, "health", d.unit, d.small)
-        LayoutDeco(hd, s, g.hw, g.hh); ShowDeco(hd, true)
+        LayoutDeco(hd, s, p.health, p.power or p.health, shapeTex); ShowDeco(hd, true)
         PlaceRegion(p.health, "TOPLEFT", f, "TOPLEFT", g.hx, g.hy)
         SizeRegion(p.health, g.hw, g.hh)
         hd.styled = true
@@ -664,9 +697,9 @@ local function ApplyUnit(key)
     end
     if p.power then
         local pd = Decorate(p.power, "power", d.unit, d.small)
-        LayoutDeco(pd, s, g.hw, g.ph); ShowDeco(pd, true)
+        LayoutDeco(pd, s, p.health or p.power, p.power, shapeTex); ShowDeco(pd, true)
         if p.health then
-            PlaceRegion(p.power, "TOPLEFT", p.health, "BOTTOMLEFT", 0, -(g.gap + (s.border or 2)))
+            PlaceRegion(p.power, "TOPLEFT", p.health, "BOTTOMLEFT", 0, -g.gap)
         else
             PlaceRegion(p.power, "TOPLEFT", f, "TOPLEFT", g.hx, g.hy - g.hh - g.gap)
         end
@@ -677,10 +710,11 @@ local function ApplyUnit(key)
         Recolor(p.power)
         UpdateText(p.power)
     end
+    LayoutBlock(key, p, { border = g.b, rounded = s.rounded }, true, shapeTex)
     -- our own portrait above the bars; the game's portrait is hidden by the sweep
     do
         local o = EnsurePortrait(key, f)
-        local rb = math.max(2, math.floor((s.border or 2) * 1.5))
+        local rb = math.max(2, g.b)
         o.frame:ClearAllPoints()
         o.frame:SetPoint("TOPLEFT", f, "TOPLEFT", g.px, g.py)
         o.frame:SetSize(g.ps, g.ps)
@@ -696,7 +730,7 @@ local function ApplyUnit(key)
         if d.small then
             PlaceRegion(p.name, "TOPLEFT", p.power or p.health, "BOTTOMLEFT", 0, -3)
         else
-            PlaceRegion(p.name, "BOTTOM", p.health, "TOP", 0, 3 + (s.border or 2))
+            PlaceRegion(p.name, "BOTTOM", p.health, "TOP", 0, 2 + g.b)
         end
         if p.name.SetJustifyH then pcall(p.name.SetJustifyH, p.name, d.small and "LEFT" or "CENTER") end
         if p.name.SetWidth then pcall(p.name.SetWidth, p.name, d.small and 90 or g.hw) end
@@ -850,7 +884,19 @@ function M:Init()
     end
 end
 
+-- 2.32.5: the reference sizes replace the earlier defaults once (saved settings kept the old
+-- 130 / 24 / 8 / 54 / 16 / 2 px). Not in the defaults table on purpose, so old saves get it.
+local SIZE_VERSION = 2
+local function MigrateSizes()
+    local s = S()
+    if not s or (s.sizeVersion or 0) >= SIZE_VERSION then return end
+    s.border, s.healthWidth, s.healthHeight, s.powerHeight, s.portraitSize, s.fontSize = 3, 120, 22, 7, 50, 17
+    s.sizeVersion = SIZE_VERSION
+end
+M._t_MigrateSizes = MigrateSizes
+
 function M:Apply()
+    MigrateSizes()
     HookGame()
     ApplyAll()
 end

@@ -1,4 +1,4 @@
-AIMBOT UI  v2.32.4  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.32.5  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,16 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.32.5
+  - Frame Style, matched to the reference:
+    * Health and power now sit in ONE block with a single thick black border (3 px) around
+      both and a thin black line between them, rounded at the outer corners.
+    * Reference sizes: health bar 120 x 22, power bar 7 high, portrait 50, bigger health
+      number. (Your size sliders were reset to these.)
+    * The portrait sits just beside the block, centred on it, with a thick black ring,
+      instead of overlapping the bars.
+    /reload is enough.
 
 NEW IN 2.32.4
   - Frame Style, closer to the reference: needs a full game restart (new image files).
