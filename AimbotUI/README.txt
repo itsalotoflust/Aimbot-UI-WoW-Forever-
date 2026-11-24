@@ -1,4 +1,4 @@
-AIMBOT UI  v2.30.3  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.31.0  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,19 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.31.0
+  - NEW: Cast Bar (Combat tab). Needs a full game restart (new file), not just /reload.
+    * A classic-style cast bar for your own casts, in place of the game's modern one:
+      the thin classic bar with the classic border, spark and flash.
+    * Yellow while casting, green while channelling, a green flash when the cast finishes,
+      red with "Interrupted" or "Failed" when it doesn't, then a short fade.
+    * The game's own cast bar is hidden while this is on (switch: "Hide the game's own cast
+      bar"). Turning the module or the switch off brings it back.
+    * Starts at the classic spot, bottom centre. Unlock it in the settings to drag it.
+    * Options: plain line border instead of the classic art, width, height, text size,
+      spell icon, seconds left (on), spark, latency zone, the four colours.
+    * Test: casts a 2.5 second Frostbolt.
 
 NEW IN 2.30.3
   - Buff Bar: all your elixirs show. Elixirs, flasks and scrolls no longer have to pass the

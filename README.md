@@ -6,6 +6,10 @@ An all-in-one interface addon suite for **World of Warcraft Forever** (interface
 
 Open it in game with `/aimbot` (or `/aui`). Every module has its own tab and its own on/off switch, and if one module hits a problem it reports in chat and the rest keep running.
 
+## What's new in 2.31.0
+
+- **New: Cast Bar** (Combat tab). A classic-style cast bar for your own casts in place of the game's modern one: classic border, spark and flash, yellow casts, green channels, red "Interrupted". Hides the game's bar while it's on. Movable, with options for icon, timer, latency and colours. New file: needs a full game restart, not just `/reload`.
+
 ## What's new in 2.30.3
 
 - **Buff Bar:** all elixirs, flasks and scrolls show (the tooltip check now only applies to food and "other"), and potions that give a buff go with the elixirs. `/reload` is enough.
@@ -75,6 +79,7 @@ Download **[AimbotUI.zip](https://github.com/itsalotoflust/Aimbot-UI-WoW-Forever
 | **Interrupt Ready** | Your interrupt next to enemy cast bars: green when it's ready, grey with a timer when it isn't. |
 | **Double Press (Wannabe AHK)** | Optional. Every action bar key presses twice, on key down and key up. Off by default. |
 | **Memory Cleaner** | A Clear Cache button that runs a garbage collection without freezing the game. |
+| **Cast Bar** | Classic-style player cast bar (classic border, spark, flash) in place of the game's modern one. Yellow casts, green channels, red interrupts. |
 | **Buff Bar** | Clickable buttons for the food, elixirs, flasks, scrolls and weapon oils in your bags. Dims buffs you already have, shows time left, red count when low. Movable, starts at the top centre. |
 
 ## Slash commands

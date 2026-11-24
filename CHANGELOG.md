@@ -2,6 +2,15 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.31.0
+
+- **New module: Cast Bar** (Combat group, `Modules/CastBar.lua`). New file in the TOC: needs a full game restart.
+  - `AimbotUICastBar` (StatusBar, strata HIGH), classic look: 195 x 13, `UI-StatusBar` fill, `UI-CastingBar-Border` / `-Flash` art (256 x 64 sitting 28 px above the bar, scaled with the bar size), `UI-CastingBar-Spark`, black 50% background. "Simple" border option draws a 1 px line instead of the art.
+  - Player only. `UNIT_SPELLCAST_START` / `CHANNEL_START` read `UnitCastingInfo` / `UnitChannelInfo`; `DELAYED` / `CHANNEL_UPDATE` take the new times; `SUCCEEDED` / `STOP` finish a cast (green, full, flash in 0.2 s, fade 0.5 s); `CHANNEL_STOP` fades a channel; `INTERRUPTED` / `FAILED` turn it red with the game's "Interrupted" / "Failed" text, hold 1 s, fade. Cast GUIDs are compared so a failed attempt at another spell doesn't fail the running cast; `SUCCEEDED` at a channel's start and `FAILED` during a channel are ignored. A cast that passes its end by 0.5 s with no event finishes by itself.
+  - Secret cast times: full bar with the name, no timer or spark, ends on the stop event; no arithmetic on secret values.
+  - The game's `PlayerCastingBarFrame` (and `CastingBarFrame` if present) is hidden with `SetAlpha(0)` from a `hooksecurefunc` post-hook on `Show` plus a `HookScript("OnShow")`; alpha 1 when the module or the option is off. No fields written.
+  - Options: hide the game's bar, lock / move back, border, width, height, text size, icon, seconds left, spark, latency zone (`GetNetStats` world latency), colours (cast, channel, finished, failed). Test entry. `/aimbot diag`: counts, state, which game bars are hidden.
+
 ## 2.30.3
 
 - **Buff Bar: elixirs no longer dropped by the buff check.** `BUFF_FILTERED` is now food and other only; elixirs, flasks and scrolls always count (they were left out when their "Use:" text had no matching duration or hadn't loaded yet).
