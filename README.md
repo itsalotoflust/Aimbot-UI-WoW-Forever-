@@ -6,6 +6,10 @@ An all-in-one interface addon suite for **World of Warcraft Forever** (interface
 
 Open it in game with `/aimbot` (or `/aui`). Every module has its own tab and its own on/off switch, and if one module hits a problem it reports in chat and the rest keep running.
 
+## What's new in 2.30.2
+
+- **Buff Bar:** finds elixirs and flasks the game files under other categories (anything named "Elixir" or "Flask"), reads "Lasts 1 hour" style durations, keeps checking tooltips that load late, and has a new "Print what the bar sees in my bags" button that says where each item went or why it was left out. `/reload` is enough.
+
 ## What's new in 2.30.1
 
 - **Buff Bar:** hover a button to open its list of the other items of that kind; no arrow to click. Works in combat. `/reload` is enough.

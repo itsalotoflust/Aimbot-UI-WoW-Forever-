@@ -1,4 +1,4 @@
-AIMBOT UI  v2.30.1  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.30.2  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,19 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.30.2
+  - Buff Bar: finds more elixirs and flasks. Some are filed by the game as "Consumable",
+    "Other" or even "Potion" instead of Elixir / Flask, so they were missed or put under
+    another kind. Any consumable with "Elixir" or "Flask" in its name now counts as an
+    elixir ("Scroll of ..." as a scroll).
+  - Buff Bar: also reads "Lasts 1 hour" and "Duration: 30 min" as buff durations.
+  - Buff Bar: items whose tooltip hadn't loaded yet are looked at again for about two
+    minutes (was 10 seconds), so they don't go missing after logging in.
+  - Buff Bar: new button "Print what the bar sees in my bags". It lists every consumable,
+    its kind, and whether it's on the bar, in a hover list, or why it was left out.
+  - Reminder: with "Group items by kind" on, all your elixirs share one button; the rest are
+    in the list that opens when you hover it. /reload is enough.
 
 NEW IN 2.30.1
   - Buff Bar: the pop-up list opens when you hover the button. No arrow to click any more.

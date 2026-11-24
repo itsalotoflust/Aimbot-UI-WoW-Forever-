@@ -109,9 +109,16 @@ M._t_KINDS = KINDS
 
 -- Consumable (class 0) sub-classes: 1 potion, 2 elixir, 3 flask, 4 scroll, 5 food & drink,
 -- 6 item enhancement, 7 bandage, 8 other, 0 generic. Returns the kind or nil.
-local function Classify(classID, subClassID, itemID, hasSpell)
+local function Classify(classID, subClassID, itemID, hasSpell, name)
     if itemID and WEAPON_IDS[itemID] then return "weapon" end
     if classID ~= 0 then return nil end
+    -- 2.30.2: some clients file elixirs and flasks under "Consumable" or "Other" instead of
+    -- Elixir / Flask; the item's name settles it (English names).
+    if type(name) == "string" then
+        local n = name:lower()
+        if n:find("elixir", 1, true) or n:find("flask", 1, true) then return "elixirs" end
+        if n:find("^scroll of") then return "scrolls" end
+    end
     if subClassID == 5 then return "food" end
     if subClassID == 2 or subClassID == 3 then return "elixirs" end
     if subClassID == 4 then return "scrolls" end
@@ -166,6 +173,22 @@ local function ItemCount(itemID)
     return type(n) == "number" and n or 0
 end
 
+-- item name from a bag slot's hyperlink ("|h[Elixir of the Mongoose]|h"), or from the item cache
+local function ItemName(itemID, link)
+    if type(link) == "string" and not IsSecret(link) then
+        local n = link:match("|h%[(.-)%]|h")
+        if n and n ~= "" then return n end
+    end
+    local f = (C_Item and C_Item.GetItemNameByID) or GetItemInfo
+    if f then
+        local ok, n = pcall(f, itemID)
+        n = ok and Clean(n) or nil
+        if type(n) == "string" and n ~= "" then return n end
+    end
+    return nil
+end
+M._t_ItemName = ItemName
+
 local function MakeEntry(itemID, cat, icon)
     local spellName, spellID = ItemSpell(itemID)
     return { itemID = itemID, cat = cat, icon = icon, spellName = spellName, spellID = spellID }
@@ -189,6 +212,13 @@ local function GivesBuff(text)
     if t:find("well fed", 1, true) then return true end
     for unit, gap, nextLetter in t:gmatch("for %d[%d%.,]* ?(%a+)([^%a]*)(%a?)") do
         if UNITS[unit] and (nextLetter == "" or gap:find("[%.;,%)!]")) then return true end
+    end
+    -- 2.30.2: "Lasts 1 hour", "Duration: 30 min"
+    for unit in t:gmatch("lasts? %d[%d%.,]* ?(%a+)") do
+        if UNITS[unit] then return true end
+    end
+    for unit in t:gmatch("duration:? %d[%d%.,]* ?(%a+)") do
+        if UNITS[unit] then return true end
     end
     return false
 end
@@ -249,6 +279,8 @@ local function BuildList()
     M.stats.scans = M.stats.scans + 1
     M.stats.noBuff, M.stats.unknown = 0, 0
     local found, cats = {}, {}
+    local scan = {}              -- 2.30.2: every item seen and why it is or isn't on the bar
+    M.lastScan = scan
     local last = NUM_TOTAL_EQUIPPED_BAG_SLOTS or NUM_BAG_SLOTS or 4
     for bag = 0, last do
         for slot = 1, NumSlots(bag) do
@@ -258,7 +290,8 @@ local function BuildList()
                 found[itemID] = false
                 local icon, classID, subClassID = ItemBasics(itemID)
                 local spellName, spellID = ItemSpell(itemID)
-                local cat = Classify(classID, subClassID, itemID, spellName ~= nil)
+                local name = ItemName(itemID, info.hyperlink)
+                local cat = Classify(classID, subClassID, itemID, spellName ~= nil, name)
                 local buff = true
                 if cat and s[cat] and not s.ignore[itemID] and s.onlyBuffs and BUFF_FILTERED[cat] then
                     buff = ItemGivesBuff(itemID, spellID)
@@ -268,8 +301,20 @@ local function BuildList()
                         M.stats.noBuff = M.stats.noBuff + 1
                     end
                 end
+                local why
+                if not cat then why = "not one of the kinds"
+                elseif not s[cat] then why = "kind switched off"
+                elseif s.ignore[itemID] then why = "hidden (Shift+right-click)"
+                elseif buff == nil then why = "tooltip not loaded yet"
+                elseif buff == false then why = "no duration in its \"Use:\" text"
+                end
+                if classID == 0 or cat then
+                    scan[#scan + 1] = { itemID = itemID, name = name, classID = classID, sub = subClassID,
+                        kind = cat, why = why }
+                end
                 if cat and s[cat] and not s.ignore[itemID] and buff == true then
                     found[itemID] = MakeEntry(itemID, cat, Clean(info.iconFileID) or icon)
+                    found[itemID].name = name
                     cats[cat] = (cats[cat] or 0) + 1
                 end
             end
@@ -939,12 +984,14 @@ M._t_UpdateVisuals = UpdateVisuals
 
 -- Item text that wasn't loaded yet: look again shortly (a few times, then wait for bag changes).
 local retries = 0
+M._t_Retries = function() return retries end
 local QueueRefresh
 function RetryUnknown()
     if (M.stats.unknown or 0) == 0 then retries = 0; return end
-    if retries >= 5 or not (C_Timer and C_Timer.After) then return end
+    -- 2.30.2: keep looking for about two minutes (was 10 seconds)
+    if retries >= 40 or not (C_Timer and C_Timer.After) then return end
     retries = retries + 1
-    C_Timer.After(2, function() if QueueRefresh then QueueRefresh() end end)
+    C_Timer.After(3, function() if QueueRefresh then QueueRefresh() end end)
 end
 
 local TEST_KINDS = { "food", "elixirs", "elixirs", "weapon", "scrolls", "food" }
@@ -1051,6 +1098,31 @@ function M.Test()
     NS.Print("Buff Bar: showing 6 sample icons for 15 seconds.")
 end
 
+-- 2.30.2: print every consumable in the bags and what the bar did with it.
+function M.Report()
+    if not NS.db then return end
+    if not M.lastScan then pcall(Refresh) end
+    local where = {}
+    for _, e in ipairs(shown) do
+        if not e.test then
+            where[e.itemID] = "on the bar"
+            for _, fe in ipairs(e.flyout or {}) do where[fe.itemID] = "in the hover list" end
+        end
+    end
+    local lines = {}
+    for _, it in ipairs(M.lastScan or {}) do
+        local what = it.why or where[it.itemID]
+            or (S().activeMode == "hide" and "left out: buff already on you, or the bar is full")
+            or "left out: the bar is full (Most buttons on the bar)"
+        lines[#lines + 1] = string.format("  %s (%s)  kind %s  class %s/%s:  %s",
+            tostring(it.name or "?"), tostring(it.itemID), tostring(it.kind or "-"),
+            tostring(it.classID), tostring(it.sub), what)
+    end
+    NS.Print(string.format("Buff Bar: %d consumable(s) in your bags.", #lines))
+    for _, l in ipairs(lines) do NS.Print(l) end
+    return lines
+end
+
 local function ParseItem(text)
     text = tostring(text or "")
     local id = text:match("item:(%d+)") or text:match("^%s*(%d+)%s*$")
@@ -1103,6 +1175,7 @@ function M.Build(page)
         NS.Print("Buff Bar: pinned item " .. id .. ".")
         Changed()
     end, "Pin")
+    page:Button("Print what the bar sees in my bags", function() M.Report() end, 260)
     page:Button("Clear pinned items", function()
         local p = S().pinned
         for k = #p, 1, -1 do p[k] = nil end

@@ -2,6 +2,13 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.30.2
+
+- **Buff Bar: more elixirs found.** `Classify` now takes the item name (from the bag slot's hyperlink, else `C_Item.GetItemNameByID` / `GetItemInfo`). A class 0 item whose name contains "elixir" or "flask" is an elixir whatever its sub-class (some are filed as generic consumable, other or potion); "Scroll of ..." is a scroll. English names.
+- **Buff check:** "Lasts N unit" and "Duration: N unit" count as durations too.
+- **Unloaded tooltips:** retried every 3 seconds up to 40 times (was 2 seconds, 5 times).
+- **New: "Print what the bar sees in my bags"** (`M.Report`): every consumable with its name, ID, kind, class/sub-class and where it ended up (on the bar, in the hover list) or why it was left out (not a kind, kind off, hidden, tooltip not loaded, no duration, bar full).
+
 ## 2.30.1
 
 - **Buff Bar: pop-up lists open on mouseover.** The arrow tab is gone. Main buttons are now `SecureActionButtonTemplate,SecureHandlerEnterLeaveTemplate`; their `_onenter` snippet shows the list when the button has one (`hasfly` attribute, set out of combat) and registers `RegisterAutoHide(0.4)` with the main button, so it opens and closes in combat too. Tooltips are hooked (`HookScript`) so the template's enter/leave handlers stay in place. A small arrow texture on the edge the list opens from marks buttons that have a list. The tooltip moves to the other side of the button so it doesn't cover the list.
