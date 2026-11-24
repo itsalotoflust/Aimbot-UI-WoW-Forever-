@@ -2,6 +2,15 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.30.0
+
+- **Buff Bar: grouped by kind, with pop-up lists.** New options `grouped` (on), `flyDir` (`up` default, `down`, `auto`) and `preferred` (kind -> item ID on the main button).
+  - `GroupList` folds the item list into one main entry per kind; the rest of the kind (up to 12) goes in that entry's pop-up list. Main = the item last picked for that kind if you still have some, else the first in bag order. Pinned items keep their own buttons. `maxButtons` now caps main buttons.
+  - Each main button with more than one item gets an arrow tab (`AimbotUIBuffBarButton<i>Arrow`, `SecureHandlerClickTemplate`) on its top edge (bottom edge when opening downwards). Its `_onclick` snippet shows / hides the list frame (`AimbotUIBuffBarButton<i>List`, `SecureFrameTemplate`, strata DIALOG) and registers `RegisterAutoHide(1.5)` with the arrow and main button, so it works in combat.
+  - List buttons (`AimbotUIBuffBarButton<i>List<j>`) are secure item buttons like the main ones (weapon items: right-click off hand). Picking one stores it in `preferred`; the swap happens at once out of combat, after `PLAYER_REGEN_ENABLED` in combat. Shift+right-click hides, Ctrl+right-click pins, as on the bar.
+  - Counts, dimming, time left and cooldowns update on list buttons too. Time-left text moved to the centre of the button so the arrow tab doesn't cover it. Fade until mouseover keeps the bar visible while a list is open.
+  - Layout changes now compare the list contents as well, so a change inside a list waits for combat end like any other.
+
 ## 2.29.2
 
 - **Buff Bar:** the buff-only filter no longer counts a duration that is part of a condition (Basic Campfire Kit: "Players sitting or crafting nearby for 1 min will gain benefits"). "for N sec/min/hour/hr" now counts only when the unit is followed by punctuation (`. , ; ) !`) or ends the text. "Well fed" still counts anywhere.

@@ -15,6 +15,12 @@
   move or re-point them in combat. They keep working in combat; any change to which items are
   on the bar waits until combat ends. Counts, dimming, timers and cooldowns update any time.
 
+  2.30.0: grouped by kind. One button per kind (food, elixirs, scrolls, oils ...) uses your chosen
+  item of that kind; the arrow tab on its top edge opens a pop-up list (upwards by default) with
+  the other items of that kind. Picking one uses it and makes it that kind's main button. The
+  list opens through a secure handler, so it works in combat too; the main button itself can
+  only swap items out of combat (the game's rule), so a pick made in combat swaps after combat.
+
   Every value read from the game is checked with NS.IsSecret; a secret value counts as unknown
   (a buff we can't read is shown as missing, never dimmed by guesswork).
 ]]
@@ -24,6 +30,7 @@ local ADDON_NAME, NS = ...
 local BAR_NAME = "AimbotUIBuffBar"
 local BUTTON_PREFIX = "AimbotUIBuffBarButton"
 local MAX_BUTTONS = 24
+local FLY_MAX = 12           -- most items in one pop-up list
 local MEDIA = "Interface\\AddOns\\" .. ADDON_NAME .. "\\media\\"
 
 local M = {
@@ -53,6 +60,9 @@ local M = {
         timeLeft   = true,
         lowStock   = 3,             -- count at or under this turns red (0 = off)
         fade       = false,         -- faded until the mouse is over the bar
+        grouped    = true,          -- 2.30.0: one button per kind, the rest in a pop-up list
+        flyDir     = "up",          -- pop-up list opens "up", "down" or "auto" (away from the edge)
+        preferred  = {},            -- kind -> itemID shown on that kind's main button
         pinned     = {},            -- list of itemIDs, always shown first (greyed at 0)
         ignore     = {},            -- itemID -> true: never shown
     },
@@ -294,7 +304,7 @@ local function BuildList()
 
     -- counts, then drop empty unpinned stacks, buffs already on (hide mode), and the overflow
     local out = {}
-    local cap = math.max(1, math.min(MAX_BUTTONS, s.maxButtons or 16))
+    local cap = s.grouped and math.huge or math.max(1, math.min(MAX_BUTTONS, s.maxButtons or 16))
     for _, e in ipairs(list) do
         e.count = ItemCount(e.itemID)
         local keep = e.pinned or e.count > 0
@@ -305,6 +315,55 @@ local function BuildList()
     return out
 end
 M._t_BuildList = BuildList
+
+-- 2.30.0: fold the flat list into one main entry per kind; the rest of the kind goes in
+-- main.flyout. Pinned items keep their own buttons. Ungrouped: every entry is a main with an
+-- empty flyout. Pure.
+local function GroupList(list, s)
+    local cap = math.max(1, math.min(MAX_BUTTONS, s.maxButtons or 16))
+    local out = {}
+    if not s.grouped then
+        for _, e in ipairs(list) do
+            e.flyout = {}
+            if #out < cap then out[#out + 1] = e end
+        end
+        return out
+    end
+    local groups, order = {}, {}
+    for _, e in ipairs(list) do
+        e.flyout = {}
+        if e.pinned then
+            order[#order + 1] = e
+        else
+            local g = groups[e.cat]
+            if not g then
+                g = { kind = e.cat }
+                groups[e.cat] = g
+                order[#order + 1] = g
+            end
+            g[#g + 1] = e
+        end
+    end
+    local pref = s.preferred or {}
+    for _, item in ipairs(order) do
+        if #out >= cap then break end
+        if item.kind then
+            -- main: the item you picked last for this kind, if you still have it; else the first
+            local main = item[1]
+            for _, e in ipairs(item) do
+                if e.itemID == pref[item.kind] and (e.count or 0) > 0 then main = e; break end
+            end
+            for _, e in ipairs(item) do
+                if e ~= main and #main.flyout < FLY_MAX then main.flyout[#main.flyout + 1] = e end
+            end
+            out[#out + 1] = main
+        else
+            out[#out + 1] = item
+        end
+    end
+    return out
+end
+M._t_GroupList = GroupList
 
 ----------------------------------------------------------------------
 -- Is the buff on?
@@ -434,7 +493,8 @@ M._t_BarSize = BarSize
 ----------------------------------------------------------------------
 local bar, label, tint
 local buttons = {}
-local shown = {}             -- entries currently on the buttons (in order)
+local shown = {}             -- main entries currently on the buttons (in order)
+local slots = {}             -- every button on screen with its entry: { b = button, e = entry }
 local pending = false        -- a layout change is waiting for combat to end
 local testUntil = nil
 
@@ -515,6 +575,11 @@ local function ShowTip(b)
         else
             GameTooltip:AddLine("Click: use it", 0.6, 0.9, 0.6)
         end
+        if b.isFly then
+            GameTooltip:AddLine("Picking it also makes it this kind's main button", 0.6, 0.9, 0.6)
+        elseif e.flyout and #e.flyout > 0 then
+            GameTooltip:AddLine(string.format("Arrow on top: %d more of this kind", #e.flyout), 0.6, 0.9, 0.6)
+        end
         GameTooltip:AddLine("Shift+right-click: hide this item", 0.6, 0.6, 0.6)
         GameTooltip:AddLine(e.pinned and "Ctrl+right-click: unpin" or "Ctrl+right-click: pin (always shown first)",
             0.6, 0.6, 0.6)
@@ -531,11 +596,14 @@ local function StopDrag()
     SavePosition()
 end
 
-local function MakeButton(i)
-    local b = CreateFrame("Button", BUTTON_PREFIX .. i, bar, "SecureActionButtonTemplate")
-    b:RegisterForDrag("LeftButton")
-    b:SetScript("OnDragStart", StartDrag)
-    b:SetScript("OnDragStop", StopDrag)
+local function MakeItemButton(name, parent, isFly)
+    local b = CreateFrame("Button", name, parent, "SecureActionButtonTemplate")
+    b.isFly = isFly
+    if not isFly then
+        b:RegisterForDrag("LeftButton")
+        b:SetScript("OnDragStart", StartDrag)
+        b:SetScript("OnDragStop", StopDrag)
+    end
     b.back = b:CreateTexture(nil, "BACKGROUND")
     b.back:SetPoint("TOPLEFT", -1, 1)
     b.back:SetPoint("BOTTOMRIGHT", 1, -1)
@@ -565,7 +633,7 @@ local function MakeButton(i)
     b.count:SetPoint("BOTTOMRIGHT", -2, 2)
     b.time = top:CreateFontString(nil, "OVERLAY")
     b.time:SetFont(STANDARD_TEXT_FONT, 10, "OUTLINE")
-    b.time:SetPoint("TOP", 0, -2)
+    b.time:SetPoint("CENTER", 0, 0)
     b.time:SetTextColor(1, 0.9, 0.3)
     SetClicks(b)
     b:SetScript("PostClick", function(self, mouse)
@@ -585,14 +653,158 @@ local function MakeButton(i)
         elseif mouse ~= "RightButton" or e.cat == "weapon" then
             M.stats.clicks = M.stats.clicks + 1
             if NS.SparkleOwnButton then pcall(NS.SparkleOwnButton, self) end
+            if self.isFly then
+                -- becomes this kind's main button (now, or once combat ends)
+                S().preferred[e.cat] = e.itemID
+                if InCombat() then pending = true; M.stats.pending = true else Refresh() end
+            end
         end
         if GameTooltip:IsOwned(self) then ShowTip(self) end
     end)
     b:SetScript("OnEnter", ShowTip)
     b:SetScript("OnLeave", function() GameTooltip:Hide() end)
     b:Hide()
+    return b
+end
+
+local function MakeButton(i)
+    local b = MakeItemButton(BUTTON_PREFIX .. i, bar, false)
     buttons[i] = b
     return b
+end
+
+-- The arrow tab and the pop-up list of a main button. The tab is a secure handler button, so
+-- its snippet can show the list in combat; the list hides itself 1.5 s after the mouse leaves it
+-- and its main button.
+local TOGGLE_SNIPPET = [[
+    local fly = self:GetFrameRef("fly")
+    if fly:IsShown() then
+        fly:Hide()
+    else
+        fly:Show()
+        fly:RegisterAutoHide(1.5)
+        fly:AddToAutoHide(self)
+        fly:AddToAutoHide(self:GetParent())
+    end
+]]
+M._t_TOGGLE_SNIPPET = TOGGLE_SNIPPET
+
+local function EnsureFly(b, i)
+    if b.fly then return end
+    local okF, fly = pcall(CreateFrame, "Frame", BUTTON_PREFIX .. i .. "List", bar, "SecureFrameTemplate")
+    if not okF or not fly then fly = CreateFrame("Frame", BUTTON_PREFIX .. i .. "List", bar, "SecureHandlerBaseTemplate") end
+    fly:SetFrameStrata("DIALOG")
+    fly:Hide()
+    fly.back = fly:CreateTexture(nil, "BACKGROUND")
+    fly.back:SetPoint("TOPLEFT", -3, 3)
+    fly.back:SetPoint("BOTTOMRIGHT", 3, -3)
+    fly.back:SetColorTexture(0, 0, 0, 0.6)
+    b.fly, b.flyButtons = fly, {}
+
+    local arrow = CreateFrame("Button", BUTTON_PREFIX .. i .. "Arrow", b, "SecureHandlerClickTemplate")
+    arrow:SetFrameLevel(b:GetFrameLevel() + 5)
+    arrow.back = arrow:CreateTexture(nil, "BACKGROUND")
+    arrow.back:SetAllPoints()
+    arrow.back:SetColorTexture(0, 0, 0, 0.85)
+    arrow.tex = arrow:CreateTexture(nil, "ARTWORK")
+    arrow.tex:SetPoint("CENTER")
+    local hl = arrow:CreateTexture(nil, "HIGHLIGHT")
+    hl:SetAllPoints()
+    hl:SetColorTexture(1, 1, 1, 0.2)
+    arrow:SetFrameRef("fly", fly)
+    arrow:SetAttribute("_onclick", TOGGLE_SNIPPET)
+    SetClicks(arrow)
+    arrow:SetScript("OnEnter", function(self)
+        local e = b.entry
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:AddLine(string.format("%d more of this kind", e and e.flyout and #e.flyout or 0), 1, 1, 1)
+        GameTooltip:AddLine("Click to open or close the list", 0.6, 0.9, 0.6)
+        GameTooltip:Show()
+    end)
+    arrow:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    b.arrow = arrow
+end
+
+-- "up" or "down" for the pop-up lists
+local function FlyDirection(s)
+    if s.flyDir == "down" then return "down" end
+    if s.flyDir ~= "auto" then return "up" end
+    local okC, _, y = pcall(bar.GetCenter, bar)
+    local okH, h = pcall(UIParent.GetHeight, UIParent)
+    if okC and okH and type(y) == "number" and type(h) == "number" and not IsSecret(y) and not IsSecret(h) then
+        return (y > h / 2) and "down" or "up"
+    end
+    return "up"
+end
+M._t_FlyDirection = FlyDirection
+
+-- offset of list button j from the list's edge next to the main button (pure)
+local function FlyOffset(j, s, dir)
+    local d = (j - 1) * (s.size + s.spacing)
+    return dir == "down" and -d or d
+end
+M._t_FlyOffset = FlyOffset
+
+local ARROW_UP = "Interface\\Buttons\\Arrow-Up-Up"
+local ARROW_DOWN = "Interface\\Buttons\\Arrow-Down-Up"
+
+-- Fill (or empty) the pop-up list of main button b. Out of combat only.
+local function LayoutFly(b, i, e, s, dir)
+    local list = e and e.flyout or {}
+    if #list == 0 then
+        if b.fly then
+            b.fly:Hide()
+            b.arrow:Hide()
+            for _, fb in ipairs(b.flyButtons) do fb.entry = nil; SetSecure(fb, nil); fb:Hide() end
+        end
+        return
+    end
+    EnsureFly(b, i)
+    local fly, arrow = b.fly, b.arrow
+    fly:Hide()
+    arrow:ClearAllPoints()
+    arrow:SetSize(math.max(14, math.floor(s.size * 0.6)), 12)
+    fly:ClearAllPoints()
+    if dir == "down" then
+        arrow:SetPoint("CENTER", b, "BOTTOM", 0, 0)
+        arrow.tex:SetTexture(ARROW_DOWN)
+        fly:SetPoint("TOP", arrow, "BOTTOM", 0, -4)
+    else
+        arrow:SetPoint("CENTER", b, "TOP", 0, 0)
+        arrow.tex:SetTexture(ARROW_UP)
+        fly:SetPoint("BOTTOM", arrow, "TOP", 0, 4)
+    end
+    arrow.tex:SetSize(12, 12)
+    arrow:Show()
+    fly:SetSize(s.size, #list * s.size + (#list - 1) * s.spacing)
+    for j = 1, math.max(#b.flyButtons, #list) do
+        local fb = b.flyButtons[j]
+        if not fb and j <= #list then
+            fb = MakeItemButton(BUTTON_PREFIX .. i .. "List" .. j, fly, true)
+            b.flyButtons[j] = fb
+        end
+        if fb then
+            local fe = list[j]
+            if fe then
+                fb.entry = fe
+                fb:SetSize(s.size, s.size)
+                fb:ClearAllPoints()
+                if dir == "down" then
+                    fb:SetPoint("TOP", fly, "TOP", 0, FlyOffset(j, s, dir))
+                else
+                    fb:SetPoint("BOTTOM", fly, "BOTTOM", 0, FlyOffset(j, s, dir))
+                end
+                SetSecure(fb, fe)
+                fb.icon:SetTexture(fe.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
+                fb:Show()
+                slots[#slots + 1] = { b = fb, e = fe }
+            else
+                fb.entry = nil
+                SetSecure(fb, nil)
+                fb:Hide()
+            end
+        end
+    end
 end
 
 local fadeElapsed = 0
@@ -604,6 +816,12 @@ local function FadeTick(self, elapsed)
     if not s.fade or not s.locked then self:SetAlpha(1); return end
     local ok, over = pcall(self.IsMouseOver, self)
     over = ok and not IsSecret(over) and over
+    if not over then
+        -- an open pop-up list counts as part of the bar
+        for _, b in ipairs(buttons) do
+            if b.fly and b.fly:IsShown() then over = true; break end
+        end
+    end
     self:SetAlpha(over and 1 or 0.25)
 end
 
@@ -630,16 +848,16 @@ local function Ensure()
     return true
 end
 
-local function SameItems(a, b)
-    if #a ~= #b then return false end
-    for i = 1, #a do
-        if a[i].itemID ~= b[i].itemID or (a[i].pinned and true or false) ~= (b[i].pinned and true or false)
-            or a[i].test ~= b[i].test then
-            return false
-        end
+local function Sig(list)
+    local t = {}
+    for i, e in ipairs(list) do
+        local f = {}
+        for j, fe in ipairs(e.flyout or {}) do f[j] = tostring(fe.itemID) end
+        t[i] = tostring(e.itemID) .. (e.pinned and "p" or "") .. (e.test and "t" or "") .. "[" .. table.concat(f, ",") .. "]"
     end
-    return true
+    return table.concat(t, ";")
 end
+local function SameItems(a, b) return Sig(a) == Sig(b) end
 M._t_SameItems = SameItems
 
 -- Place the bar and its buttons for this list. Out of combat only.
@@ -652,6 +870,8 @@ local function Layout(list)
     bar:SetPoint(p[1], UIParent, p[2], p[3], p[4])
     local w, h = BarSize(n, s)
     bar:SetSize(w, h)
+    slots = {}
+    local dir = FlyDirection(s)
     for i = 1, math.max(#buttons, n) do
         local b = buttons[i] or (i <= n and MakeButton(i))
         if b then
@@ -665,10 +885,13 @@ local function Layout(list)
                 SetSecure(b, e)
                 b.icon:SetTexture(e.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
                 b:Show()
+                slots[#slots + 1] = { b = b, e = e }
+                LayoutFly(b, i, e, s, dir)
             else
                 b.entry = nil
                 SetSecure(b, nil)
                 b:Hide()
+                LayoutFly(b, i, nil, s, dir)
             end
         end
     end
@@ -685,8 +908,8 @@ end
 function UpdateVisuals()
     if not bar then return end
     local s = S()
-    for i, e in ipairs(shown) do
-        local b = buttons[i]
+    for _, slot in ipairs(slots) do
+        local b, e = slot.b, slot.e
         if b and b.entry == e then
             local count = e.test and e.count or ItemCount(e.itemID)
             e.count = count
@@ -730,6 +953,7 @@ function RetryUnknown()
     C_Timer.After(2, function() if QueueRefresh then QueueRefresh() end end)
 end
 
+local TEST_KINDS = { "food", "elixirs", "elixirs", "weapon", "scrolls", "food" }
 local TEST_ICONS = {
     "Interface\\Icons\\INV_Misc_Fish_02", "Interface\\Icons\\INV_Potion_32", "Interface\\Icons\\INV_Potion_61",
     "Interface\\Icons\\INV_Stone_02", "Interface\\Icons\\INV_Scroll_03", "Interface\\Icons\\INV_Drink_07",
@@ -745,12 +969,13 @@ function Refresh()
     elseif testUntil and Now() < testUntil then
         list = {}
         for i, tex in ipairs(TEST_ICONS) do
-            list[i] = { itemID = -i, test = true, icon = tex, cat = "other", count = (i * 7) % 23,
+            list[i] = { itemID = -i, test = true, icon = tex, cat = TEST_KINDS[i], count = (i * 7) % 23,
                 active = (i % 3 == 0), left = (i % 3 == 0) and 600 or nil }
         end
+        list = GroupList(list, s)
     else
         testUntil = nil
-        list = BuildList()
+        list = GroupList(BuildList(), s)
         RetryUnknown()
     end
     if InCombat() then
@@ -765,6 +990,7 @@ M._t_Refresh = Refresh
 M._t_Shown = function() return shown end
 M._t_Pending = function() return pending end
 M._t_Buttons = function() return buttons end
+M._t_Slots = function() return slots end
 M._t_Bar = function() return bar end
 
 ----------------------------------------------------------------------
@@ -798,7 +1024,11 @@ function M:Init()
         NS.On("BAG_UPDATE_COOLDOWN", function() pcall(UpdateVisuals) end)
         NS.On("CVAR_UPDATE", function()
             if InCombat() then return end
-            for _, b in ipairs(buttons) do SetClicks(b) end
+            for _, b in ipairs(buttons) do
+                SetClicks(b)
+                if b.arrow then SetClicks(b.arrow) end
+                for _, fb in ipairs(b.flyButtons or {}) do SetClicks(fb) end
+            end
         end)
     end
     if not ticker and C_Timer and C_Timer.NewTicker then
@@ -886,6 +1116,17 @@ function M.Build(page)
         Changed()
     end)
 
+    page:Section("Pop-up lists", "One button per kind")
+    page:Check("Group items by kind (the rest of each kind goes in a pop-up list)", function() return S().grouped end,
+        function(v) S().grouped = v; Changed() end)
+    page:Cycle("Pop-up lists open", {
+        { "up", "Upwards" }, { "down", "Downwards" }, { "auto", "Away from the screen edge" },
+    }, function() return S().flyDir end, function(v) S().flyDir = v; Changed() end)
+    page:Note("Click the arrow tab on a button to open its list; it closes 1.5 seconds after the mouse "
+        .. "leaves. Picking an item uses it and makes it that kind's main button (after combat, if you "
+        .. "pick it in combat). Pinned items keep their own buttons. If the bar sits at the top of the "
+        .. "screen, choose Downwards or Away from the screen edge.")
+
     page:Section("Look", "Size, layout and buff status")
     page:Cycle("When the buff is already on you", {
         { "dim", "Dim the button" }, { "hide", "Hide the button" }, { "normal", "Leave it as is" },
@@ -898,7 +1139,7 @@ function M.Build(page)
     page:Slider("Spacing", 0, 12, 1, function() return S().spacing end, function(v) S().spacing = v; Changed() end)
     page:Slider("Buttons per row", 1, 24, 1, function() return S().perRow end,
         function(v) S().perRow = v; Changed() end)
-    page:Slider("Most buttons shown", 1, MAX_BUTTONS, 1, function() return S().maxButtons end,
+    page:Slider("Most buttons on the bar", 1, MAX_BUTTONS, 1, function() return S().maxButtons end,
         function(v) S().maxButtons = v; Changed() end)
     page:Check("Vertical (rows become columns)", function() return S().vertical end,
         function(v) S().vertical = v; Changed() end)

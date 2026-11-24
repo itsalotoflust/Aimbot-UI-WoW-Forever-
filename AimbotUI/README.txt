@@ -1,4 +1,4 @@
-AIMBOT UI  v2.29.2  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.30.0  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,20 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.30.0
+  - Buff Bar: grouped by kind, with pop-up lists. One button per kind (food, elixirs & flasks,
+    scrolls, oils & stones, ...). It uses your chosen item of that kind. A small arrow tab on
+    the button's top edge opens a list of the other items of that kind, going upwards.
+    * Click an item in the list to use it; it also becomes that kind's main button.
+    * The list opens in combat too. Swapping the main button waits until combat ends (the
+      game doesn't let addons change clickable buttons in combat).
+    * The list closes 1.5 seconds after the mouse leaves it.
+    * Pinned items keep their own buttons.
+    * Settings, "Pop-up lists": group by kind (on), and open Upwards (default), Downwards
+      or Away from the screen edge. If your bar sits at the top of the screen, pick
+      Downwards or Away from the screen edge.
+    /reload is enough.
 
 NEW IN 2.29.2
   - Buff Bar: items like the Basic Campfire Kit no longer show. Its text says "nearby for 1 min

@@ -6,6 +6,10 @@ An all-in-one interface addon suite for **World of Warcraft Forever** (interface
 
 Open it in game with `/aimbot` (or `/aui`). Every module has its own tab and its own on/off switch, and if one module hits a problem it reports in chat and the rest keep running.
 
+## What's new in 2.30.0
+
+- **Buff Bar:** one button per kind (food, elixirs & flasks, scrolls, oils & stones ...). An arrow tab on the button opens a list of the other items of that kind, going upwards. Picking one uses it and makes it that kind's main button. The list works in combat; the main button swaps after combat. Options: group by kind, and open upwards, downwards or away from the screen edge. `/reload` is enough.
+
 ## What's new in 2.29.2
 
 - **Buff Bar:** items such as the Basic Campfire Kit, whose text mentions a time only as a condition ("nearby for 1 min will gain benefits"), are no longer shown.
