@@ -2,6 +2,10 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.32.7
+
+- **Frame Style: portrait locked to the block.** The portrait frame is anchored to the block frame (`LEFT` to block `RIGHT` for the target, `RIGHT` to block `LEFT` for the player and target of target), centred vertically, 0 px offset; its ring (border-thickness px outside the portrait) overlaps the block's border so they join. Falls back to the old frame-relative spot only when there is no block. `Geometry` now returns `mirror`.
+
 ## 2.32.6
 
 - **Frame Style:** `media/ui/round_bar.tga` and `round_thin.tga` redrawn with corner radius 7 / 3 (was 20 / 7), about 3 px on screen, so the block is nearly square like the reference.

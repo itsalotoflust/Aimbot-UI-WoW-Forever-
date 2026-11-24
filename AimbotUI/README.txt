@@ -1,4 +1,4 @@
-AIMBOT UI  v2.32.6  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.32.7  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,11 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.32.7
+  - Frame Style: the class icon is locked to the bar block now. It sits right on the block's
+    edge, centred on it, and its black ring joins the block's black border into one shape.
+    It moves with the block, so the gap can't drift. /reload is enough.
 
 NEW IN 2.32.6
   - Frame Style: the bar block is nearly square now, with only slightly rounded corners

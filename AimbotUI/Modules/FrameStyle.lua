@@ -1,5 +1,5 @@
 --[[
-  Aimbot UI - Frame Style (2.32.0, rebuilt in 2.32.2, player mirrored in 2.32.3, rounded in 2.32.4, one block in 2.32.5, square-ish corners and dark text in 2.32.6)
+  Aimbot UI - Frame Style (2.32.0, rebuilt in 2.32.2, player mirrored in 2.32.3, rounded in 2.32.4, one block in 2.32.5, square-ish corners and dark text in 2.32.6, portrait locked to the block in 2.32.7)
   Restyles the game's own player, target and target-of-target frames into a compact look:
   the name above a big health bar with the health number in the middle, a thin power bar
   under it, both with a black border, and a round portrait beside them (class icon for
@@ -619,7 +619,8 @@ local function Geometry(s, small, mirror)
     local blockH = hh + 1 + ph + 2 * b
     local blockTop = hy + b
     local py = blockTop - blockH / 2 + ps / 2           -- portrait top, centred on the block
-    local g = { hw = hw, hh = hh, ph = ph, gap = 1, ps = ps, py = py, hy = hy, b = b, blockH = blockH }
+    local g = { hw = hw, hh = hh, ph = ph, gap = 1, ps = ps, py = py, hy = hy, b = b, blockH = blockH,
+                mirror = mirror and true or false }
     if mirror then
         g.px = left
         g.hx = left + ps + PORTRAIT_GAP + b
@@ -727,7 +728,18 @@ local function ApplyUnit(key)
         local o = EnsurePortrait(key, f)
         local rb = math.max(2, g.b)
         o.frame:ClearAllPoints()
-        o.frame:SetPoint("TOPLEFT", f, "TOPLEFT", g.px, g.py)
+        -- 2.32.7: locked to the block's edge, centred on it. The ring (rb px outside the
+        -- portrait) overlaps the block's black border, so the two join into one shape.
+        local blk = blocks[key]
+        if blk and blk.frame:IsShown() then
+            if g.mirror then
+                o.frame:SetPoint("RIGHT", blk.frame, "LEFT", 0, 0)
+            else
+                o.frame:SetPoint("LEFT", blk.frame, "RIGHT", 0, 0)
+            end
+        else
+            o.frame:SetPoint("TOPLEFT", f, "TOPLEFT", g.px, g.py)
+        end
         o.frame:SetSize(g.ps, g.ps)
         o.tex:ClearAllPoints()
         o.tex:SetAllPoints(o.frame)
