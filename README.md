@@ -6,6 +6,10 @@ An all-in-one interface addon suite for **World of Warcraft Forever** (interface
 
 Open it in game with `/aimbot` (or `/aui`). Every module has its own tab and its own on/off switch, and if one module hits a problem it reports in chat and the rest keep running.
 
+## What's new in 2.32.6
+
+- **Frame Style:** nearly square bar block (small rounded corners) and a dark health number, like the reference. `/reload` should be enough; restart once if the corners still look round.
+
 ## What's new in 2.32.5
 
 - **Frame Style:** health and power now sit in one block with a single thick black border, at the reference sizes; the portrait sits beside the block with a thick black ring. `/reload` is enough.

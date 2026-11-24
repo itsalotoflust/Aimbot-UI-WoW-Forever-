@@ -2,6 +2,11 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.32.6
+
+- **Frame Style:** `media/ui/round_bar.tga` and `round_thin.tga` redrawn with corner radius 7 / 3 (was 20 / 7), about 3 px on screen, so the block is nearly square like the reference.
+- New option `darkText` (on): health number in near-black (0.08) without outline, faint white shadow (1, -1); off: white with outline.
+
 ## 2.32.5
 
 - **Frame Style: one block.** A single black block per frame (own frame one level under the bars; rounded shape or square) from the health bar's top-left to the power bar's bottom-right, `border` px outside; the power bar sits 1 px under the health bar so a black line divides them. Per-bar borders removed. Each bar's fill and dark background are masked with the block's inner area, so only the block's outer corners are rounded.

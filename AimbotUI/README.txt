@@ -1,4 +1,4 @@
-AIMBOT UI  v2.32.5  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.32.6  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,14 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.32.6
+  - Frame Style: the bar block is nearly square now, with only slightly rounded corners
+    (about 3 px) like the reference, instead of a pill shape.
+  - Frame Style: the health number is dark on the bright bar, like the reference. Switch:
+    "Dark health number" (on); off gives white with an outline.
+  - /reload should be enough. If the corners still look very round, restart the game once
+    (the game may keep the old corner images until then).
 
 NEW IN 2.32.5
   - Frame Style, matched to the reference:

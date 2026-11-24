@@ -1,5 +1,5 @@
 --[[
-  Aimbot UI - Frame Style (2.32.0, rebuilt in 2.32.2, player mirrored in 2.32.3, rounded in 2.32.4, one block in 2.32.5)
+  Aimbot UI - Frame Style (2.32.0, rebuilt in 2.32.2, player mirrored in 2.32.3, rounded in 2.32.4, one block in 2.32.5, square-ish corners and dark text in 2.32.6)
   Restyles the game's own player, target and target-of-target frames into a compact look:
   the name above a big health bar with the health number in the middle, a thin power bar
   under it, both with a black border, and a round portrait beside them (class icon for
@@ -60,7 +60,8 @@ local M = {
         powerHeight  = 7,
         portraitSize = 50,
         fontSize     = 17,
-        rounded      = true,      -- 2.32.4: rounded bars
+        rounded      = true,      -- 2.32.4: rounded bars (2.32.6: small radius, about 3 px)
+        darkText     = true,      -- 2.32.6: dark health number on the bright bar, like the reference
     },
 }
 NS.RegisterModule("framestyle", M)
@@ -397,7 +398,17 @@ local function LayoutDeco(d, s, topRef, botRef, shapeTex)
     local size
     if d.kind == "health" then size = d.small and 9 or (s.fontSize or 16)
     else size = d.small and 7 or math.max(8, math.floor((s.fontSize or 16) * 0.6)) end
-    pcall(d.text.SetFont, d.text, STANDARD_TEXT_FONT, size, "OUTLINE")
+    if d.kind == "health" and s.darkText then
+        -- the reference: dark numbers on the bright bar with a faint light shadow
+        pcall(d.text.SetFont, d.text, STANDARD_TEXT_FONT, size, "")
+        d.text:SetTextColor(0.08, 0.08, 0.08)
+        if d.text.SetShadowColor then pcall(d.text.SetShadowColor, d.text, 1, 1, 1, 0.45) end
+        if d.text.SetShadowOffset then pcall(d.text.SetShadowOffset, d.text, 1, -1) end
+    else
+        pcall(d.text.SetFont, d.text, STANDARD_TEXT_FONT, size, "OUTLINE")
+        d.text:SetTextColor(1, 1, 1)
+        if d.text.SetShadowOffset then pcall(d.text.SetShadowOffset, d.text, 0, 0) end
+    end
 end
 
 local function ShowDeco(d, on)
@@ -928,6 +939,8 @@ function M.Build(page)
         function(v) S().combatRing = v; Re() end)
     page:Cycle("Health text", { { "value", "Number" }, { "percent", "Percent" }, { "both", "Number and percent" },
         { "none", "None" } }, function() return S().healthText end, function(v) S().healthText = v; Re() end)
+    page:Check("Dark health number (like the reference)", function() return S().darkText end,
+        function(v) S().darkText = v; Re() end)
     page:Check("Power number on the power bar", function() return S().powerText end,
         function(v) S().powerText = v; Re() end)
     page:Check("Show level", function() return S().showLevel end, function(v) S().showLevel = v; Re() end)
