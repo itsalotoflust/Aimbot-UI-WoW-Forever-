@@ -2,6 +2,10 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.32.9
+
+- **60 fps watch: frame times.** An `OnUpdate` on our own invisible frame feeds every frame's `elapsed` into per-second stats (count, sum, sum of squares, min, max); during an episode they are merged into totals. At the end the episode stores average, shortest, longest, jitter (standard deviation) and seconds with a frame over 33 ms, and a pattern: `locked` (jitter <= 1 ms, shortest >= 14.5 ms, average 16.0 to 17.4 ms) or `struggling`. The guess names the pattern and, when locked, whether windowed / borderless (Windows' compositor) or fullscreen (monitor / driver). Chat end note and report include it. Raw totals are not saved.
+
 ## 2.32.8
 
 - **FPS / MS: 60 fps watch** (`watch60`, `watchChat`, `log60`; all in `Modules/FPS.lua`). A 1 s ticker samples `GetFramerate()`; 15 s in 58.5 to 61.5 opens an episode (not when your own `maxFPS` cap is about 60), 5 s outside closes it. Each episode stores start / end snapshots (time, zone, combat, addon memory, CVars `maxFPS`, `useMaxFPS`, `maxFPSBk`, `useMaxFPSBk`, `targetFPS`, `useTargetFPS`, `vsync`, `gxVSync`, `gxMaximize`, `gxWindow`, `gxRefresh`, `gxMonitor`, `RenderScale`, `graphicsQuality`, `LowLatencyMode` where present), the difference between them, `CVAR_UPDATE`s and display / loading / combat / cinematic events during it, duration, and a guess (background cap when the rate equals `maxFPSBk`, V-Sync, Target FPS, or outside the game). Last 30 kept. Chat notes on start / end; settings buttons to print and clear; `/aimbot diag` shows the current settings and last guess. Read-only: no `SetCVar` (tested).

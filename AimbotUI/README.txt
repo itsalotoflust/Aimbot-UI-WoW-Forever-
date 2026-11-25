@@ -1,4 +1,4 @@
-AIMBOT UI  v2.32.8  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.32.9  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,17 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.32.9
+  - FPS / MS, 60 fps watch: now measures every frame's length during an episode, which tells
+    the two possible causes apart:
+    * LOCKED: frames arrive at an even 16.7 ms. Something outside the game is syncing it to
+      60 Hz (Windows' compositor in windowed / borderless mode following a 60 Hz monitor or a
+      video on another screen, the monitor switching to 60 Hz, G-Sync / FreeSync or driver
+      V-Sync).
+    * STRUGGLING: frames are uneven and average about 60. The computer is busy (CPU / GPU
+      load, something in the background, heat or power saving).
+    The chat note and "Print the 60 fps log" say which, with the frame times. /reload is enough.
 
 NEW IN 2.32.8
   - FPS / MS: new "60 fps watch" to find out why the frame rate sometimes gets stuck at 60.

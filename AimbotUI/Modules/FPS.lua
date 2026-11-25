@@ -13,6 +13,11 @@
   mode, memory, which game settings changed while it lasted, and a guess at the cause (the
   background cap when the rate equals it). Last 30 episodes are kept in the saved settings;
   a short note goes to chat when one starts and ends. Read-only: it never changes a setting.
+
+  2.32.9: frame times. Every frame's length is measured during an episode (average, shortest,
+  longest, jitter). Frames all at an even 16.7 ms mean the game is LOCKED to 60 by something
+  outside it (Windows' compositor, a 60 Hz monitor, the driver); uneven frames averaging about
+  60 mean it is STRUGGLING (the computer is busy). The guess and the log say which.
 ]]
 
 local ADDON_NAME, NS = ...
@@ -295,7 +300,7 @@ local function Snapshot()
 end
 
 -- what is most likely holding it at 60
-local function Guess(fps, c)
+local function Guess(fps, c, pattern)
     local bk = CapOf(c, "maxFPSBk", "useMaxFPSBk")
     if bk and math.abs(bk - fps) <= 1.5 then
         return "background frame-rate cap (" .. bk .. "): the game thinks it is not the active window"
@@ -306,9 +311,69 @@ local function Guess(fps, c)
     if c.useTargetFPS == "1" then
         return "Target FPS is on (" .. tostring(c.targetFPS) .. ")"
     end
-    return "no game setting explains it: likely outside the game (monitor at 60 Hz, driver power saving, an overlay)"
+    if pattern == "locked" then
+        local windowed = c.gxMaximize == "1" or c.gxWindow == "1"
+        return "LOCKED: frames arrive at an even 16.7 ms, so something outside the game is syncing it to 60 Hz"
+            .. (windowed and " (windowed / borderless: Windows' compositor follows a 60 Hz monitor or a video playing on another screen)"
+                or " (the monitor or driver is running at 60 Hz: refresh-rate switch, G-Sync / FreeSync, driver V-Sync)")
+    elseif pattern == "struggling" then
+        return "STRUGGLING: frames are uneven and average about 60 fps, so the computer is busy (CPU / GPU load, "
+            .. "something running in the background, or heat / power saving)"
+    end
+    return "no game setting explains it: measuring frame times to tell a lock from a slowdown"
 end
 M._t_Guess = Guess
+
+-- 2.32.9: frame-time statistics, fed every frame by an OnUpdate on our own frame
+local FT = { n = 0, sum = 0, sumsq = 0, min = nil, max = nil }
+local function FeedFrame(elapsed)
+    if type(elapsed) ~= "number" or elapsed <= 0 or elapsed > 1 then return end
+    local ms = elapsed * 1000
+    FT.n = FT.n + 1; FT.sum = FT.sum + ms; FT.sumsq = FT.sumsq + ms * ms
+    if not FT.min or ms < FT.min then FT.min = ms end
+    if not FT.max or ms > FT.max then FT.max = ms end
+end
+M._t_FeedFrame = FeedFrame
+
+local function TakeStats()
+    if FT.n == 0 then return nil end
+    local avg = FT.sum / FT.n
+    local var = math.max(0, FT.sumsq / FT.n - avg * avg)
+    local st = { n = FT.n, avg = avg, jitter = math.sqrt(var), min = FT.min, max = FT.max }
+    FT.n, FT.sum, FT.sumsq, FT.min, FT.max = 0, 0, 0, nil, nil
+    return st
+end
+M._t_TakeStats = TakeStats
+
+-- add one second's stats into an episode's running totals
+local function Merge(e, st)
+    if not st then return end
+    local t = e.ft or { n = 0, sum = 0, sumsq = 0, min = nil, max = nil, longFrames = 0 }
+    e.ft = t
+    t.n = t.n + st.n
+    t.sum = t.sum + st.avg * st.n
+    t.sumsq = t.sumsq + (st.jitter * st.jitter + st.avg * st.avg) * st.n
+    if not t.min or st.min < t.min then t.min = st.min end
+    if not t.max or st.max > t.max then t.max = st.max end
+    if st.max > 33 then t.longFrames = t.longFrames + 1 end   -- seconds with a hitch (a frame over 33 ms)
+end
+
+local function FrameSummary(e)
+    local t = e and e.ft
+    if not t or t.n == 0 then return nil end
+    local avg = t.sum / t.n
+    local jitter = math.sqrt(math.max(0, t.sumsq / t.n - avg * avg))
+    return { avg = avg, jitter = jitter, min = t.min, max = t.max, longFrames = t.longFrames }
+end
+M._t_FrameSummary = FrameSummary
+
+-- LOCKED: even frames at about 16.7 ms; STRUGGLING: uneven frames averaging about 60 fps
+local function Pattern(sm)
+    if not sm then return nil end
+    if sm.jitter <= 1.0 and sm.min >= 14.5 and sm.avg >= 16.0 and sm.avg <= 17.4 then return "locked" end
+    return "struggling"
+end
+M._t_Pattern = Pattern
 
 local function Note(msg) if S().watchChat then NS.Print("|cffffd200FPS watch:|r " .. msg) end end
 
@@ -322,8 +387,10 @@ end
 
 local function OpenEpisode(fps)
     local snap = Snapshot()
-    local e = { start = snap, fps = math.floor(fps + 0.5), changed = {}, events = {}, guess = Guess(fps, snap.caps),
-        seconds = START_AFTER }
+    local e = { start = snap, fps = math.floor(fps + 0.5), changed = {}, events = {}, seconds = START_AFTER }
+    Merge(e, W.lastStats)
+    e.pattern = Pattern(FrameSummary(e))
+    e.guess = Guess(fps, snap.caps, e.pattern)
     W.open = e
     Note(string.format("frame rate stuck at %d since %s. Guess: %s. Try clicking into the game window, "
         .. "or alt-tab out and back; I'm logging what clears it.", e.fps, snap.at:sub(12), e.guess))
@@ -336,10 +403,19 @@ local function CloseEpisode(fps)
     e.finish = Snapshot()
     e.after = math.floor(fps + 0.5)
     e.settingsDiff = Diff(e.start.caps, e.finish.caps)
+    local sm = FrameSummary(e)
+    if sm then
+        e.frames = string.format("avg %.1f ms, shortest %.1f, longest %.1f, jitter %.1f ms, seconds with a hitch %d",
+            sm.avg, sm.min, sm.max, sm.jitter, sm.longFrames)
+        e.pattern = Pattern(sm)
+        e.guess = Guess(e.fps, e.start.caps, e.pattern)
+    end
+    e.ft = nil
     local log = S().log60
     table.insert(log, 1, e)
     while #log > KEEP do table.remove(log) end
-    Note(string.format("back to %d fps after %d min %d s.", e.after, math.floor(e.seconds / 60), e.seconds % 60))
+    Note(string.format("back to %d fps after %d min %d s. %s", e.after, math.floor(e.seconds / 60), e.seconds % 60,
+        e.pattern and ("It was " .. e.guess) or ""))
 end
 
 -- one sample per second (also driven by the tests)
@@ -351,10 +427,13 @@ local function Tick()
         return
     end
     local fps = GetFramerate and Num(GetFramerate()) or nil
+    local st = TakeStats()
     if not fps then return end
     local near = fps >= NEAR_LO and fps <= NEAR_HI
+    if near then W.lastStats = st end
     if W.open then
         W.open.seconds = W.open.seconds + 1
+        if near then Merge(W.open, st) end
         if near then W.clear = 0 else
             W.clear = W.clear + 1
             if W.clear >= END_AFTER then CloseEpisode(fps); W.clear, W.streak = 0, 0 end
@@ -386,9 +465,15 @@ end
 M._t_OnCVar, M._t_OnMark = OnCVar, OnMark
 
 local watchStarted = false
+local feeder
 local function StartWatch()
     if watchStarted then return end
     watchStarted = true
+    -- our own invisible frame, only to measure frame lengths (cheap: a few additions per frame)
+    feeder = CreateFrame("Frame")
+    if feeder and feeder.SetScript then
+        feeder:SetScript("OnUpdate", function(_, elapsed) if S().watch60 then FeedFrame(elapsed) end end)
+    end
     NS.On("CVAR_UPDATE", OnCVar)
     for _, ev in ipairs({ "DISPLAY_SIZE_CHANGED", "LOADING_SCREEN_ENABLED", "LOADING_SCREEN_DISABLED",
         "PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "CINEMATIC_START", "CINEMATIC_STOP" }) do
@@ -417,6 +502,7 @@ function M.Report()
         NS.Print(string.format("%d) %s  %d min %d s at %d fps (then %s), %s%s", i, e.start.at, math.floor(e.seconds / 60),
             e.seconds % 60, e.fps, tostring(e.after), e.start.zone, e.start.combat and ", in combat" or ""))
         NS.Print("   guess: " .. tostring(e.guess))
+        if e.frames then NS.Print("   frames: " .. e.frames) end
         NS.Print("   settings: " .. CapsLine(e.start.caps))
         if e.settingsDiff and #e.settingsDiff > 0 then NS.Print("   changed: " .. table.concat(e.settingsDiff, ", ")) end
         if #e.changed > 0 then NS.Print("   settings changed during it: " .. table.concat(e.changed, ", ")) end
