@@ -1,4 +1,4 @@
-AIMBOT UI  v2.32.7  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.32.8  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,17 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.32.8
+  - FPS / MS: new "60 fps watch" to find out why the frame rate sometimes gets stuck at 60.
+    * When it sits at 60 for 15 seconds (and your own cap is higher), a note goes to chat
+      with a guess at the cause, and the episode is logged until it clears: start and end
+      time, how long, zone, combat, the frame-rate caps (foreground and background), V-Sync,
+      window mode, addon memory, and any game settings that changed meanwhile.
+    * When the note appears, try clicking into the game window or alt-tab out and back,
+      and see if it clears.
+    * "Print the 60 fps log" shows the last episodes; the last 30 are kept.
+    * It only reads settings, it never changes them. /reload is enough.
 
 NEW IN 2.32.7
   - Frame Style: the class icon is locked to the bar block now. It sits right on the block's

@@ -2,6 +2,10 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.32.8
+
+- **FPS / MS: 60 fps watch** (`watch60`, `watchChat`, `log60`; all in `Modules/FPS.lua`). A 1 s ticker samples `GetFramerate()`; 15 s in 58.5 to 61.5 opens an episode (not when your own `maxFPS` cap is about 60), 5 s outside closes it. Each episode stores start / end snapshots (time, zone, combat, addon memory, CVars `maxFPS`, `useMaxFPS`, `maxFPSBk`, `useMaxFPSBk`, `targetFPS`, `useTargetFPS`, `vsync`, `gxVSync`, `gxMaximize`, `gxWindow`, `gxRefresh`, `gxMonitor`, `RenderScale`, `graphicsQuality`, `LowLatencyMode` where present), the difference between them, `CVAR_UPDATE`s and display / loading / combat / cinematic events during it, duration, and a guess (background cap when the rate equals `maxFPSBk`, V-Sync, Target FPS, or outside the game). Last 30 kept. Chat notes on start / end; settings buttons to print and clear; `/aimbot diag` shows the current settings and last guess. Read-only: no `SetCVar` (tested).
+
 ## 2.32.7
 
 - **Frame Style: portrait locked to the block.** The portrait frame is anchored to the block frame (`LEFT` to block `RIGHT` for the target, `RIGHT` to block `LEFT` for the player and target of target), centred vertically, 0 px offset; its ring (border-thickness px outside the portrait) overlaps the block's border so they join. Falls back to the old frame-relative spot only when there is no block. `Geometry` now returns `mirror`.
