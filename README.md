@@ -6,6 +6,10 @@ An all-in-one interface addon suite for **World of Warcraft Forever** (interface
 
 Open it in game with `/aimbot` (or `/aui`). Every module has its own tab and its own on/off switch, and if one module hits a problem it reports in chat and the rest keep running.
 
+## What's new in 2.33.0
+
+- **New: Export / Import** (General tab, `/aimbot export`, `/aimbot import`). Turn your whole setup into one line of text to share or move to another account, and paste one in to get the same setup. Logs, caches and the whisper inbox are never included; your mute lists and Privacy name only when you ask. New file: needs a full game restart.
+
 ## What's new in 2.32.9
 
 - **FPS / MS:** the 60 fps watch measures frame times to tell whether the game is LOCKED to 60 by something outside it (monitor, Windows, driver) or STRUGGLING because the computer is busy. `/reload` is enough.
@@ -127,6 +131,7 @@ Download **[AimbotUI.zip](https://github.com/itsalotoflust/Aimbot-UI-WoW-Forever
 | **Interrupt Ready** | Your interrupt next to enemy cast bars: green when it's ready, grey with a timer when it isn't. |
 | **Double Press (Wannabe AHK)** | Optional. Every action bar key presses twice, on key down and key up. Off by default. |
 | **Memory Cleaner** | A Clear Cache button that runs a garbage collection without freezing the game. |
+| **Export / Import** | One line of text with your whole setup to share or copy to another account; paste one in to get the same setup. |
 | **Frame Style** | Restyles the player, target and target-of-target frames: big health bar with the number, thin power bar, black borders, round class-icon portraits. |
 | **Cast Bar** | Classic-style player cast bar (classic border, spark, flash) in place of the game's modern one. Yellow casts, green channels, red interrupts. |
 | **Buff Bar** | Clickable buttons for the food, elixirs, flasks, scrolls and weapon oils in your bags. Dims buffs you already have, shows time left, red count when low. Movable, starts at the top centre. |

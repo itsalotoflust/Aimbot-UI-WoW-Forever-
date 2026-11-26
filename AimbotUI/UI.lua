@@ -2174,6 +2174,7 @@ end
 
 UI._ApplyTheme = function(id) return ApplyTheme(id) end
 
+local exportPersonal = false     -- 2.33.0: "Include my lists and names" on the General tab (not saved)
 local function BuildGeneral(page)
     local function Custom() W().theme = "custom"; UI.ApplyStyle() end
     local function ColorRow(label, key)
@@ -2297,6 +2298,16 @@ local function BuildGeneral(page)
             function(v) NS.Mod(key).enabled = v; NS.ApplyModule(key) end)
     end
 
+    page:Section("Export / Import", "Share your setup or copy it to another account")
+    page:Note("Export turns all your Aimbot UI settings into one line of text. Anyone who pastes it into Import "
+        .. "gets the same setup. Logs, caches and the whisper inbox are never included.")
+    page:Check("Include my lists and names (muted players, guilds and words, Privacy name). For your own other account, not for sharing.",
+        function() return exportPersonal end, function(v) exportPersonal = v end)
+    page:Button("Export my settings", function() UI.ShowExport(exportPersonal) end, 260)
+    page:Button("Import settings", function() UI.ShowImport() end, 260)
+    page:Note("Importing replaces your settings (anything the string doesn't mention goes back to its default) "
+        .. "but keeps your own lists and names unless the string carries them. Reload afterwards to finish.")
+
     page:Section("Maintenance", "Reset everything or print diagnostics")
     StaticPopupDialogs["AIMBOTUI_RESET_ALL"] = {
         text = "Reset ALL Aimbot UI settings to defaults?",
@@ -2317,6 +2328,7 @@ local function BuildGeneral(page)
         .. "In the Sharp style, the power button next to each module in the side menu turns it on or off. "
         .. "Every tab has its own Enabled switch and a Reset tab button.")
     page:Note("Commands:  /aimbot  opens the window.   /aimbot <tab>  opens a tab.   "
+        .. "/aimbot export  (or  /aimbot export all  with your lists and names)  and  /aimbot import.   "
         .. "/aimbot <tab> on|off  toggles a module.   /sparkle  toggles Button Flash.   "
         .. "Tabs: lorti, damage, flash, mana, range, trainer, double, memory, mute, fps, privacy, dr, queue, plates, combat, kick, death, repair, talent, timers, loc, autoshot.")
     page:Note("Credits: Lorti UI Classic by Lorti, Chordsy, Macumba, Knall, Jozh, Xyz, Arrone and Redskin. "
@@ -3465,6 +3477,8 @@ SlashCmdList["AIMBOTUI"] = function(msg)
         if NS.Diagnose then NS.Diagnose() end
         return
     end
+    if a == "export" then UI.ShowExport(b == "all"); return end
+    if a == "import" then UI.ShowImport(); return end
     if a == "clean" or a == "clear" then
         local mm = NS.modules.memory
         if mm and mm.CleanNow then mm:CleanNow(true) else NS.Print("Memory Cleaner is not loaded.") end
@@ -3502,7 +3516,9 @@ SlashCmdList["AIMBOTSPARKLE"] = function(msg)
 end
 
 -- A small window with all the text selected, so it can be copied (Ctrl+C) and pasted anywhere.
-function UI.ShowText(title, text)
+-- opts (2.33.0, optional): { hint = "...", button = "Label", onButton = function(text) end,
+--   select = false (don't highlight the text, e.g. an empty box to paste into) }
+function UI.ShowText(title, text, opts)
     local f = UI._textWin
     if not f then
         f = CreateFrame("Frame", "AimbotUITextWindow", UIParent, "BackdropTemplate")
@@ -3526,12 +3542,18 @@ function UI.ShowText(title, text)
         close:SetPoint("TOPRIGHT", 2, 2)
         local hint = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
         hint:SetPoint("BOTTOMLEFT", 12, 10)
-        hint:SetText("Click the text, press Ctrl+A then Ctrl+C to copy it.")
+        f.hint = hint
+        local action = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
+        action:SetSize(140, 22)
+        action:SetPoint("BOTTOMRIGHT", -12, 6)
+        action:Hide()
+        f.action = action
         local scroll = CreateFrame("ScrollFrame", "AimbotUITextWindowScroll", f, "UIPanelScrollFrameTemplate")
         scroll:SetPoint("TOPLEFT", 12, -34)
         scroll:SetPoint("BOTTOMRIGHT", -30, 32)
         local eb = CreateFrame("EditBox", nil, scroll)
         eb:SetMultiLine(true)
+        if eb.SetMaxLetters then eb:SetMaxLetters(0) end
         eb:SetAutoFocus(false)
         eb:SetFontObject(ChatFontNormal or GameFontHighlight)
         eb:SetWidth(560)
@@ -3541,12 +3563,58 @@ function UI.ShowText(title, text)
         if UISpecialFrames then tinsert(UISpecialFrames, "AimbotUITextWindow") end
         UI._textWin = f
     end
+    opts = opts or {}
     f.title:SetText(title or "Aimbot UI")
+    f.hint:SetText(opts.hint or "Click the text, press Ctrl+A then Ctrl+C to copy it.")
+    if opts.button and opts.onButton then
+        f.action:SetText(opts.button)
+        f.action:SetScript("OnClick", function() opts.onButton(f.edit:GetText() or "", f) end)
+        f.action:Show()
+    else
+        f.action:Hide()
+    end
     f.edit:SetText(text or "")
     f.edit:SetCursorPosition(0)
     f:Show()
     f.edit:SetFocus()
-    f.edit:HighlightText()
+    if opts.select ~= false then f.edit:HighlightText() end
+end
+
+-- 2.33.0: Export / Import windows
+function UI.ShowExport(includePersonal)
+    local P = NS.Profiles
+    if not P then return end
+    local ok, text = pcall(P.Export, includePersonal)
+    if not ok then NS.Print("|cffff5555export failed:|r " .. tostring(text)); return end
+    UI.ShowText("Aimbot UI: export (" .. #text .. " characters)", text, {
+        hint = "Press Ctrl+C to copy it (it's already selected), then paste it anywhere: Discord, a text file, another account.",
+    })
+end
+
+StaticPopupDialogs["AIMBOTUI_IMPORT_RELOAD"] = {
+    text = "Aimbot UI settings imported. Reload the interface now to finish?",
+    button1 = RELOADUI or "Reload", button2 = LATER or "Later",
+    OnAccept = function() ReloadUI() end,
+    timeout = 0, whileDead = true, hideOnEscape = true,
+}
+
+function UI.ShowImport()
+    local P = NS.Profiles
+    if not P then return end
+    UI.ShowText("Aimbot UI: import", "", {
+        select = false,
+        hint = "Paste an export string here (Ctrl+V), then press Import. Your current settings will be replaced.",
+        button = "Import",
+        onButton = function(text, win)
+            local payload, err = P.Decode(text)
+            if not payload then NS.Print("|cffff5555import:|r " .. tostring(err)); return end
+            local applied, unknown = P.Apply(payload)
+            NS.Print(string.format("imported %s. %d module(s) set%s.", P.Describe(payload), applied,
+                unknown > 0 and (", " .. unknown .. " from a newer version skipped") or ""))
+            win:Hide()
+            StaticPopup_Show("AIMBOTUI_IMPORT_RELOAD")
+        end,
+    })
 end
 
 -- Runs every module's optional Diagnose() so problems can be reported precisely.

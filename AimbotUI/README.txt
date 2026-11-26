@@ -1,4 +1,4 @@
-AIMBOT UI  v2.32.9  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.33.0  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,20 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.33.0
+  - NEW: Export / Import (General tab, or /aimbot export and /aimbot import).
+    Needs a full game restart (new file), not just /reload.
+    * Export turns all your Aimbot UI settings into one line of text (starting with !AUI1!).
+      Copy it with Ctrl+C and share it: Discord, a text file, another account.
+    * Import: paste a string (Ctrl+V) and press Import. Your settings are replaced by the
+      imported ones; then reload to finish (it asks).
+    * Never included: logs, caches, the whisper inbox, the settings window's position.
+    * Your own lists and names (muted players, guilds and words, never-mute lists, your
+      Privacy name and BattleTag stand-in) are left out unless you tick "Include my lists
+      and names" (for your own other account). When importing someone else's string, your
+      own lists and names stay as they are.
+    * Damaged or cut-off strings are refused with a plain reason; nothing changes then.
 
 NEW IN 2.32.9
   - FPS / MS, 60 fps watch: now measures every frame's length during an episode, which tells

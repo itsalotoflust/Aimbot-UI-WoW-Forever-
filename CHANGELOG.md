@@ -2,6 +2,14 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.33.0
+
+- **New: Export / Import** (`Profiles.lua`, new file in the TOC after `Core.lua`: needs a full game restart). General tab section "Export / Import" and `/aimbot export` (`/aimbot export all` with lists and names) / `/aimbot import`.
+  - Export: every module's settings and the settings window's look, as differences from the defaults (an all-default setup is about 630 characters), serialized (strings, numbers, booleans, tables; sorted keys, so the same settings give the same string), base64, with an Adler-32 checksum: `!AUI1!<base64>!<adler32>`. No `|` characters.
+  - Never exported or overwritten: `fps.log60`, `mute.cache` / `total` / `allowUntil`, `privacy.inbox` / `savedBubbles`, `auratimers.savedCVar`, `framestyle.sizeVersion`, the window position, top-level logs and caches. Personal, only with "Include my lists and names": `mute.players` / `guilds` / `words` / `keepPlayers` / `keepGuilds`, `privacy.ownName` / `tag`.
+  - Import: strict parser of our own (no `loadstring`; size limit 600 000 characters, depth 20), checksum checked; each module set to defaults plus the string's differences, keeping runtime data and (unless the string carries them) the importer's personal lists; the window position is kept; modules the string doesn't know keep their settings; unknown modules skipped. `ApplyAll`, UI refresh, then a Reload prompt. Whitespace and line breaks from pasting are ignored.
+  - The copy window (`UI.ShowText`) takes an optional action button and hint; unlimited text length.
+
 ## 2.32.9
 
 - **60 fps watch: frame times.** An `OnUpdate` on our own invisible frame feeds every frame's `elapsed` into per-second stats (count, sum, sum of squares, min, max); during an episode they are merged into totals. At the end the episode stores average, shortest, longest, jitter (standard deviation) and seconds with a frame over 33 ms, and a pattern: `locked` (jitter <= 1 ms, shortest >= 14.5 ms, average 16.0 to 17.4 ms) or `struggling`. The guess names the pattern and, when locked, whether windowed / borderless (Windows' compositor) or fullscreen (monitor / driver). Chat end note and report include it. Raw totals are not saved.
