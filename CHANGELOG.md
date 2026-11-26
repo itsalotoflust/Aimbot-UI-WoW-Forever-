@@ -2,6 +2,10 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.33.1
+
+- **Export / Import in the toolbar:** two footer buttons (70 x 24) after Reload UI (Sharp) or Test... (other styles). Export calls `UI.ShowExport(IsShiftKeyDown())` (shift = include lists and names), Import calls `UI.ShowImport()`, both with tooltips. `FitToolbar` (on the footer's `OnSizeChanged`) hides them when the left-hand buttons would reach Undo / Done.
+
 ## 2.33.0
 
 - **New: Export / Import** (`Profiles.lua`, new file in the TOC after `Core.lua`: needs a full game restart). General tab section "Export / Import" and `/aimbot export` (`/aimbot export all` with lists and names) / `/aimbot import`.

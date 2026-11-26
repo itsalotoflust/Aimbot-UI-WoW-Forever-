@@ -1,4 +1,4 @@
-AIMBOT UI  v2.33.0  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.33.1  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,12 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.33.1
+  - Export and Import buttons in the bottom bar of the settings window, next to Reload UI.
+    Shift+click Export to include your own lists and names. If the window is too narrow for
+    them they hide (make the window wider, or use the General tab or /aimbot export,
+    /aimbot import). /reload is enough.
 
 NEW IN 2.33.0
   - NEW: Export / Import (General tab, or /aimbot export and /aimbot import).

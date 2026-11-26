@@ -6,6 +6,10 @@ An all-in-one interface addon suite for **World of Warcraft Forever** (interface
 
 Open it in game with `/aimbot` (or `/aui`). Every module has its own tab and its own on/off switch, and if one module hits a problem it reports in chat and the rest keep running.
 
+## What's new in 2.33.1
+
+- **Export / Import buttons** in the settings window's bottom bar (shift-click Export to include your lists and names). `/reload` is enough.
+
 ## What's new in 2.33.0
 
 - **New: Export / Import** (General tab, `/aimbot export`, `/aimbot import`). Turn your whole setup into one line of text to share or move to another account, and paste one in to get the same setup. Logs, caches and the whisper inbox are never included; your mute lists and Privacy name only when you ask. New file: needs a full game restart.

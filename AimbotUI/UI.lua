@@ -2862,6 +2862,37 @@ local function Create()
     end
     Tip(testBtn, "Test", "Try any feature that has a test: pick it from the list.")
     UI._testBtn = testBtn
+    -- 2.33.1: Export / Import in the toolbar, right after the left-hand buttons
+    local exportBtn = UI.MakeButton(footer, "Export", 70, 24)
+    exportBtn:SetPoint("LEFT", UI._reloadBtn or testBtn, "RIGHT", 6, 0)
+    exportBtn:SetScript("OnClick", function()
+        UI.ShowExport(IsShiftKeyDown and IsShiftKeyDown() and true or false)
+    end)
+    Tip(exportBtn, "Export", "Copy your whole setup as one line of text to share or move to another account. "
+        .. "Shift+click to include your own lists and names (mute lists, Privacy name).")
+    local importBtn = UI.MakeButton(footer, "Import", 70, 24)
+    importBtn:SetPoint("LEFT", exportBtn, "RIGHT", 6, 0)
+    importBtn:SetScript("OnClick", function() UI.ShowImport() end)
+    Tip(importBtn, "Import", "Paste a setup string from Export to get the same setup. Your settings are replaced; "
+        .. "your own lists and names are kept unless the string has them.")
+    UI._exportBtn, UI._importBtn = exportBtn, importBtn
+    -- a narrow window has no room for them: hide them rather than overlap Undo / Done
+    -- (they stay on the General tab and in /aimbot export, /aimbot import)
+    local function FitToolbar()
+        local okW, fw = pcall(footer.GetWidth, footer)
+        if not okW or type(fw) ~= "number" then return end
+        local leftEnd = 12
+        for _, btn in ipairs({ testBtn, UI._resetBtn, UI._reloadBtn, exportBtn, importBtn }) do
+            if btn then leftEnd = leftEnd + (btn:GetWidth() or 0) + 6 end
+        end
+        local rightStart = fw - 22 - (closeBtn:GetWidth() or 0) - 8 - (undoBtn:GetWidth() or 0) - 10
+        local fits = leftEnd <= rightStart
+        exportBtn:SetShown(fits)
+        importBtn:SetShown(fits)
+    end
+    UI._fitToolbar = FitToolbar
+    footer:HookScript("OnSizeChanged", function() pcall(FitToolbar) end)
+    pcall(FitToolbar)
     local testMenu
     function UI.ToggleTestMenu()
         if testMenu and testMenu:IsShown() then testMenu:Hide(); return end
