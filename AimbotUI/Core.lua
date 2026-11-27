@@ -7,7 +7,7 @@
 local ADDON_NAME, NS = ...
 _G.AimbotUI = NS
 
-NS.version = "2.33.1"
+NS.version = "2.34.0"
 NS.modules = {}
 NS.moduleOrder = {}
 
@@ -331,6 +331,7 @@ NS.WINDOW_DEFAULTS = {
     text     = { 0.90, 0.90, 0.92, 1.00 },
     muted    = { 0.62, 0.62, 0.67, 1.00 },
     skin     = "modern",          -- "classic" (game style) or "modern" (flat); set by the theme
+    sectionTabs = true,           -- 2.34.0: Sharp style shows a tab's sections as tabs at the top
     classicBorder = "stone",
     classicBack   = "dark",
     font        = "default",      -- see UI.FONTS

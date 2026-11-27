@@ -2,6 +2,10 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.34.0
+
+- **Sharp style: sections as tabs again (default).** New window setting `sectionTabs` (default true) and General > Theme > "Sections (Sharp style)": Tabs at the top / One long page (needs Reload). `UI.WantSectionTabs(n)` decides: Sharp shows a page's sections as tabs along the top when it has 2 or more (the 2.20 tab row in the header, re-enabled), unless set to one long page (the 2.22 layout); other styles keep the side menu list for 3 or more. In tab mode sections never fold and the fold button is hidden. Search, pinned previews and the side menu are unchanged.
+
 ## 2.33.1
 
 - **Export / Import in the toolbar:** two footer buttons (70 x 24) after Reload UI (Sharp) or Test... (other styles). Export calls `UI.ShowExport(IsShiftKeyDown())` (shift = include lists and names), Import calls `UI.ShowImport()`, both with tooltips. `FitToolbar` (on the footer's `OnSizeChanged`) hides them when the left-hand buttons would reach Undo / Done.

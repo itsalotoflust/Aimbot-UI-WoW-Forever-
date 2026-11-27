@@ -1,4 +1,4 @@
-AIMBOT UI  v2.33.1  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.34.0  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,14 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.34.0
+  - Settings window (Sharp style): each tab's sections are tabs along the top of the page
+    now, so you see one section at a time instead of scrolling through one long page.
+    Click a tab (e.g. Items, Pop-up lists, Look, Position on the Buff Bar) to switch.
+    Search still jumps straight to any setting. Previews stay on top.
+  - Prefer the long page? General > Theme > "Sections (Sharp style)" > One long page,
+    then Reload now. The other window styles are unchanged. /reload is enough.
 
 NEW IN 2.33.1
   - Export and Import buttons in the bottom bar of the settings window, next to Reload UI.

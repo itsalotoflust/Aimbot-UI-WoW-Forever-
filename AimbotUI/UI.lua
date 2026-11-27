@@ -585,6 +585,8 @@ local function LayoutCardSharp(self, card, y, cw)
         -- folded away: just the header bar
         local folded = UI.IsFolded(self, card)
         card.foldText:SetText(folded and "+" or "-")
+        -- 2.34.0: one section per tab: nothing to fold
+        card.fold:SetShown(not self.menuMode)
         if not card.foldWired then
             card.foldWired = true
             card.fold:SetScript("OnClick", function()
@@ -663,6 +665,7 @@ end
 -- Folded sections are remembered per tab and section name.
 local function FoldKey(page, card) return (page.moduleKey or "general") .. "/" .. tostring(card.title) end
 function UI.IsFolded(page, card)
+    if page and page.menuMode then return false end      -- sections shown as tabs never fold
     local w = W()
     return type(w.folded) == "table" and w.folded[FoldKey(page, card)] == true
 end
@@ -1021,6 +1024,13 @@ function UI.GroupSharp(page)
     end
 end
 
+-- 2.34.0: does a page with n sections show them one at a time (tabs in Sharp, the side menu
+-- dropdown in the other styles)?
+function UI.WantSectionTabs(n)
+    if UI.sharp then return W().sectionTabs ~= false and n >= 2 end
+    return n >= 3
+end
+
 -- Called once after a module's Build(): decides whether this page gets the area list.
 function Page:Finish()
     if UI.sharp and not self.grouped then
@@ -1032,8 +1042,9 @@ function Page:Finish()
     for _, card in ipairs(self.cards) do
         if card.title and not card.pinned and #card.rows > 0 then areas[#areas + 1] = card end
     end
-    -- Sharp style (2.22.0): one long page, every section stacked under its own header bar
-    if UI.sharp or #areas < 3 then self.menuMode = false; return end
+    -- Sharp style: sections as tabs along the top (2.34.0, the default) or one long page, every
+    -- section stacked under its own header bar (2.22.0; "Sections: One long page")
+    if not UI.WantSectionTabs(#areas) then self.menuMode = false; return end
     self.menuMode = true
     self.areas = areas
 
@@ -2193,6 +2204,12 @@ local function BuildGeneral(page)
             { "sharp", "Sharp (compact)" } },
         function() return W().skin end,
         function(v) W().skin = v; UI.RefreshAll() end)
+    page:Cycle("Sections (Sharp style)", { { "tabs", "Tabs at the top" }, { "page", "One long page" } },
+        function() return W().sectionTabs == false and "page" or "tabs" end,
+        function(v)
+            W().sectionTabs = (v == "tabs")
+            NS.Print("Sections: " .. (v == "tabs" and "tabs at the top" or "one long page") .. ". Press Reload now to apply.")
+        end)
     local styleNote = page:Note("")
     table.insert(page.refreshers, function()
         if W().skin ~= UI.builtSkin then
@@ -2324,7 +2341,8 @@ local function BuildGeneral(page)
 
     page:Section("Help", "Commands, controls and credits")
     page:Note("Drag the title bar to move the window and the bottom-right corner to resize it. "
-        .. "Each tab opens a list of areas (in the Sharp style every section is on one long page instead; fold any section with its - button). "
+        .. "Each tab opens a list of areas (in the Sharp style its sections are tabs along the top of the page; "
+        .. "choose General > Theme > Sections > One long page to stack them instead, and fold any with its - button). "
         .. "In the Sharp style, the power button next to each module in the side menu turns it on or off. "
         .. "Every tab has its own Enabled switch and a Reset tab button.")
     page:Note("Commands:  /aimbot  opens the window.   /aimbot <tab>  opens a tab.   "
