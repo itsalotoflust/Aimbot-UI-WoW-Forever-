@@ -1,4 +1,4 @@
-AIMBOT UI  v2.34.0  -  for World of Warcraft "Forever"
+AIMBOT UI  v2.34.1  -  for World of Warcraft "Forever"
 =====================================================
 
 INSTALL
@@ -9,6 +9,12 @@ INSTALL
 3. Start the game. At the character screen click "AddOns" and make sure
    Aimbot UI is ticked (tick "Load out of date AddOns" if it is greyed).
 4. In game type  /aimbot  (or /aui) to open the window.
+
+NEW IN 2.34.1
+  - Lorti Style: the coloured (green / red / yellow) strip behind the target's name no longer
+    flashes when you pick a target. The game colours and shows it again on every target
+    change; it is now hidden the moment that happens, instead of on the next refresh.
+    Covers the focus and player frames and the classic frame names too. /reload is enough.
 
 NEW IN 2.34.0
   - Settings window (Sharp style): each tab's sections are tabs along the top of the page

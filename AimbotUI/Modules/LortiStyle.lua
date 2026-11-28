@@ -382,17 +382,65 @@ local NAME_BG = {
     "TargetFrame.TargetFrameContent.TargetFrameContentMain.ReputationColor",
     "FocusFrame.TargetFrameContent.TargetFrameContentMain.ReputationColor",
     "PlayerFrame.PlayerFrameContent.PlayerFrameContentMain.ReputationColor",
+    -- 2.34.1: classic names of the same strip
+    "TargetFrameNameBackground", "FocusFrameNameBackground",
 }
 
-local function ApplyNameBg()
+local function NameBgUnit(p)
+    if p:find("^Target") then return "target" end
+    if p:find("^Player") then return "player" end
+    return nil
+end
+
+-- 0 when the strip should be hidden: Lorti's switch, or Frame Style restyling that frame
+local function NameBgAlpha(unit)
     local s = S()
-    local a = (s.enabled and s.hideNameBg) and 0 or 1
-    for _, p in ipairs(NAME_BG) do
-        local t = NS.Resolve(p)
-        local unit = p:find("^Target") and "target" or (p:find("^Player") and "player") or nil
-        if t and t.SetAlpha and not (unit and Owned(unit)) then pcall(t.SetAlpha, t, a) end
+    if unit and Owned(unit) then return 0 end
+    return (s.enabled and s.hideNameBg) and 0 or 1
+end
+M._t_NameBgAlpha = NameBgAlpha
+
+-- 2.34.1: the game colours and shows the strip again when a target is picked (and on faction
+-- changes), and can fade it in. Post-hooks on the strip itself hide it again at once, instead
+-- of waiting for the next refresh. Our own SetAlpha call is guarded so it doesn't loop.
+local nameBgHooked = {}
+local nameBgForcing = false
+local function EnforceNameBg(t, unit)
+    if nameBgForcing then return end
+    local want = NameBgAlpha(unit)
+    if want ~= 0 then return end            -- shown: leave the game's own alpha alone
+    nameBgForcing = true
+    pcall(t.SetAlpha, t, 0)
+    nameBgForcing = false
+end
+M._t_EnforceNameBg = EnforceNameBg
+
+local function HookNameBg(t, unit)
+    if nameBgHooked[t] then return end
+    nameBgHooked[t] = true
+    for _, method in ipairs({ "Show", "SetShown", "SetVertexColor", "SetAlpha", "SetColorTexture" }) do
+        if type(t[method]) == "function" then
+            pcall(hooksecurefunc, t, method, function(self) EnforceNameBg(self, unit) end)
+        end
     end
 end
+
+local function ApplyNameBg()
+    for _, p in ipairs(NAME_BG) do
+        local t = NS.Resolve(p)
+        local unit = NameBgUnit(p)
+        if t and t.SetAlpha then
+            HookNameBg(t, unit)
+            -- Frame Style hides it itself when it owns the frame; otherwise Lorti's switch decides
+            if not (unit and Owned(unit)) then
+                nameBgForcing = true
+                pcall(t.SetAlpha, t, NameBgAlpha(unit))
+                nameBgForcing = false
+            end
+        end
+    end
+end
+M._t_ApplyNameBg = ApplyNameBg
 
 local function ApplyFrameArt()
     local s = S()
@@ -828,6 +876,10 @@ function M:Init()
     for _, ev in ipairs({ "PLAYER_TARGET_CHANGED", "PLAYER_FOCUS_CHANGED", "UNIT_FACTION",
         "UPDATE_SHAPESHIFT_FORMS", "PET_BAR_UPDATE", "ACTIONBAR_PAGE_CHANGED", "GROUP_ROSTER_UPDATE" }) do
         NS.On(ev, ApplySoon)
+    end
+    -- 2.34.1: the name strip right away on a target / focus / faction change, not a frame later
+    for _, ev in ipairs({ "PLAYER_TARGET_CHANGED", "PLAYER_FOCUS_CHANGED", "UNIT_FACTION" }) do
+        NS.On(ev, function() pcall(ApplyNameBg) end)
     end
     -- The game redraws its buff / debuff rows by itself (also when the last buff runs out): put
     -- the borders right straight after it, so an emptied slot never keeps a box.

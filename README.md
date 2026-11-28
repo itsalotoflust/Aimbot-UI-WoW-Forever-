@@ -6,6 +6,10 @@ An all-in-one interface addon suite for **World of Warcraft Forever** (interface
 
 Open it in game with `/aimbot` (or `/aui`). Every module has its own tab and its own on/off switch, and if one module hits a problem it reports in chat and the rest keep running.
 
+## What's new in 2.34.1
+
+- **Lorti Style:** the green / red strip behind the target's name no longer flashes when you pick a target. `/reload` is enough.
+
 ## What's new in 2.34.0
 
 - **Settings window (Sharp style):** each tab's sections are tabs along the top of the page, one section at a time, instead of one long scrolling page. Switch back under General > Theme > Sections. `/reload` is enough.

@@ -2,6 +2,10 @@
 
 All notable changes to Aimbot UI, newest first. The latest version is also summarised under "What's new" in [README.md](README.md).
 
+## 2.34.1
+
+- **Lorti Style: name strip hidden at once.** Post-hooks on each name strip texture (`Show`, `SetShown`, `SetVertexColor`, `SetAlpha`, `SetColorTexture`) put its alpha back to 0 straight away when it should be hidden (Lorti's "Hide the colored background behind names", or Frame Style restyling that frame); our own `SetAlpha` is guarded against re-entry; when shown, the game's alpha is left alone. `ApplyNameBg` also runs directly in the `PLAYER_TARGET_CHANGED` / `PLAYER_FOCUS_CHANGED` / `UNIT_FACTION` handlers (not only on the next frame). Classic names `TargetFrameNameBackground` / `FocusFrameNameBackground` added.
+
 ## 2.34.0
 
 - **Sharp style: sections as tabs again (default).** New window setting `sectionTabs` (default true) and General > Theme > "Sections (Sharp style)": Tabs at the top / One long page (needs Reload). `UI.WantSectionTabs(n)` decides: Sharp shows a page's sections as tabs along the top when it has 2 or more (the 2.20 tab row in the header, re-enabled), unless set to one long page (the 2.22 layout); other styles keep the side menu list for 3 or more. In tab mode sections never fold and the fold button is hidden. Search, pinned previews and the side menu are unchanged.

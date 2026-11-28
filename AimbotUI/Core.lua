@@ -7,7 +7,7 @@
 local ADDON_NAME, NS = ...
 _G.AimbotUI = NS
 
-NS.version = "2.34.0"
+NS.version = "2.34.1"
 NS.modules = {}
 NS.moduleOrder = {}
 
